@@ -2,12 +2,23 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFacebook, faTwitter, faInstagram, faDribbble } from '@fortawesome/free-brands-svg-icons';
-import { faBars, faUser as faUserSolid, faSearch as faSearchSolid, faBell, faCog } from '@fortawesome/free-solid-svg-icons';
+import { 
+  faBars, 
+  faUser as faUserSolid, 
+  faSearch as faSearchSolid, 
+  faBell, 
+  faCog,
+  faSignOutAlt,
+  faSignInAlt,
+  faUserPlus
+} from '@fortawesome/free-solid-svg-icons';
+import { useAuth } from '../contexts/AuthContext';
 
 const Header = () => {
   const [isNavCollapsed, setIsNavCollapsed] = useState(true);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const location = useLocation();
+  const { user, isAuthenticated, logout, isAdmin, isTasker } = useAuth();
 
   const handleNavCollapse = () => setIsNavCollapsed(!isNavCollapsed);
 
@@ -100,61 +111,98 @@ const Header = () => {
                 <Link to="/contact" className="nav-link">Contact</Link>
               </li>
               
-              {/* User Menu */}
-              <li className="nav-item dropdown">
-                <a 
-                  className="nav-link dropdown-toggle" 
-                  href="#" 
-                  id="navbarDropdown" 
-                  role="button" 
-                  data-toggle="dropdown" 
-                  aria-haspopup="true" 
-                  aria-expanded="false"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setShowUserMenu(!showUserMenu);
-                  }}
-                >
-                  <FontAwesomeIcon icon={faUserSolid} className="mr-2" />
-                  Account
-                </a>
-                <div className={`dropdown-menu ${showUserMenu ? 'show' : ''}`} aria-labelledby="navbarDropdown">
-                  <Link className="dropdown-item" to="/dashboard">
-                    <FontAwesomeIcon icon={faCog} className="mr-2" />
-                    Dashboard
-                  </Link>
-                  <Link className="dropdown-item" to="/tasker">
-                    <FontAwesomeIcon icon={faCog} className="mr-2" />
-                    Tasker Panel
-                  </Link>
-                  <Link className="dropdown-item" to="/admin">
-                    <FontAwesomeIcon icon={faCog} className="mr-2" />
-                    Admin Panel
-                  </Link>
-                  <div className="dropdown-divider"></div>
-                  <Link className="dropdown-item" to="/account">
+              {/* Auth Menu */}
+              {isAuthenticated() ? (
+                <li className="nav-item dropdown">
+                  <a 
+                    className="nav-link dropdown-toggle" 
+                    href="#" 
+                    id="navbarDropdown" 
+                    role="button" 
+                    data-toggle="dropdown" 
+                    aria-haspopup="true" 
+                    aria-expanded="false"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setShowUserMenu(!showUserMenu);
+                    }}
+                  >
                     <FontAwesomeIcon icon={faUserSolid} className="mr-2" />
-                    My Profile
-                  </Link>
-                  <Link className="dropdown-item" to="/tasks">
-                    <FontAwesomeIcon icon={faCog} className="mr-2" />
-                    My Tasks
-                  </Link>
-                  <Link className="dropdown-item" to="/payment">
-                    <FontAwesomeIcon icon={faCog} className="mr-2" />
-                    Payments
-                  </Link>
-                  <Link className="dropdown-item" to="/ratings">
-                    <FontAwesomeIcon icon={faCog} className="mr-2" />
-                    Ratings
-                  </Link>
-                  <div className="dropdown-divider"></div>
-                  <a className="dropdown-item" href="#">
-                    <FontAwesomeIcon icon={faCog} className="mr-2" />
-                    Logout
+                    {user?.name || 'Account'}
                   </a>
-                </div>
-              </li>
+                  <div className={`dropdown-menu ${showUserMenu ? 'show' : ''}`} aria-labelledby="navbarDropdown">
+                    <div className="dropdown-header">
+                      <strong>{user?.name}</strong>
+                      <small className="text-muted d-block">{user?.email}</small>
+                      <span className="badge badge-primary">{user?.role}</span>
+                    </div>
+                    <div className="dropdown-divider"></div>
+                    
+                    <Link className="dropdown-item" to="/dashboard">
+                      <FontAwesomeIcon icon={faCog} className="mr-2" />
+                      Dashboard
+                    </Link>
+                    
+                    {isTasker() && (
+                      <Link className="dropdown-item" to="/tasker">
+                        <FontAwesomeIcon icon={faCog} className="mr-2" />
+                        Tasker Panel
+                      </Link>
+                    )}
+                    
+                    {isAdmin() && (
+                      <Link className="dropdown-item" to="/admin">
+                        <FontAwesomeIcon icon={faCog} className="mr-2" />
+                        Admin Panel
+                      </Link>
+                    )}
+                    
+                    <div className="dropdown-divider"></div>
+                    <Link className="dropdown-item" to="/account">
+                      <FontAwesomeIcon icon={faUserSolid} className="mr-2" />
+                      My Profile
+                    </Link>
+                    <Link className="dropdown-item" to="/tasks">
+                      <FontAwesomeIcon icon={faCog} className="mr-2" />
+                      My Tasks
+                    </Link>
+                    <Link className="dropdown-item" to="/payment">
+                      <FontAwesomeIcon icon={faCog} className="mr-2" />
+                      Payments
+                    </Link>
+                    <Link className="dropdown-item" to="/ratings">
+                      <FontAwesomeIcon icon={faCog} className="mr-2" />
+                      Ratings
+                    </Link>
+                    <div className="dropdown-divider"></div>
+                                      <button 
+                    className="dropdown-item" 
+                    onClick={() => {
+                      logout();
+                      setShowUserMenu(false);
+                    }}
+                  >
+                      <FontAwesomeIcon icon={faSignOutAlt} className="mr-2" />
+                                              Logout
+                      </button>
+                  </div>
+                </li>
+              ) : (
+                <>
+                  <li className="nav-item">
+                    <Link to="/login" className="nav-link">
+                      <FontAwesomeIcon icon={faSignInAlt} className="mr-1" />
+                      Login
+                    </Link>
+                  </li>
+                  <li className="nav-item">
+                    <Link to="/register" className="nav-link">
+                      <FontAwesomeIcon icon={faUserPlus} className="mr-1" />
+                      Register
+                    </Link>
+                  </li>
+                </>
+              )}
               
               {/* Search Icon */}
               <li className="nav-item">
@@ -165,9 +213,9 @@ const Header = () => {
               
               {/* Notification Icon */}
               <li className="nav-item">
-                <a href="#" className="nav-link">
-                  <FontAwesomeIcon icon={faBell} />
-                </a>
+                              <button className="nav-link btn btn-link">
+                <FontAwesomeIcon icon={faBell} />
+              </button>
               </li>
             </ul>
           </div>

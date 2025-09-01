@@ -3,9 +3,13 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 
+// Import contexts
+import { AuthProvider } from './contexts/AuthContext';
+
 // Import components
 import Header from './components/Header';
 import Footer from './components/Footer';
+import ProtectedRoute from './components/ProtectedRoute';
 import Home from './pages/Home';
 import About from './pages/About';
 import Services from './pages/Services';
@@ -13,6 +17,13 @@ import Portfolio from './pages/Portfolio';
 import Pricing from './pages/Pricing';
 import Blog from './pages/Blog';
 import Contact from './pages/Contact';
+
+// Import authentication pages
+import Login from './pages/auth/Login';
+import Register from './pages/auth/Register';
+import ForgotPassword from './pages/auth/ForgotPassword';
+import ResetPassword from './pages/auth/ResetPassword';
+import AuthDemo from './pages/auth/AuthDemo';
 
 // Import new pages for functional objectives
 import Dashboard from './pages/Dashboard';
@@ -33,40 +44,97 @@ import AdminHome from './pages/admin/AdminHome';
 
 function App() {
   return (
-    <Router>
-      <div className="App">
-        <Header />
-        <main>
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/services" element={<Services />} />
-            <Route path="/portfolio" element={<Portfolio />} />
-            <Route path="/pricing" element={<Pricing />} />
-            <Route path="/blog" element={<Blog />} />
-            <Route path="/contact" element={<Contact />} />
-            
-            {/* New routes for functional objectives */}
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/tasker-search" element={<TaskerSearch />} />
-            <Route path="/tasker-profile/:id" element={<TaskerProfile />} />
-            <Route path="/account" element={<AccountManagement />} />
-            <Route path="/tasks" element={<TaskManagement />} />
-            <Route path="/payment" element={<PaymentInvoicing />} />
-            <Route path="/ratings" element={<RatingComplaints />} />
-            <Route path="/content" element={<ContentManagement />} />
-            <Route path="/video-upload" element={<VideoUpload />} />
-            <Route path="/tasker-management" element={<TaskerManagement />} />
-            <Route path="/ai-chat" element={<AIInteraction />} />
-            <Route path="/system" element={<SystemManagement />} />
-            {/* Role landing */}
-            <Route path="/tasker" element={<TaskerHome />} />
-            <Route path="/admin" element={<AdminHome />} />
-          </Routes>
-        </main>
-        <Footer />
-      </div>
-    </Router>
+    <AuthProvider>
+      <Router>
+        <div className="App">
+          <Header />
+          <main>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/services" element={<Services />} />
+              <Route path="/portfolio" element={<Portfolio />} />
+              <Route path="/pricing" element={<Pricing />} />
+              <Route path="/blog" element={<Blog />} />
+              <Route path="/contact" element={<Contact />} />
+              
+              {/* Authentication routes */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/auth-demo" element={<AuthDemo />} />
+              
+              {/* Protected routes */}
+              <Route path="/dashboard" element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/tasker-search" element={<TaskerSearch />} />
+              <Route path="/tasker-profile/:id" element={<TaskerProfile />} />
+              <Route path="/account" element={
+                <ProtectedRoute>
+                  <AccountManagement />
+                </ProtectedRoute>
+              } />
+              <Route path="/tasks" element={
+                <ProtectedRoute>
+                  <TaskManagement />
+                </ProtectedRoute>
+              } />
+              <Route path="/payment" element={
+                <ProtectedRoute>
+                  <PaymentInvoicing />
+                </ProtectedRoute>
+              } />
+              <Route path="/ratings" element={
+                <ProtectedRoute>
+                  <RatingComplaints />
+                </ProtectedRoute>
+              } />
+              <Route path="/content" element={
+                <ProtectedRoute requiredRole="Admin">
+                  <ContentManagement />
+                </ProtectedRoute>
+              } />
+              <Route path="/video-upload" element={
+                <ProtectedRoute requiredRole="Tasker">
+                  <VideoUpload />
+                </ProtectedRoute>
+              } />
+              <Route path="/tasker-management" element={
+                <ProtectedRoute requiredRole="Admin">
+                  <TaskerManagement />
+                </ProtectedRoute>
+              } />
+              <Route path="/ai-chat" element={
+                <ProtectedRoute>
+                  <AIInteraction />
+                </ProtectedRoute>
+              } />
+              <Route path="/system" element={
+                <ProtectedRoute requiredRole="Admin">
+                  <SystemManagement />
+                </ProtectedRoute>
+              } />
+              {/* Role landing */}
+              <Route path="/tasker" element={
+                <ProtectedRoute requiredRole="Tasker">
+                  <TaskerHome />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin" element={
+                <ProtectedRoute requiredRole="Admin">
+                  <AdminHome />
+                </ProtectedRoute>
+              } />
+            </Routes>
+          </main>
+          <Footer />
+        </div>
+      </Router>
+    </AuthProvider>
   );
 }
 

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faSearch, 
@@ -9,17 +10,14 @@ import {
   faStar, 
   faVideo, 
   faFileAlt, 
-  faCog,
   faBell,
-  faChartLine,
   faCheckCircle,
-  faClock,
   faMapMarkerAlt,
-  faPhone,
-  faEnvelope
+  faPhone
 } from '@fortawesome/free-solid-svg-icons';
 
 const Dashboard = () => {
+  const { user, isAdmin, isTasker, isCustomer } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -168,8 +166,13 @@ const Dashboard = () => {
             <div className="welcome-section bg-white rounded shadow-sm p-4 mb-4">
               <div className="row align-items-center">
                 <div className="col-md-8">
-                  <h2>Welcome back, John!</h2>
-                  <p className="text-muted mb-0">Here's what's happening with your cleaning services today.</p>
+                  <h2>Welcome back, {user?.name || 'User'}!</h2>
+                  <p className="text-muted mb-0">
+                    {isAdmin() && "Here's what's happening with your admin dashboard today."}
+                    {isTasker() && "Here's what's happening with your tasker services today."}
+                    {isCustomer() && "Here's what's happening with your cleaning services today."}
+                    {!isAdmin() && !isTasker() && !isCustomer() && "Here's what's happening with your account today."}
+                  </p>
                 </div>
                 <div className="col-md-4 text-right">
                   <div className="emergency-contact">

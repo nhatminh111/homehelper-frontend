@@ -1,186 +1,147 @@
-# Cleaning Company React Website
+# HomeHelper - Cleaning Company React App
 
-A modern React-based website for a professional cleaning company, converted from the original HTML/CSS/JavaScript template.
+Ứng dụng web quản lý dịch vụ giúp việc nhà được xây dựng bằng React và kết nối với backend Node.js.
 
-## Features
+## Tính năng chính
 
-- **Modern React Architecture**: Built with React 18 and functional components
-- **Responsive Design**: Mobile-first approach with Bootstrap 5
-- **Client-side Routing**: Using React Router for seamless navigation
-- **Interactive Forms**: Contact and appointment booking forms with state management
-- **Font Awesome Icons**: Professional iconography throughout the site
-- **Original Design Preserved**: Maintains the original cleaning company design and branding
+### 🔐 Xác thực & Phân quyền
+- **Đăng ký**: Tạo tài khoản mới (Customer/Tasker)
+- **Đăng nhập**: Xác thực người dùng với JWT
+- **Quên mật khẩu**: Gửi email reset password
+- **Phân quyền**: Admin, Tasker, Customer với các quyền khác nhau
 
-## Pages
+### 👥 Quản lý người dùng
+- **Dashboard**: Trang tổng quan cho từng loại user
+- **Quản lý tài khoản**: Cập nhật thông tin cá nhân
+- **Đổi mật khẩu**: Thay đổi mật khẩu an toàn
 
-- **Home**: Hero section with appointment booking form
-- **About**: Company information and statistics
-- **Services**: Detailed service offerings with pricing plans
-- **Portfolio**: Gallery of completed work
-- **Pricing**: Service packages and pricing information
-- **Blog**: Latest news and updates
-- **Contact**: Contact form and company information
+### 🧹 Dịch vụ giúp việc
+- **Tìm kiếm Tasker**: Tìm người giúp việc theo khu vực
+- **Quản lý công việc**: Theo dõi trạng thái công việc
+- **Đánh giá & Phản hồi**: Hệ thống rating và review
+- **Thanh toán**: Quản lý hóa đơn và thanh toán
 
-## Technologies Used
+### 🎥 Tính năng đặc biệt
+- **Upload video**: Tasker có thể upload video giới thiệu
+- **AI Chat**: Tương tác với AI để hỗ trợ
+- **Quản lý nội dung**: Admin quản lý bài viết và nội dung
 
-- React 18
-- React Router DOM
-- Bootstrap 5
-- Font Awesome Icons
-- CSS3 with custom animations
-- Responsive design principles
+## Cài đặt và chạy
 
-## Getting Started
+### Yêu cầu hệ thống
+- Node.js (v14 trở lên)
+- npm hoặc yarn
+- Backend server đang chạy (port 3001)
 
-### Prerequisites
-
-- Node.js (version 14 or higher)
-- npm or yarn package manager
-
-### Installation
-
-1. Clone the repository:
+### Bước 1: Cài đặt dependencies
 ```bash
-git clone <repository-url>
 cd cleaning-company-react
-```
-
-2. Install dependencies:
-```bash
 npm install
 ```
 
-3. Start the development server:
+### Bước 2: Cấu hình backend
+Đảm bảo backend server đang chạy tại `http://localhost:3001`
+
+### Bước 3: Chạy ứng dụng
 ```bash
 npm start
 ```
 
-4. Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+Ứng dụng sẽ chạy tại `http://localhost:3000`
 
-### Available Scripts
-
-- `npm start` - Runs the app in development mode
-- `npm test` - Launches the test runner
-- `npm run build` - Builds the app for production
-- `npm run eject` - Ejects from Create React App (one-way operation)
-
-## Project Structure
+## Cấu trúc thư mục
 
 ```
 src/
-├── components/          # Reusable components
-│   ├── Header.js       # Navigation and top bar
-│   └── Footer.js       # Footer with company info
+├── components/          # Components tái sử dụng
+│   ├── Header.js       # Navigation header
+│   ├── Footer.js       # Footer component
+│   └── ProtectedRoute.js # Route protection
+├── contexts/           # React Contexts
+│   └── AuthContext.js  # Authentication context
 ├── pages/              # Page components
-│   ├── Home.js         # Home page with hero and booking
-│   ├── About.js        # About page
-│   ├── Services.js     # Services and pricing
-│   ├── Portfolio.js    # Work gallery
-│   ├── Pricing.js      # Pricing plans
-│   ├── Blog.js         # Blog posts
-│   └── Contact.js      # Contact form
-├── App.js              # Main app component with routing
-├── App.css             # Global styles
-└── index.js            # App entry point
-
-public/
-├── images/             # All website images
-├── css/                # Original CSS files
-├── fonts/              # Font files
-└── index.html          # HTML template
+│   ├── auth/           # Authentication pages
+│   ├── admin/          # Admin pages
+│   └── tasker/         # Tasker pages
+├── services/           # API services
+│   └── api.js          # API calls
+└── App.js              # Main app component
 ```
 
-## Key Features
+## API Endpoints
 
-### Responsive Navigation
-- Mobile-friendly hamburger menu
-- Active page highlighting
-- Smooth transitions
+### Authentication
+- `POST /api/auth/register` - Đăng ký
+- `POST /api/auth/login` - Đăng nhập
+- `GET /api/auth/me` - Lấy thông tin user
+- `POST /api/auth/change-password` - Đổi mật khẩu
+- `POST /api/auth/forgot-password` - Quên mật khẩu
+- `POST /api/auth/reset-password` - Reset mật khẩu
 
-### Interactive Forms
-- Appointment booking form on home page
-- Contact form with validation
-- State management with React hooks
+## Phân quyền
 
-### Modern UI/UX
-- Clean, professional design
-- Smooth animations and transitions
-- Accessible navigation
-- Fast loading times
+### 👨‍💼 Admin
+- Quản lý toàn bộ hệ thống
+- Quản lý Tasker và Customer
+- Xem thống kê và báo cáo
+- Quản lý nội dung
 
-## Customization
+### 🧹 Tasker
+- Quản lý profile và dịch vụ
+- Xem công việc được giao
+- Upload video giới thiệu
+- Xem thu nhập
 
-### Colors and Branding
-Update the CSS variables in `src/App.css` to match your brand colors:
+### 👤 Customer
+- Tìm kiếm Tasker
+- Đặt lịch dịch vụ
+- Đánh giá và phản hồi
+- Quản lý thanh toán
 
-```css
-:root {
-  --primary-color: #007bff;
-  --secondary-color: #6c757d;
-  --accent-color: #28a745;
-}
-```
+## Tính năng bảo mật
 
-### Content
-- Update company information in component files
-- Replace images in `public/images/`
-- Modify service offerings and pricing in respective components
+- **JWT Authentication**: Token-based authentication
+- **Protected Routes**: Bảo vệ các trang cần đăng nhập
+- **Role-based Access**: Phân quyền theo vai trò
+- **Secure API Calls**: Tất cả API calls đều có xác thực
 
-### Styling
-- Original CSS files are preserved in `public/css/`
-- Custom styles can be added to `src/App.css`
-- Bootstrap classes are available for layout and components
+## Công nghệ sử dụng
 
-## Deployment
+- **Frontend**: React, React Router, Bootstrap
+- **State Management**: React Context API
+- **Styling**: CSS, Bootstrap, FontAwesome
+- **HTTP Client**: Fetch API
+- **Authentication**: JWT
 
-### Build for Production
-```bash
-npm run build
-```
+## Hướng dẫn sử dụng
 
-This creates a `build` folder with optimized production files.
+1. **Đăng ký tài khoản**: Chọn loại user (Customer/Tasker) và điền thông tin
+2. **Đăng nhập**: Sử dụng email và mật khẩu đã đăng ký
+3. **Truy cập Dashboard**: Xem tổng quan và các tính năng có sẵn
+4. **Sử dụng các tính năng**: Tùy theo vai trò, sử dụng các chức năng tương ứng
 
-### Deploy to Various Platforms
+## Troubleshooting
 
-**Netlify:**
-- Connect your repository to Netlify
-- Set build command: `npm run build`
-- Set publish directory: `build`
+### Lỗi kết nối backend
+- Kiểm tra backend server có đang chạy không
+- Kiểm tra URL API trong `src/services/api.js`
 
-**Vercel:**
-- Install Vercel CLI: `npm i -g vercel`
-- Run: `vercel`
+### Lỗi authentication
+- Kiểm tra JWT_SECRET trong backend
+- Xóa localStorage và đăng nhập lại
 
-**GitHub Pages:**
-- Add `"homepage": "https://username.github.io/repo-name"` to package.json
-- Install gh-pages: `npm install --save-dev gh-pages`
-- Add scripts: `"predeploy": "npm run build", "deploy": "gh-pages -d build"`
-- Deploy: `npm run deploy`
+### Lỗi CORS
+- Kiểm tra cấu hình CORS trong backend
+- Đảm bảo origin được cho phép
 
-## Browser Support
+## Đóng góp
 
-- Chrome (latest)
-- Firefox (latest)
-- Safari (latest)
-- Edge (latest)
-- Internet Explorer 11+ (with polyfills)
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
+1. Fork repository
+2. Tạo feature branch
+3. Commit changes
+4. Push to branch
+5. Tạo Pull Request
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Support
-
-For support and questions, please contact the development team or create an issue in the repository.
-
----
-
-**Note**: This React version maintains the original design and functionality while providing a modern, maintainable codebase with improved performance and user experience.
+MIT License
