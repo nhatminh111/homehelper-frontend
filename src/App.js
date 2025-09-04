@@ -17,6 +17,8 @@ import Portfolio from './pages/Portfolio';
 import Pricing from './pages/Pricing';
 import Blog from './pages/Blog';
 import Contact from './pages/Contact';
+import Video from './pages/Video';
+import VideoDetail from './pages/VideoDetail';
 
 // Import authentication pages
 import Login from './pages/auth/Login';
@@ -57,6 +59,8 @@ function App() {
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/blog" element={<Blog />} />
               <Route path="/contact" element={<Contact />} />
+              <Route path="/video" element={<Video />} />
+              <Route path="/videoDetail" element={<VideoDetail />} />
               
               {/* Authentication routes */}
               <Route path="/login" element={<Login />} />
