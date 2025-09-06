@@ -5,6 +5,7 @@ import './App.css';
 
 // Import contexts
 import { AuthProvider } from './contexts/AuthContext';
+import { SocketProvider } from './contexts/SocketContext';
 
 // Import components
 import Header from './components/Header';
@@ -43,14 +44,16 @@ import SystemManagement from './pages/SystemManagement';
 // Role landing pages
 import TaskerHome from './pages/tasker/TaskerHome';
 import AdminHome from './pages/admin/AdminHome';
+import ChatPage from './pages/Chat';
 
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <div className="App">
-          <Header />
-          <main>
+      <SocketProvider>
+        <Router>
+          <div className="App">
+            <Header />
+            <main>
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/about" element={<About />} />
@@ -122,6 +125,11 @@ function App() {
                   <SystemManagement />
                 </ProtectedRoute>
               } />
+              <Route path="/chat" element={
+                <ProtectedRoute>
+                  <ChatPage />
+                </ProtectedRoute>
+              } />
               {/* Role landing */}
               <Route path="/tasker" element={
                 <ProtectedRoute requiredRole="Tasker">
@@ -134,10 +142,11 @@ function App() {
                 </ProtectedRoute>
               } />
             </Routes>
-          </main>
-          <Footer />
-        </div>
-      </Router>
+            </main>
+            <Footer />
+          </div>
+        </Router>
+      </SocketProvider>
     </AuthProvider>
   );
 }
