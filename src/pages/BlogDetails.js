@@ -1,0 +1,425 @@
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import blogService from '../services/blogService';
+import { useAuth } from '../contexts/AuthContext';
+import './BlogDetails.css';
+
+const BlogDetails = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  const [post, setPost] = useState(null);
+  const [comments, setComments] = useState([]);
+  const [services, setServices] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [newComment, setNewComment] = useState('');
+  const [submittingComment, setSubmittingComment] = useState(false);
+  const [liked, setLiked] = useState(false);
+  const [likesCount, setLikesCount] = useState(0);
+
+  useEffect(() => {
+    fetchPostDetails();
+  }, [id]);
+
+  const fetchPostDetails = async () => {
+    try {
+      setLoading(true);
+
+      const [postData, commentsData, servicesData] = await Promise.all([
+        blogService.getPostById(id),       
+        blogService.getPostComments(id),  
+        blogService.getPostServices(id)   
+      ]);
+
+      const post = postData.data;
+      const comments = commentsData.data || [];
+      const services = servicesData.data || [];
+
+      console.log('post:', post);
+      console.log('services:', comments);
+      console.log('services:', services);
+
+      setPost(post);
+      setComments(comments);
+      setServices(services);
+      setLikesCount(post.likes || 0);
+
+      // Check like status
+      if (user) {
+        try {
+          const response = await blogService.isPostLikedByUser(id, user.user_id);
+          setLiked(response.data?.isLiked || false);
+        } catch (err) {
+          console.error('Error checking like status:', err);
+        }
+      }
+    } catch (err) {
+      setError('Không thể tải chi tiết bài viết');
+      console.error('Error fetching post details:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLike = async () => {
+    if (!user) {
+      alert('Vui lòng đăng nhập để thích bài viết');
+      return;
+    }
+
+    try {
+      await blogService.toggleLikePost(id, user.user_id);
+      setLiked(!liked);
+      setLikesCount(prev => (liked ? prev - 1 : prev + 1));
+    } catch (err) {
+      console.error('Error toggling like:', err);
+    }
+  };
+
+  const handleSubmitComment = async (e) => {
+    e.preventDefault();
+    if (!user) {
+      alert('Vui lòng đăng nhập để bình luận');
+      return;
+    }
+
+    if (!newComment.trim()) return;
+
+    try {
+      setSubmittingComment(true);
+      const response = await blogService.createComment({
+        post_id: parseInt(id),
+        user_id: user.user_id,
+        content: newComment.trim()
+      });
+
+      const newCmt = response.data;
+      setComments(prev => [...prev, newCmt]);
+      setNewComment('');
+    } catch (err) {
+      console.error('Error creating comment:', err);
+      alert('Không thể gửi bình luận');
+    } finally {
+      setSubmittingComment(false);
+    }
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    return new Date(dateString).toLocaleDateString('vi-VN', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const formatPrice = (price) => {
+    if (!price) return '';
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND'
+    }).format(price);
+  };
+
+  // Helper: get preview image
+  const getPreviewImage = () => {
+    if (post && Array.isArray(post.photo_urls) && post.photo_urls.length > 0) {
+      return post.photo_urls[0];
+    }
+    return '/images/bg_1.jpg'; // fallback image
+  };
+
+  // Helper: get author avatar
+  const getAuthorAvatar = () => {
+    if (post && post.author_avatar) {
+      return post.author_avatar;
+    }
+    return '/images/person_1.jpg';
+  };
+
+  if (loading) {
+    return (
+      <div className="blog-details-loading">
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Đang tải...</span>
+        </div>
+        <p>Đang tải chi tiết bài viết...</p>
+      </div>
+    );
+  }
+
+  if (error || !post) {
+    return (
+      <div className="blog-details-error">
+        <div className="error-content">
+          <h2>Không tìm thấy bài viết</h2>
+          <p>{error || 'Bài viết không tồn tại hoặc đã bị xóa.'}</p>
+          <Link to="/blog" className="btn btn-primary">
+            Quay lại danh sách
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="blog-details">
+      <div className="container">
+        {/* Breadcrumb with blurred background */}
+        <div className="breadcrumb-bg-blur">
+          <img src="/images/bg_1.jpg" alt="breadcrumb background" className="breadcrumb-bg-img" />
+          <div className="breadcrumb-bg-overlay">
+            <nav aria-label="breadcrumb" className="blog-breadcrumb">
+              <ol className="breadcrumb">
+                <li className="breadcrumb-item">
+                  <Link to="/">Trang chủ</Link>
+                </li>
+                <li className="breadcrumb-item">
+                  <Link to="/blog">Blog</Link>
+                </li>
+                <li className="breadcrumb-item active" aria-current="page">
+                  {post.title}
+                </li>
+              </ol>
+            </nav>
+          </div>
+        </div>
+
+        <div className="row">
+          <div className="col-lg-8">
+            {/* Main Content */}
+            <article className="blog-post">
+              {/* Preview Image */}
+              <div className="post-preview-image">
+                <img src={getPreviewImage()} alt={post.title} className="preview-image" />
+              </div>
+              {/* Header */}
+              <header className="post-header">
+                <h1 className="post-title">{post.title}</h1>
+                <div className="post-meta">
+                  <div className="author-info">
+                    <img 
+                      src={getAuthorAvatar()} 
+                      alt={post.author_name}
+                      className="author-avatar"
+                    />
+                    <div className="author-details">
+                      <span className="author-name">{post.author_name}</span>
+                      <span className="post-date">{formatDate(post.post_date)}</span>
+                    </div>
+                  </div>
+                  <div className="post-stats">
+                    <span className="stat-item">
+                      <i className="fas fa-eye"></i> {post.views || 0}
+                    </span>
+                    <span className="stat-item like-count {liked ? 'liked' : ''}">
+                      <i className="fas fa-heart"></i> {likesCount}
+                    </span>
+                    <span className="stat-item">
+                      <i className="fas fa-comment"></i> {comments.length}
+                    </span>
+                  </div>
+                </div>
+              </header>
+
+              {/* Images */}
+              {Array.isArray(post.photo_urls) && post.photo_urls.length > 0 && (
+                <div className="post-images">
+                  {post.photo_urls.map((url, index) => (
+                    <img 
+                      key={index}
+                      src={url} 
+                      alt={`${post.title} - ${index + 1}`}
+                      className="post-image"
+                    />
+                  ))}
+                </div>
+              )}
+
+              <div className="post-content space-y-3">
+                {post.content.split('\n').map((line, index) =>
+                  line.trim() ? <p key={index}>{line}</p> : <br key={index} />
+                )}
+              </div>
+                              
+              {/* Services */}
+              {services.length > 0 && (
+                <div className="post-services">
+                  <h3>Dịch vụ liên quan</h3>
+                  <div className="services-grid">
+                    {services.map((service) => (
+                      <div key={service.post_service_id} className="service-card">
+                        <h4>
+                              <span className="service-variant-tag">{service.name}</span>
+                        </h4>
+                        <p className="service-description">{service.description}</p>
+                        <div className="service-pricing">
+                          <span className="base-price">
+                            Giá gốc: {formatPrice(service.reference_price)}
+                          </span>
+                          {service.desired_price && (
+                            <span className="desired-price">
+                              Giá mong muốn: {formatPrice(service.desired_price)}
+                            </span>
+                          )}
+                        </div>
+                        {service.notes && (
+                          <p className="service-notes">
+                            <strong>Ghi chú:</strong> {service.notes}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="post-actions">
+                <button 
+                  className={`btn btn-like ${liked ? 'liked' : ''}`}
+                  onClick={handleLike}
+                >
+                  <i className={`fas fa-heart ${liked ? 'fas' : 'far'}`}></i>
+                  {liked ? 'Đã thích' : 'Thích'} ({likesCount})
+                </button>
+                <button 
+                  className="btn btn-share"
+                  onClick={() => {
+                    if (navigator.share) {
+                      navigator.share({
+                        title: post.title,
+                        text: post.content,
+                        url: window.location.href
+                      });
+                    } else {
+                      navigator.clipboard.writeText(window.location.href);
+                      alert('Đã sao chép link bài viết!');
+                    }
+                  }}
+                >
+                  <i className="fas fa-share"></i> Chia sẻ
+                </button>
+              </div>
+            </article>
+                
+            {/* Comments Section */}
+            <section className="comments-section">
+              <h3>Bình luận ({comments.length})</h3>
+              
+              {/* Comment Form */}
+              {user ? (
+                <form onSubmit={handleSubmitComment} className="comment-form">
+                  <div className="form-group">
+                    <textarea
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      placeholder="Viết bình luận của bạn..."
+                      rows="4"
+                      className="form-control"
+                      required
+                    />
+                  </div>
+                  <button 
+                    type="submit" 
+                    className="btn btn-primary"
+                    disabled={submittingComment}
+                  >
+                    {submittingComment ? 'Đang gửi...' : 'Gửi bình luận'}
+                  </button>
+                </form>
+              ) : (
+                <div className="login-prompt">
+                  <p>Vui lòng <Link to="/login">đăng nhập</Link> để bình luận</p>
+                </div>
+              )}
+
+              {/* Comments List */}
+              <div className="comments-list">
+                {comments.length === 0 ? (
+                  <p className="no-comments">Chưa có bình luận nào. Hãy là người đầu tiên!</p>
+                ) : (
+                  comments.map((comment) => (
+                    <div key={comment.comment_id} className="comment-item">
+                      <div className="comment-avatar">
+                        <img 
+                          src="/images/person_1.jpg" 
+                          alt={comment.author_name}
+                        />
+                      </div>
+                      <div className="comment-content">
+                        <div className="comment-header">
+                          <span className="comment-author">
+                            {comment.author_name || "Người dùng ẩn danh"}
+                          </span>
+                          <span className="comment-date">{formatDate(comment.created_at)}</span>
+                        </div>
+                        <p className="comment-text">{comment.content}</p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </section>
+          </div>
+            
+          {/* Sidebar */}
+          <div className="col-lg-4">
+            <div className="blog-sidebar">
+              {/* Author Info */}
+              <div className="sidebar-widget">
+                <h4>Về tác giả</h4>
+                <div className="author-widget">
+                  <img 
+                    src="/images/person_1.jpg" 
+                    alt={post.author_name}
+                    className="author-widget-avatar"
+                  />
+                  <div className="author-widget-info">
+                    <h5>{post.author_name}</h5>
+                    <p>{post.author_email}</p>
+                  </div>
+                </div>
+              </div>
+            
+              {/* Related Posts */}
+              <div className="sidebar-widget">
+                <h4>Bài viết liên quan</h4>
+                <div className="related-posts">
+                  <p>Đang tải bài viết liên quan...</p>
+                </div>
+              </div>
+                
+              {/* Services Summary */}
+              {services.length > 0 && (
+                <div className="sidebar-widget">
+                  <h4>Dịch vụ trong bài viết</h4>
+                  <div className="services-summary">
+                    {services.map((service) => (
+                      <div key={service.post_service_id} className="service-summary">
+                        <h6>
+                            <span className="service-variant-tag">{service.name}</span>
+                        </h6>
+                        {service.desired_price && (
+                          <span className="service-price">
+                            {formatPrice(service.reference_price)}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default BlogDetails;

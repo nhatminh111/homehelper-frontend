@@ -17,8 +17,10 @@ const NotificationDropdown = ({
   const [filter, setFilter] = useState('all'); // 'all', 'unread', 'read'
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
 
+  // Ensure all notifications are defined and have is_read
+  const safeNotifications = (notifications || []).filter(n => n && typeof n === 'object').map(n => ({ is_read: false, ...n }));
   // Filter notifications
-  const filteredNotifications = notifications.filter(notification => {
+  const filteredNotifications = safeNotifications.filter(notification => {
     switch (filter) {
       case 'unread':
         return !notification.is_read;
@@ -145,88 +147,91 @@ const NotificationDropdown = ({
             </p>
           </div>
         ) : (
-          filteredNotifications.map(notification => (
-            <div
-              key={notification.notification_id}
-              className={`notification-item ${!notification.is_read ? 'unread' : ''}`}
-              onClick={() => handleNotificationClick(notification)}
-            >
-              {/* Notification Icon */}
-              <div 
-                className="notification-icon"
-                style={{ color: getNotificationColor(notification.type) }}
+          filteredNotifications.map(notification => {
+            if (!notification || typeof notification !== 'object' || !notification.notification_id) return null;
+            return (
+              <div
+                key={notification.notification_id}
+                className={`notification-item ${!notification.is_read ? 'unread' : ''}`}
+                onClick={() => handleNotificationClick(notification)}
               >
-                <i className={getNotificationIcon(notification.type)}></i>
-              </div>
-
-              {/* Notification Content */}
-              <div className="notification-content">
-                <div className="notification-title">
-                  {notification.title || 'Thông báo mới'}
-                </div>
-                <div className="notification-preview">
-                  {getNotificationPreview(notification)}
-                  {notification.data && (() => {
-                    try {
-                      const parsed = typeof notification.data === 'string' ? JSON.parse(notification.data) : notification.data;
-                      if (parsed && parsed.conversation_id) {
-                        return (
-                          <span className="notification-link"> · Nhấn để mở cuộc trò chuyện</span>
-                        );
-                      }
-                    } catch (_) {}
-                    return null;
-                  })()}
-                </div>
-                <div className="notification-time">
-                  {formatNotificationTime(notification.created_at)}
-                </div>
-              </div>
-
-              {/* Notification Actions */}
-              <div className="notification-actions">
-                {!notification.is_read && (
-                  <div className="unread-indicator"></div>
-                )}
-                <button
-                  className="action-btn"
-                  onClick={(e) => handleDeleteClick(notification.notification_id, e)}
-                  title="Xóa thông báo"
+                {/* Notification Icon */}
+                <div 
+                  className="notification-icon"
+                  style={{ color: getNotificationColor(notification.type) }}
                 >
-                  <i className="fas fa-times"></i>
-                </button>
-              </div>
+                  <i className={getNotificationIcon(notification.type)}></i>
+                </div>
 
-              {/* Delete Confirmation */}
-              {showDeleteConfirm === notification.notification_id && (
-                <div className="delete-confirmation">
-                  <div className="confirmation-content">
-                    <p>Xóa thông báo này?</p>
-                    <div className="confirmation-actions">
-                      <button
-                        className="btn btn-sm btn-danger"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteConfirm(notification.notification_id);
-                        }}
-                      >
-                        Xóa
-                      </button>
-                      <button
-                        className="btn btn-sm btn-secondary"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteCancel();
-                        }}
-                      >
-                        Hủy
-                      </button>
-                    </div>
+                {/* Notification Content */}
+                <div className="notification-content">
+                  <div className="notification-title">
+                    {notification.title || 'Thông báo mới'}
+                  </div>
+                  <div className="notification-preview">
+                    {getNotificationPreview(notification)}
+                    {notification.data && (() => {
+                      try {
+                        const parsed = typeof notification.data === 'string' ? JSON.parse(notification.data) : notification.data;
+                        if (parsed && parsed.conversation_id) {
+                          return (
+                            <span className="notification-link"> · Nhấn để mở cuộc trò chuyện</span>
+                          );
+                        }
+                      } catch (_) {}
+                      return null;
+                    })()}
+                  </div>
+                  <div className="notification-time">
+                    {formatNotificationTime(notification.created_at)}
                   </div>
                 </div>
-              )}
-            </div>
-          ))
+
+                {/* Notification Actions */}
+                <div className="notification-actions">
+                  {!notification.is_read && (
+                    <div className="unread-indicator"></div>
+                  )}
+                  <button
+                    className="action-btn"
+                    onClick={(e) => handleDeleteClick(notification.notification_id, e)}
+                    title="Xóa thông báo"
+                  >
+                    <i className="fas fa-times"></i>
+                  </button>
+                </div>
+
+                {/* Delete Confirmation */}
+                {showDeleteConfirm === notification.notification_id && (
+                  <div className="delete-confirmation">
+                    <div className="confirmation-content">
+                      <p>Xóa thông báo này?</p>
+                      <div className="confirmation-actions">
+                        <button
+                          className="btn btn-sm btn-danger"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteConfirm(notification.notification_id);
+                          }}
+                        >
+                          Xóa
+                        </button>
+                        <button
+                          className="btn btn-sm btn-secondary"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteCancel();
+                          }}
+                        >
+                          Hủy
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })
         )}
       </div>
 

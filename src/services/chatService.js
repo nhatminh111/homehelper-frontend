@@ -60,23 +60,19 @@ class ChatService {
   }
 
   // Gửi tin nhắn text
-  async sendTextMessage(conversationId, content, replyToMessageId = null) {
+  async sendTextMessage(conversationId, content) {
     const messageData = {
       content,
-      message_type: 'text',
-      reply_to_message_id: replyToMessageId
+      message_type: 'text'
     };
     return await this.conversationService.sendMessage(conversationId, messageData);
   }
 
   // Gửi tin nhắn với file
-  async sendFileMessage(conversationId, file, content = '', replyToMessageId = null) {
+  async sendFileMessage(conversationId, file, content = '') {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('content', content);
-    if (replyToMessageId) {
-      formData.append('reply_to_message_id', replyToMessageId);
-    }
     return await this.conversationService.sendMessageWithFile(conversationId, formData);
   }
 

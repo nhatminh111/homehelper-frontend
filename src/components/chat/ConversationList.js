@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { formatDistanceToNow, formatDistance } from 'date-fns';
+import { formatDistanceToNow, formatDistance, parseISO } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import './Chat.css';
 
@@ -50,25 +50,34 @@ const ConversationList = ({
 
   const formatLastMessageTime = (dateString) => {
     if (!dateString) return '';
-    
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInHours = (now - date) / (1000 * 60 * 60);
-    
-    if (diffInHours < 24) {
-      if (date > now) {
-        // If timestamp is in the future (timezone mismatch), still show as past
-        return `${formatDistance(date, now, { locale: vi })}`;
-      }
-      return formatDistanceToNow(date, { addSuffix: true, locale: vi });
-    } else {
-      return date.toLocaleDateString('vi-VN', {
-        day: '2-digit',
-        month: '2-digit',
-        year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
-      });
+
+    let isoString = dateString;
+    if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(dateString)) {
+      isoString = dateString.replace(' ', 'T');
     }
+    let msgDate;
+    let now = new Date();
+    // Nếu là UTC (có Z hoặc dạng ISO UTC), ép về giờ Việt Nam
+    if (/(Z|\+00:00)$/.test(isoString)) {
+      msgDate = new Date(new Date(isoString).getTime() + 7 * 60 * 60 * 1000);
+      now = new Date(now.getTime() + 7 * 60 * 60 * 1000 - now.getTimezoneOffset() * 60000);
+    } else {
+      msgDate = new Date(isoString);
+    }
+    const diffMs = now.getTime() - msgDate.getTime();
+    const diffMin = Math.floor(diffMs / (1000 * 60));
+    const diffHour = Math.floor(diffMin / 60);
+    const diffDay = Math.floor(diffHour / 24);
+
+    if (diffMin < 1) return 'vừa xong';
+    if (diffHour < 1) return `${diffMin} phút trước`;
+    if (diffHour < 24) return `${diffHour} giờ trước`;
+    // Hiển thị ngày/tháng theo giờ Việt Nam
+    return msgDate.getDate().toString().padStart(2, '0') + '-' +
+      (msgDate.getMonth() + 1).toString().padStart(2, '0') +
+      (msgDate.getFullYear() !== now.getFullYear() ? '-' + msgDate.getFullYear() : '');
   };
+
 
   const getConversationTitle = (conversation) => {
     if (conversation.title) return conversation.title;
@@ -263,7 +272,11 @@ const ConversationList = ({
               title={getConversationTitle(conversation)}
               avatar={getConversationAvatar(conversation)}
               subtitle={getConversationSubtitle(conversation)}
-              lastMessageTime={formatLastMessageTime(conversation.last_message_time || conversation.last_message_at || conversation.updated_at || conversation.created_at)}
+              lastMessageTime={(() => {
+                const rawTime = conversation.last_message_time || conversation.last_message_at || conversation.updated_at || conversation.created_at;
+                const formatted = formatLastMessageTime(rawTime);
+                return formatted;
+              })()}
               unreadCount={conversation.unread_count || 0}
               onClick={() => conversation?.conversation_id && onConversationSelect(conversation.conversation_id)}
             />

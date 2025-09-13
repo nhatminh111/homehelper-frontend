@@ -17,6 +17,7 @@ import Services from './pages/Services';
 import Portfolio from './pages/Portfolio';
 import Pricing from './pages/Pricing';
 import Blog from './pages/Blog';
+import BlogDetails from './pages/BlogDetails';
 import Contact from './pages/Contact';
 import Video from './pages/Video';
 import VideoDetail from './pages/VideoDetail';
@@ -61,6 +62,7 @@ function App() {
               <Route path="/portfolio" element={<Portfolio />} />
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/blog" element={<Blog />} />
+              <Route path="/blog/:id" element={<BlogDetails />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/video" element={<Video />} />
               <Route path="/videoDetail" element={<VideoDetail />} />
@@ -126,6 +128,11 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="/chat" element={
+                <ProtectedRoute>
+                  <ChatPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/chat/:conversationId" element={
                 <ProtectedRoute>
                   <ChatPage />
                 </ProtectedRoute>

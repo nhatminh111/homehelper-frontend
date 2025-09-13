@@ -23,17 +23,16 @@ export const useNotifications = () => {
     try {
       setLoading(true);
       const response = await chatService.getNotifications(page, limit, filters);
-      
+      // Ensure all notifications have is_read field
+      const safeNotifications = (response.notifications || []).map(n => ({ is_read: false, ...n }));
       if (page === 1) {
-        setNotifications(response.notifications || []);
+        setNotifications(safeNotifications);
       } else {
-        setNotifications(prev => [...prev, ...(response.notifications || [])]);
+        setNotifications(prev => [...prev, ...safeNotifications]);
       }
-      
       setHasMore(response.hasMore || false);
       return response;
     } catch (error) {
-      // Backend có thể chưa có bảng Notifications: hiển thị rỗng thay vì lỗi
       if (page === 1) {
         setNotifications([]);
       }
@@ -155,17 +154,17 @@ export const useNotifications = () => {
 
   // Filter notifications by type
   const getNotificationsByType = useCallback((type) => {
-    return notifications.filter(notif => notif.type === type);
+  return notifications.filter(notif => notif && typeof notif.type !== 'undefined' && notif.type === type);
   }, [notifications]);
 
   // Get unread notifications
   const getUnreadNotifications = useCallback(() => {
-    return notifications.filter(notif => !notif.is_read);
+    return notifications.filter(notif => notif && typeof notif.is_read !== 'undefined' ? !notif.is_read : true);
   }, [notifications]);
 
   // Get read notifications
   const getReadNotifications = useCallback(() => {
-    return notifications.filter(notif => notif.is_read);
+    return notifications.filter(notif => notif && typeof notif.is_read !== 'undefined' ? notif.is_read : false);
   }, [notifications]);
 
   // Search notifications

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useSearchParams} from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../contexts/SocketContext';
 import { useChat } from '../../hooks/useChat';
@@ -8,7 +8,9 @@ import ChatWindow from './ChatWindow';
 import ChatHeader from './ChatHeader';
 import './Chat.css';
 
-const Chat = ({ initialConversationId = null }) => {
+const Chat = () => {
+  const [searchParams] = useSearchParams();
+  const initialConversationId = searchParams.get("conversationId");
   const {
     conversations,
     currentConversation,
@@ -29,15 +31,15 @@ const Chat = ({ initialConversationId = null }) => {
     handleTyping,
     switchConversation,
     createConversation,
-    scrollToBottom,
-    messagesEndRef,
+    
     getTypingUsers,
     isUserOnline
   } = useChat(initialConversationId);
   const navigate = useNavigate();
   const { isAuthenticated, loading: authLoading } = useAuth();
   const { isConnected: socketConnected } = useSocket();
-  // Auto-select conversation when initialConversationId is provided/changes
+  // Prevent redundant switch/navigate by tracking last selected convId
+  const lastSelectedConvIdRef = useRef(null);
   useEffect(() => {
     const convId = initialConversationId && !Number.isNaN(parseInt(initialConversationId, 10))
       ? parseInt(initialConversationId, 10)
@@ -47,12 +49,46 @@ const Chat = ({ initialConversationId = null }) => {
     const authed = (typeof isAuthenticated === 'function') ? isAuthenticated() : !!isAuthenticated;
     if (authLoading) return; // wait until auth resolved
 
-    // Try switching as soon as auth resolved; socket join is queued if not connected yet
-    if (authed) {
+    // Only switch if different from last
+    if (authed && lastSelectedConvIdRef.current !== convId) {
+      lastSelectedConvIdRef.current = convId;
       handleConversationSelect(convId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialConversationId, authLoading, isAuthenticated, socketConnected]);
+
+  // Khi conversations đã load xong mà currentConversation chưa có, tự động chọn lại theo URL
+  useEffect(() => {
+    const convId = initialConversationId && !Number.isNaN(parseInt(initialConversationId, 10))
+      ? parseInt(initialConversationId, 10)
+      : null;
+    if (!convId) return;
+    if (authLoading) return;
+
+    // Nếu chưa có conversations thì load
+    if (conversations.length === 0 && !loading) {
+      loadConversations();
+      return;
+    }
+
+    const found = conversations.find(c => c.conversation_id === convId);
+    if (found) {
+      if (!currentConversation || currentConversation.conversation_id !== convId) {
+        if (lastSelectedConvIdRef.current !== convId) {
+          lastSelectedConvIdRef.current = convId;
+          handleConversationSelect(convId);
+        }
+      }
+    } else {
+      // Nếu không tìm thấy trong list, thử fetch riêng
+      if (lastSelectedConvIdRef.current !== convId) {
+        lastSelectedConvIdRef.current = convId;
+        switchConversation(convId).catch(err => {
+          console.error('[Chat.js] Cannot load conversation from URL', err);
+        });
+      }
+    }
+  }, [conversations, currentConversation, initialConversationId, loading, authLoading]);
 
   const [showConversationList, setShowConversationList] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -178,13 +214,15 @@ const Chat = ({ initialConversationId = null }) => {
         {/* Chat Window */}
         <div className="chat-main">
           {currentConversation ? (
-            <>
-              <ChatHeader
-                conversation={currentConversation}
-                onBack={handleBackToConversations}
-                onMenuClick={() => setShowConversationList(!showConversationList)}
-                isUserOnline={isUserOnline}
-              />
+            <div className="chat-main-inner">
+              <div className="chat-header-sticky">
+                <ChatHeader
+                  conversation={currentConversation}
+                  onBack={handleBackToConversations}
+                  onMenuClick={() => setShowConversationList(!showConversationList)}
+                  isUserOnline={isUserOnline}
+                />
+              </div>
               <ChatWindow
                 conversation={currentConversation}
                 messages={messages}
@@ -198,11 +236,10 @@ const Chat = ({ initialConversationId = null }) => {
                 onMarkAsRead={markAsRead}
                 onTyping={handleTyping}
                 onLoadMore={loadMoreMessages}
-                scrollToBottom={scrollToBottom}
-                messagesEndRef={messagesEndRef}
+                
                 isConnected={isConnected}
               />
-            </>
+            </div>
           ) : (
             <div className="chat-welcome">
               <div className="welcome-content">

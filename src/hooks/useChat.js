@@ -32,10 +32,6 @@ export const useChat = (conversationId = null) => {
   const typingTimeoutRef = useRef(null);
   const currentConversationRef = useRef(conversationId);
 
-  // Auto-scroll to bottom
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, []);
 
   // Load conversations
   const loadConversations = useCallback(async (page = 1, limit = 20) => {
@@ -93,7 +89,6 @@ export const useChat = (conversationId = null) => {
 
     try {
       setSendingMessage(true);
-      
       // Send via Socket.IO for real-time
       if (isConnected) {
         sendMessage(currentConversation.conversation_id, content.trim(), 'text', replyToMessageId);
@@ -109,7 +104,19 @@ export const useChat = (conversationId = null) => {
           is_edited: false,
         };
         setMessages(prev => [...prev, optimisticMessage]);
-        setTimeout(scrollToBottom, 50);
+        
+        // Cập nhật conversation cho người gửi (last_message, đẩy lên đầu, reset unread_count)
+        setConversations(prev => {
+          const idx = prev.findIndex(c => c.conversation_id === currentConversation.conversation_id);
+          if (idx === -1) return prev.slice();
+          const updated = { ...prev[idx] };
+          updated.last_message = optimisticMessage;
+          updated.last_message_time = optimisticMessage.created_at;
+          updated.unread_count = 0;
+          // Tạo mảng mới để React nhận biết thay đổi
+          const newList = [updated, ...prev.filter((_, i) => i !== idx)];
+          return [...newList];
+        });
       } else {
         // Fallback to REST API
         await chatService.sendTextMessage(currentConversation.conversation_id, content.trim(), replyToMessageId);
@@ -120,7 +127,7 @@ export const useChat = (conversationId = null) => {
     } finally {
       setSendingMessage(false);
     }
-  }, [currentConversation, sendingMessage, isConnected, sendMessage, user, scrollToBottom]);
+  }, [currentConversation, sendingMessage, isConnected, sendMessage, user]);
 
   // Send file message
   const sendFileMessage = useCallback(async (file, content = '', replyToMessageId = null) => {
@@ -173,7 +180,13 @@ export const useChat = (conversationId = null) => {
 
     try {
       if (isConnected) {
-        markMessageAsRead(currentConversation.conversation_id);
+        // Find the latest message not sent by the current user
+        const latestMsg = messages
+          .filter(msg => msg.sender_id !== user?.user_id)
+          .slice(-1)[0];
+        if (latestMsg) {
+          markMessageAsRead(currentConversation.conversation_id, latestMsg.message_id);
+        }
       } else {
         await chatService.markMessagesAsRead(currentConversation.conversation_id);
       }
@@ -211,29 +224,35 @@ export const useChat = (conversationId = null) => {
     if (convId === currentConversationRef.current) return;
 
     try {
-      // Leave current conversation
-      leaveConversation(currentConversationRef.current);
+      // Leave current conversation (nếu có)
+      if (currentConversationRef.current) {
+        console.log('[useChat] Leaving conversation:', currentConversationRef.current);
+        leaveConversation(currentConversationRef.current);
+      }
+
+      // Join new conversation room trước khi load messages để đảm bảo nhận realtime
+      console.log('[useChat] Joining conversation:', convId);
+      joinConversation(convId);
 
       // Load new conversation
       const conversation = await chatService.getConversationById(convId);
       setCurrentConversation(conversation);
       currentConversationRef.current = convId;
+      console.log('[useChat] Set currentConversationRef:', convId);
 
       // Load messages
       await loadMessages(convId);
-
-      // Join new conversation room immediately (queue if socket reconnecting)
-      joinConversation(convId);
+      console.log('[useChat] Loaded messages for:', convId);
 
       // Mark as read
       await markAsRead();
+      console.log('[useChat] Marked as read:', convId);
 
-      // Scroll to bottom
-      setTimeout(scrollToBottom, 100);
     } catch (error) {
       setError(error.message);
+      console.error('[useChat] Error switching conversation:', error);
     }
-  }, [isConnected, leaveConversation, joinConversation, loadMessages, markAsRead, scrollToBottom]);
+  }, [isConnected, leaveConversation, joinConversation, loadMessages, markAsRead]);
 
   // Create new conversation
   const createConversation = useCallback(async (type, participants, title = null) => {
@@ -256,11 +275,71 @@ export const useChat = (conversationId = null) => {
   // Socket event handlers
   useEffect(() => {
     const handleNewMessage = (event) => {
+      console.log('[useChat] socket_new_message event received:', event);
       const { message, conversationId } = event.detail;
-      
-      if (conversationId === currentConversationRef.current) {
-        setMessages(prev => [...prev, message]);
-        setTimeout(scrollToBottom, 100);
+      // Ensure message always has is_read, read_by, read_at fields to prevent FE crash
+      const safeMessage = {
+        is_read: false,
+        read_by: [],
+        read_at: null,
+        ...message
+      };
+      console.log('[useChat] handleNewMessage:', { conversationId, current: currentConversationRef.current, safeMessage });
+      if (String(conversationId) === String(currentConversationRef.current)) {
+        setMessages(prev => {
+          // Nếu đã có message_id này thì không thêm nữa (tránh double)
+          if (prev.some(msg => msg.message_id === safeMessage.message_id)) {
+            return prev;
+          }
+          // Remove only the first optimistic message that matches content, sender, type, and created_at close to real message
+          let removed = false;
+          const filtered = prev.filter(msg => {
+            if (
+              !removed &&
+              String(msg.message_id).startsWith('tmp-') &&
+              msg.content === safeMessage.content &&
+              (msg.sender_id === safeMessage.sender_id || msg.sender_id === safeMessage.senderId) &&
+              msg.message_type === safeMessage.message_type
+            ) {
+              // Compare created_at within 10s window
+              const optimisticTime = new Date(msg.created_at).getTime();
+              const realTime = new Date(safeMessage.created_at).getTime();
+              if (Math.abs(optimisticTime - realTime) < 10000) {
+                removed = true;
+                return false;
+              }
+            }
+            return true;
+          });
+          return [...filtered, safeMessage];
+        });
+        console.log('[useChat] Added new message to UI:', safeMessage);
+        // Cập nhật conversation trong danh sách (last message, unread, đẩy lên đầu)
+        setConversations(prev => {
+          const idx = prev.findIndex(c => c.conversation_id === conversationId);
+          if (idx === -1) return prev.slice();
+          const updated = { ...prev[idx] };
+          updated.last_message = safeMessage;
+          updated.last_message_time = safeMessage.created_at;
+          if (safeMessage.sender_id !== user?.user_id) {
+            updated.unread_count = (updated.unread_count || 0) + 1;
+          }
+          const newList = [updated, ...prev.filter((_, i) => i !== idx)];
+          return [...newList];
+        });
+      } else {
+        console.log('[useChat] Message for other conversation, ignored:', conversationId);
+        // Nếu là conversation khác, vẫn cần cập nhật last_message và unread_count
+        setConversations(prev => {
+          const idx = prev.findIndex(c => c.conversation_id === conversationId);
+          if (idx === -1) return prev.slice();
+          const updated = { ...prev[idx] };
+          updated.last_message = safeMessage;
+          updated.last_message_time = safeMessage.created_at;
+          updated.unread_count = (updated.unread_count || 0) + 1;
+          const newList = [updated, ...prev.filter((_, i) => i !== idx)];
+          return [...newList];
+        });
       }
     };
 
@@ -292,40 +371,60 @@ export const useChat = (conversationId = null) => {
     };
 
     // Add event listeners
+    console.log('[useChat] Adding socket_new_message event listener');
     window.addEventListener('socket_new_message', handleNewMessage);
     window.addEventListener('socket_user_typing', handleUserTyping);
     window.addEventListener('socket_message_read', handleMessageRead);
 
     return () => {
+      console.log('[useChat] Removing socket_new_message event listener');
       window.removeEventListener('socket_new_message', handleNewMessage);
       window.removeEventListener('socket_user_typing', handleUserTyping);
       window.removeEventListener('socket_message_read', handleMessageRead);
     };
-  }, [scrollToBottom]);
+  }, []);
 
   // Load conversations on mount
   useEffect(() => {
     loadConversations();
   }, [loadConversations]);
 
-  // Switch to conversation if provided
+  // Switch to conversation if provided, but prevent redundant calls
+  const lastSwitchedConvIdRef = useRef(null);
   useEffect(() => {
-    if (conversationId && conversationId !== currentConversationRef.current) {
+    if (
+      conversationId && 
+      conversationId !== currentConversationRef.current && 
+      !loading &&
+      lastSwitchedConvIdRef.current !== conversationId
+    ) {
+      lastSwitchedConvIdRef.current = conversationId;
+      console.log('[useChat] Effect switchConversation:', conversationId);
       switchConversation(conversationId);
     }
-  }, [conversationId, switchConversation]);
+  }, [conversationId, loading, switchConversation]);
+
+  // Fallback: nếu mở trực tiếp URL và conversations rỗng -> load thẳng convId
+  useEffect(() => {
+    if (conversationId && !currentConversation) {
+      if (conversations.length === 0 && !loading) {
+        console.log('[useChat] Fallback: switchConversation by URL', conversationId);
+        switchConversation(conversationId);
+      }
+    }
+  }, [conversationId, conversations, currentConversation, loading, switchConversation]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (currentConversationRef.current && isConnected) {
+      if (currentConversationRef.current) {
         leaveConversation(currentConversationRef.current);
       }
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
       }
     };
-  }, [isConnected, leaveConversation]);
+  }, []);
 
   return {
     // State
@@ -353,7 +452,7 @@ export const useChat = (conversationId = null) => {
     createConversation,
     
     // Utils
-    scrollToBottom,
+    
     messagesEndRef,
     getTypingUsers: () => getTypingUsers(currentConversation?.conversation_id),
     isUserOnline

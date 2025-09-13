@@ -19,21 +19,13 @@ const ChatWindow = ({
   onMarkAsRead,
   onTyping,
   onLoadMore,
-  scrollToBottom,
-  messagesEndRef,
+  
   isConnected
 }) => {
-  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [isNearBottom, setIsNearBottom] = useState(true);
   const messagesContainerRef = useRef(null);
-  const scrollTimeoutRef = useRef(null);
 
-  // Auto-scroll to bottom when new messages arrive
-  useEffect(() => {
-    if (isNearBottom && messages.length > 0) {
-      scrollToBottom();
-    }
-  }, [messages.length, isNearBottom, scrollToBottom]);
+
 
   // Mark messages as read when conversation changes
   useEffect(() => {
@@ -50,7 +42,7 @@ const ChatWindow = ({
     // Check if user is near bottom
     const nearBottom = scrollHeight - scrollTop - clientHeight < 100;
     setIsNearBottom(nearBottom);
-    setShowScrollToBottom(!nearBottom && messages.length > 10);
+
 
     // Load more messages when scrolling to top
     if (scrollTop === 0 && hasMoreMessages && !sendingMessage) {
@@ -59,22 +51,12 @@ const ChatWindow = ({
   };
 
   // Handle scroll to bottom button click
-  const handleScrollToBottom = () => {
-    scrollToBottom();
-    setShowScrollToBottom(false);
-    setIsNearBottom(true);
-  };
+
 
   // Handle message send
   const handleSendMessage = async (content, replyToMessageId = null) => {
     try {
       await onSendMessage(content, replyToMessageId);
-      // Auto-scroll to bottom after sending
-      setTimeout(() => {
-        scrollToBottom();
-        setIsNearBottom(true);
-        setShowScrollToBottom(false);
-      }, 100);
     } catch (error) {
       console.error('Failed to send message:', error);
     }
@@ -84,12 +66,6 @@ const ChatWindow = ({
   const handleSendFile = async (file, content = '') => {
     try {
       await onSendFile(file, content);
-      // Auto-scroll to bottom after sending
-      setTimeout(() => {
-        scrollToBottom();
-        setIsNearBottom(true);
-        setShowScrollToBottom(false);
-      }, 100);
     } catch (error) {
       console.error('Failed to send file:', error);
     }
@@ -180,20 +156,11 @@ const ChatWindow = ({
           />
         )}
 
-        {/* Scroll to Bottom Reference */}
-        <div ref={messagesEndRef}></div>
+
       </div>
 
       {/* Scroll to Bottom Button */}
-      {showScrollToBottom && (
-        <button
-          className="scroll-to-bottom-btn"
-          onClick={handleScrollToBottom}
-          title="Cuộn xuống dưới"
-        >
-          <i className="fas fa-chevron-down"></i>
-        </button>
-      )}
+
 
       {/* Message Input */}
       <div className="message-input-container">
