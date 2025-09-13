@@ -60,12 +60,29 @@ export const AuthProvider = ({ children }) => {
       setError(null);
       const response = await authAPI.register(userData);
       
+      // Tự động đăng nhập sau khi đăng ký thành công
       const { user: newUser, token: authToken } = response;
       
       setUser(newUser);
       setToken(authToken);
       localStorage.setItem('token', authToken);
       
+      return response;
+    } catch (error) {
+      setError(error.message);
+      throw error;
+    }
+  };
+
+  // Đăng nhập bằng Google
+  const loginWithGoogle = async (idToken) => {
+    try {
+      setError(null);
+      const response = await authAPI.loginWithGoogle(idToken);
+      const { user: userData, token: authToken } = response;
+      setUser(userData);
+      setToken(authToken);
+      localStorage.setItem('token', authToken);
       return response;
     } catch (error) {
       setError(error.message);
@@ -117,6 +134,18 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Verify email
+  const verifyEmail = async (email, token) => {
+    try {
+      setError(null);
+      const response = await authAPI.verifyEmail(email, token);
+      return response;
+    } catch (error) {
+      setError(error.message);
+      throw error;
+    }
+  };
+
   // Kiểm tra user có phải admin không
   const isAdmin = () => user?.role === 'Admin';
 
@@ -136,10 +165,12 @@ export const AuthProvider = ({ children }) => {
     error,
     login,
     register,
+    loginWithGoogle,
     logout,
     changePassword,
     forgotPassword,
     resetPassword,
+    verifyEmail,
     isAdmin,
     isTasker,
     isCustomer,

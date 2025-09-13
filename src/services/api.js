@@ -117,6 +117,16 @@ export const authAPI = {
     return handleResponse(response);
   },
 
+  // Đăng nhập với Google ID token
+  loginWithGoogle: async (idToken) => {
+    const response = await fetch(`${API_BASE_URL}/auth/google`, {
+      method: 'POST',
+      headers: createHeaders(),
+      body: JSON.stringify({ idToken }),
+    });
+    return handleResponse(response);
+  },
+
   // Lấy thông tin user hiện tại
   getCurrentUser: async (token) => {
     const response = await fetch(`${API_BASE_URL}/auth/me`, {
@@ -155,6 +165,13 @@ export const authAPI = {
     });
     return handleResponse(response);
   },
+
+  // Verify email
+  verifyEmail: async (email, token) => {
+    const url = `${API_BASE_URL}/auth/verify-email?email=${encodeURIComponent(email)}&token=${encodeURIComponent(token)}`;
+    const response = await fetch(url, { method: 'GET', headers: createHeaders() });
+    return handleResponse(response);
+  }
 };
 
 // Health check
