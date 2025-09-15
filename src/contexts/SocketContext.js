@@ -21,10 +21,6 @@ export const SocketProvider = ({ children }) => {
 
   // Kết nối socket khi user đăng nhập
   useEffect(() => {
-    // Sync full online users list from backend
-    socketService.on('online_users', (userIds) => {
-      setOnlineUsers(new Set(userIds));
-    });
     const authed = (typeof isAuthenticated === 'function') ? isAuthenticated() : !!(isAuthenticated && token && user);
     if (authed) {
       console.log('🔌 Connecting socket for user:', user.user_id);
@@ -39,8 +35,11 @@ export const SocketProvider = ({ children }) => {
     }
   }, [isAuthenticated, token, user]);
 
-  // Thiết lập event listeners
-  useEffect(() => {
+  // Thiết lập event listeners (bao gồm cả online_users)
+    useEffect(() => {
+      socketService.on('online_users', (userIds) => {
+      setOnlineUsers(new Set(userIds));
+    });
     // Connection status
     socketService.on('connection_status', (data) => {
       setConnectionStatus(data.status);
@@ -127,16 +126,16 @@ export const SocketProvider = ({ children }) => {
 
     // Cleanup function
     return () => {
-  socketService.off('connection_status');
-  socketService.off('new_message');
-  socketService.off('user_joined');
-  socketService.off('user_left');
-  socketService.off('user_typing');
-  socketService.off('message_read');
-  socketService.off('new_notification');
-  socketService.off('user_status_changed');
-  socketService.off('socket_error');
-  socketService.off('online_users');
+      socketService.off('connection_status');
+      socketService.off('new_message');
+      socketService.off('user_joined');
+      socketService.off('user_left');
+      socketService.off('user_typing');
+      socketService.off('message_read');
+      socketService.off('new_notification');
+      socketService.off('user_status_changed');
+      socketService.off('socket_error');
+      socketService.off('online_users');
     };
   }, []);
 

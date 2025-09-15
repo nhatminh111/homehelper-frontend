@@ -207,6 +207,14 @@
   color: #444;
 }
 
+.post-content strong {
+  display: block;       /* bắt buộc xuống hàng */
+  font-size: 1.25rem;   /* to hơn */
+  margin: 12px 0 6px;   /* tạo khoảng cách trên/dưới */
+  font-weight: bold;
+  color: #333;
+}
+
 .post-content p {
   margin-bottom: 1.5rem;
 }

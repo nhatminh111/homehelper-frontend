@@ -79,11 +79,7 @@ const BlogCard = ({ post, onLikeToggle, user }) => {
             <div className="date">{formatDate(post.post_date)}</div>
           </div>
         </div>
-        {post.status && (
-          <div className={`status-badge ${post.status.toLowerCase().replace(' ', '-')}`}>
-            {post.status}
-          </div>
-        )}
+        
       </div>
       <div className="blog-content">
         <h3 className="blog-title">

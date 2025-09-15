@@ -120,6 +120,11 @@ class SocketService {
       console.error('❌ Socket error:', error);
       this.emit('socket_error', error);
     });
+
+    this.socket.on('online_users', (data) => {
+      console.log('🟢 Online users list:', data);
+      this.emit('online_users', data);
+    });
   }
 
   // Xử lý reconnect
@@ -230,22 +235,38 @@ class SocketService {
   }
 
   // Event listener management
+
   on(event, callback) {
     if (!this.eventListeners.has(event)) {
       this.eventListeners.set(event, []);
     }
     this.eventListeners.get(event).push(callback);
+    // Đăng ký trực tiếp lên socket.io-client instance nếu đã có
+    if (this.socket) {
+      console.log('socketService: Đăng ký listener', event);
+      this.socket.on(event, callback);
+    }
   }
 
   off(event, callback) {
     if (!this.eventListeners.has(event)) {
       return;
     }
-
     const listeners = this.eventListeners.get(event);
-    const index = listeners.indexOf(callback);
-    if (index > -1) {
-      listeners.splice(index, 1);
+    if (callback) {
+      const index = listeners.indexOf(callback);
+      if (index > -1) {
+        listeners.splice(index, 1);
+      }
+      if (this.socket) {
+        this.socket.off(event, callback);
+      }
+    } else {
+      // Xóa tất cả listener nếu không truyền callback
+      if (this.socket) {
+        listeners.forEach(cb => this.socket.off(event, cb));
+      }
+      this.eventListeners.set(event, []);
     }
   }
 
@@ -253,7 +274,6 @@ class SocketService {
     if (!this.eventListeners.has(event)) {
       return;
     }
-
     this.eventListeners.get(event).forEach(callback => {
       try {
         callback(data);
@@ -261,6 +281,12 @@ class SocketService {
         console.error(`❌ Error in event listener for ${event}:`, error);
       }
     });
+    // Gửi event lên server nếu là sự kiện do client phát ra
+    if (this.socket && [
+      'join_conversation', 'leave_conversation', 'send_message', 'typing_start', 'typing_stop', 'message_read', 'notification_read'
+    ].includes(event)) {
+      this.socket.emit(event, data);
+    }
   }
 
   // Ngắt kết nối

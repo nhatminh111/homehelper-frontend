@@ -10,33 +10,41 @@ const MessageList = ({
   onUpdateMessage,
   onDeleteMessage
 }) => {
+  // Log dữ liệu messages để kiểm tra created_at
   const [editingMessage, setEditingMessage] = useState(null);
   const [replyingToMessage, setReplyingToMessage] = useState(null);
 
   // Group messages by date
   const groupedMessages = messages.reduce((groups, message, index) => {
+    // Group theo ngày UTC để không bị lệch ngày khi dữ liệu là ISO UTC
     const messageDate = new Date(message.created_at);
-    const dateKey = format(messageDate, 'yyyy-MM-dd');
-    
+    // Lấy yyyy-MM-dd theo UTC
+    const dateKey = messageDate.toISOString().slice(0, 10);
     if (!groups[dateKey]) {
       groups[dateKey] = [];
     }
-    
     groups[dateKey].push({
       ...message,
       index
     });
-    
     return groups;
   }, {});
 
   // Format date header
   const formatDateHeader = (dateString) => {
-    const date = new Date(dateString);
-    
-    if (isToday(date)) {
+    // dateString là yyyy-MM-dd (UTC)
+    const [year, month, day] = dateString.split('-');
+    // Tạo date object ở UTC
+    const date = new Date(Date.UTC(year, month - 1, day));
+    // So sánh với local hôm nay/hôm qua
+    const today = new Date();
+    const todayYMD = today.toISOString().slice(0, 10);
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    const yesterdayYMD = yesterday.toISOString().slice(0, 10);
+    if (dateString === todayYMD) {
       return 'Hôm nay';
-    } else if (isYesterday(date)) {
+    } else if (dateString === yesterdayYMD) {
       return 'Hôm qua';
     } else {
       return format(date, 'EEEE, dd/MM/yyyy', { locale: vi });

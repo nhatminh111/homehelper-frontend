@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import parse, { domToReact } from "html-react-parser";
 import blogService from '../services/blogService';
 import { useAuth } from '../contexts/AuthContext';
 import './BlogDetails.css';
@@ -226,26 +227,39 @@ const BlogDetails = () => {
                 </div>
               </header>
 
-              {/* Images */}
-              {Array.isArray(post.photo_urls) && post.photo_urls.length > 0 && (
-                <div className="post-images">
-                  {post.photo_urls.map((url, index) => (
-                    <img 
-                      key={index}
-                      src={url} 
-                      alt={`${post.title} - ${index + 1}`}
-                      className="post-image"
-                    />
-                  ))}
-                </div>
-              )}
+              <div className="post-content">
+                {(() => {
+                  let imgIndex = 0; // dùng biến cục bộ
+                  return parse(post.content, {
+                    replace: (domNode) => {
+                      if (domNode.name === "p") {
+                        const img =
+                          post.photo_urls && post.photo_urls[imgIndex] ? (
+                            <img
+                              src={post.photo_urls[imgIndex]}
+                              alt={`img-${imgIndex}`}
+                              className="post-inline-image"
+                            />
+                          ) : null;
 
-              <div className="post-content space-y-3">
-                {post.content.split('\n').map((line, index) =>
-                  line.trim() ? <p key={index}>{line}</p> : <br key={index} />
-                )}
+                        // Tăng index sau khi dùng
+                        imgIndex++;
+
+                        return (
+                          <div className="section">
+                            {/* Nội dung trước */}
+                            <p>{domToReact(domNode.children)}</p>
+
+                            {/* Ảnh sau */}
+                            {img}
+                          </div>
+                        );
+                      }
+                    },
+                  });
+                })()}
               </div>
-                              
+                                
               {/* Services */}
               {services.length > 0 && (
                 <div className="post-services">

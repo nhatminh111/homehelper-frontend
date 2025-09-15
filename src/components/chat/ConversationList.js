@@ -1,3 +1,4 @@
+import { useSocket } from '../../contexts/SocketContext';
 import React, { useState, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatDistanceToNow, formatDistance, parseISO } from 'date-fns';
@@ -134,6 +135,8 @@ const ConversationList = ({
     return conversation.type === 'direct' ? 'Bắt đầu cuộc trò chuyện' : 'Chưa có tin nhắn';
   };
 
+  const { isUserOnline } = useSocket();
+
   return (
     <div className="conversation-list">
       {/* Header */}
@@ -264,23 +267,30 @@ const ConversationList = ({
             )}
           </div>
         ) : (
-          sortedConversations.map((conversation, idx) => (
-            <ConversationItem
-              key={conversation.conversation_id ?? `conv-${idx}`}
-              conversation={conversation}
-              isActive={currentConversation?.conversation_id === conversation.conversation_id}
-              title={getConversationTitle(conversation)}
-              avatar={getConversationAvatar(conversation)}
-              subtitle={getConversationSubtitle(conversation)}
-              lastMessageTime={(() => {
-                const rawTime = conversation.last_message_time || conversation.last_message_at || conversation.updated_at || conversation.created_at;
-                const formatted = formatLastMessageTime(rawTime);
-                return formatted;
-              })()}
-              unreadCount={conversation.unread_count || 0}
-              onClick={() => conversation?.conversation_id && onConversationSelect(conversation.conversation_id)}
-            />
-          ))
+          sortedConversations.map((conversation, idx) => {
+            let isOnline = false;
+            if (conversation.type === 'direct' && conversation.participants?.length > 0) {
+              const other = conversation.participants.find(p => (p.user_id ?? p.userId) !== currentUserId) || conversation.participants[0];
+              isOnline = other ? isUserOnline(other.user_id ?? other.userId) : false;
+            }
+            return (
+              <ConversationItem
+                key={conversation.conversation_id ?? `conv-${idx}`}
+                conversation={{ ...conversation, is_online: isOnline }}
+                isActive={currentConversation?.conversation_id === conversation.conversation_id}
+                title={getConversationTitle(conversation)}
+                avatar={getConversationAvatar(conversation)}
+                subtitle={getConversationSubtitle(conversation)}
+                lastMessageTime={(() => {
+                  const rawTime = conversation.last_message_time || conversation.last_message_at || conversation.updated_at || conversation.created_at;
+                  const formatted = formatLastMessageTime(rawTime);
+                  return formatted;
+                })()}
+                unreadCount={conversation.unread_count || 0}
+                onClick={() => conversation?.conversation_id && onConversationSelect(conversation.conversation_id)}
+              />
+            );
+          })
         )}
       </div>
     </div>
