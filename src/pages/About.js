@@ -38,7 +38,7 @@ const About = () => {
               <img src="/images/about.jpg" alt="About Us" className="img-fluid" />
             </div>
             <div className="col-md-6">
-              <h3>Your Trusted Cleaning Partner</h3>
+              <h3>Your Trusted Cleaning Partnerdffff</h3>
               <p>
                 We are a professional cleaning company dedicated to providing high-quality cleaning services 
                 for homes and businesses. With years of experience and a team of trained professionals, 

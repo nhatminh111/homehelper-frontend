@@ -16,7 +16,7 @@ import './Auth.css';
 const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, error, setError, isAuthenticated } = useAuth();
+  const { login, loginWithGoogle, error, setError, isAuthenticated } = useAuth();
   
   const [userType, setUserType] = useState('user'); // 'user' or 'tasker'
   const [showPassword, setShowPassword] = useState(false);
@@ -34,6 +34,41 @@ const Login = () => {
       navigate(from, { replace: true });
     }
   }, [isAuthenticated, navigate, location]);
+
+  // Initialize Google button with popup (disable FedCM/One Tap)
+  useEffect(() => {
+    const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
+    if (!window.google || !clientId) return;
+
+    try {
+      window.google.accounts.id.initialize({
+        client_id: clientId,
+        callback: ({ credential }) => {
+          if (credential) {
+            loginWithGoogle(credential).catch((e) => {
+              console.error(e);
+              setError(e.message || 'Đăng nhập Google thất bại');
+            });
+          }
+        },
+        ux_mode: 'popup',
+        auto_select: false,
+        use_fedcm_for_prompt: false
+      });
+
+      const container = document.getElementById('google-btn');
+      if (container) {
+        window.google.accounts.id.renderButton(container, {
+          theme: 'outline',
+          size: 'large',
+          text: 'continue_with',
+          shape: 'rectangular'
+        });
+      }
+    } catch (e) {
+      console.error('Google init error:', e);
+    }
+  }, [loginWithGoogle, setError]);
 
   const handleInputChange = (e) => {
     setFormData({
@@ -59,6 +94,8 @@ const Login = () => {
       setLoading(false);
     }
   };
+
+  // One Tap/FedCM removed; using Google-rendered button instead
 
   return (
     <div className={`auth-container ${userType === 'tasker' ? 'yellow-theme' : ''}`}>
@@ -178,10 +215,10 @@ const Login = () => {
           </div>
 
           <div className="social-buttons">
-            <button className="social-button google">
+            <div id="google-btn" className="social-button google">
               <FontAwesomeIcon icon={faGoogle} />
               <span>Continue with Google</span>
-            </button>
+            </div>
             <button className="social-button facebook">
               <FontAwesomeIcon icon={faFacebook} />
               <span>Continue with Facebook</span>
@@ -192,30 +229,6 @@ const Login = () => {
           <div className="auth-link">
             <span>Don't have an account? </span>
             <Link to="/register" className="link-text">Sign up now</Link>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="auth-footer">
-          <p className="terms-text">
-            By continuing, you agree to our{' '}
-            <a href="#" className="link-text">Terms of Service</a> and{' '}
-            <a href="#" className="link-text">Privacy Policy</a>
-          </p>
-          
-          <div className="social-icons">
-            <button className="social-icon btn btn-link">
-              <FontAwesomeIcon icon={faFacebook} />
-            </button>
-            <button className="social-icon btn btn-link">
-              <FontAwesomeIcon icon={faTwitter} />
-            </button>
-            <button className="social-icon btn btn-link">
-              <FontAwesomeIcon icon={faInstagram} />
-            </button>
-            <button className="social-icon btn btn-link">
-              <FontAwesomeIcon icon={faLinkedin} />
-            </button>
           </div>
         </div>
       </div>

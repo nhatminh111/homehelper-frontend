@@ -113,6 +113,18 @@ src/
 - **HTTP Client**: Fetch API
 - **Authentication**: JWT
 
+## Đăng nhập bằng Google
+
+1. Tạo OAuth Client trên Google Cloud (type: Web) và lấy Client ID.
+2. Backend: thêm `GOOGLE_CLIENT_ID` vào `homehelper-backend/env.txt`.
+3. Frontend: tạo file `.env` trong `cleaning-company-react` với:
+
+```
+REACT_APP_GOOGLE_CLIENT_ID=your-google-oauth-client-id.apps.googleusercontent.com
+```
+
+4. Khởi động lại frontend để nạp biến môi trường.
+
 ## Hướng dẫn sử dụng
 
 1. **Đăng ký tài khoản**: Chọn loại user (Customer/Tasker) và điền thông tin
