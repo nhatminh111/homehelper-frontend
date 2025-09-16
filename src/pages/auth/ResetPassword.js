@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faEye, 
@@ -13,6 +14,7 @@ import './Auth.css';
 
 const ResetPassword = () => {
   const [searchParams] = useSearchParams();
+  const { resetPassword, setError, error } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -30,10 +32,15 @@ const ResetPassword = () => {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Handle password reset logic here
-    console.log('Password reset with token:', token, formData);
+    setError(null);
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+    const email = searchParams.get('email');
+    await resetPassword({ email, token, newPassword: formData.password });
     setIsSubmitted(true);
   };
 
@@ -103,6 +110,9 @@ const ResetPassword = () => {
                 />
               </div>
 
+              {error && (
+                <div className="alert alert-danger" role="alert">{error}</div>
+              )}
               <button type="submit" className="auth-button primary">
                 <span>Reset Password</span>
                 <FontAwesomeIcon icon={faLock} />

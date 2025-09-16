@@ -52,13 +52,13 @@ const Register = () => {
 
     // Validation
     if (formData.password !== formData.confirmPassword) {
-      setError('Mật khẩu xác nhận không khớp');
+      setError('Passwords do not match');
       setLoading(false);
       return;
     }
 
     if (formData.password.length < 6) {
-      setError('Mật khẩu phải có ít nhất 6 ký tự');
+      setError('Password must be at least 6 characters');
       setLoading(false);
       return;
     }
@@ -72,8 +72,10 @@ const Register = () => {
         phone: '' // Có thể thêm field phone sau
       };
 
-      await register(userData);
-      // Register thành công sẽ được redirect trong useEffect
+      const res = await register(userData);
+      if (res?.message) {
+        alert('Registration successful! You have been automatically logged in.');
+      }
     } catch (error) {
       console.error('Register error:', error);
       // Error đã được set trong AuthContext
@@ -110,22 +112,22 @@ const Register = () => {
             onClick={() => setUserType('user')}
           >
             <FontAwesomeIcon icon={faUser} />
-            <span>Người dùng</span>
+            <span>Customer</span>
           </button>
           <button 
             className={`type-option ${userType === 'tasker' ? 'active' : ''}`}
             onClick={() => setUserType('tasker')}
           >
             <FontAwesomeIcon icon={faStar} />
-            <span>Người giúp việc</span>
+            <span>Tasker</span>
           </button>
         </div>
 
         {/* Registration Form */}
         <div className="auth-card">
-          <h2 className="auth-title">Đăng ký</h2>
+          <h2 className="auth-title">Sign Up</h2>
           <p className="auth-subtitle">
-            {userType === 'user' ? 'Tạo tài khoản mới' : 'Tạo tài khoản người giúp việc mới'}
+            {userType === 'user' ? 'Create new customer account' : 'Create new tasker account'}
           </p>
 
           <form onSubmit={handleSubmit} className="auth-form">
@@ -133,7 +135,7 @@ const Register = () => {
               <input
                 type="text"
                 name="email"
-                placeholder="Email hoặc số điện thoại"
+                placeholder="Email or phone number"
                 value={formData.email}
                 onChange={handleInputChange}
                 required
@@ -145,7 +147,7 @@ const Register = () => {
               <input
                 type="text"
                 name="fullName"
-                placeholder="Họ và tên"
+                placeholder="Full name"
                 value={formData.fullName}
                 onChange={handleInputChange}
                 required
@@ -157,7 +159,7 @@ const Register = () => {
               <input
                 type={showPassword ? 'text' : 'password'}
                 name="password"
-                placeholder="Mật khẩu"
+                placeholder="Password"
                 value={formData.password}
                 onChange={handleInputChange}
                 required
@@ -173,7 +175,7 @@ const Register = () => {
               <input
                 type={showConfirmPassword ? 'text' : 'password'}
                 name="confirmPassword"
-                placeholder="Xác nhận mật khẩu"
+                placeholder="Confirm password"
                 value={formData.confirmPassword}
                 onChange={handleInputChange}
                 required
@@ -193,7 +195,7 @@ const Register = () => {
             <button type="submit" className="auth-button primary" disabled={loading}>
               {loading ? (
                 <>
-                  <span>Đang đăng ký...</span>
+                  <span>Signing up...</span>
                   <div className="spinner-border spinner-border-sm ms-2" role="status">
                     <span className="visually-hidden">Loading...</span>
                   </div>
@@ -201,7 +203,7 @@ const Register = () => {
               ) : (
                 <>
                   <FontAwesomeIcon icon={faPlus} />
-                  <span>Đăng ký</span>
+                  <span>Sign Up</span>
                 </>
               )}
             </button>
@@ -209,33 +211,33 @@ const Register = () => {
 
           {/* Social Login */}
           <div className="social-separator">
-            <span>Hoặc tiếp tục với</span>
+            <span>Or continue with</span>
           </div>
 
           <div className="social-buttons">
             <button className="social-button google">
               <FontAwesomeIcon icon={faGoogle} />
-              <span>Tiếp tục với Google</span>
+              <span>Continue with Google</span>
             </button>
             <button className="social-button facebook">
               <FontAwesomeIcon icon={faFacebook} />
-              <span>Tiếp tục với Facebook</span>
+              <span>Continue with Facebook</span>
             </button>
           </div>
 
           {/* Login Link */}
           <div className="auth-link">
-            <span>Đã có tài khoản? </span>
-            <Link to="/login" className="link-text">Đăng nhập ngay</Link>
+            <span>Already have an account? </span>
+            <Link to="/login" className="link-text">Sign in now</Link>
           </div>
         </div>
 
         {/* Footer */}
         <div className="auth-footer">
           <p className="terms-text">
-            Bằng cách tiếp tục, bạn đồng ý với{' '}
-            <a href="#" className="link-text">Điều khoản dịch vụ</a> và{' '}
-            <a href="#" className="link-text">Chính sách bảo mật</a>
+            By continuing, you agree to our{' '}
+            <a href="#" className="link-text">Terms of Service</a> and{' '}
+            <a href="#" className="link-text">Privacy Policy</a>
           </p>
           
           <div className="social-icons">

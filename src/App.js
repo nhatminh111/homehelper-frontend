@@ -5,6 +5,7 @@ import './App.css';
 
 // Import contexts
 import { AuthProvider } from './contexts/AuthContext';
+import { SocketProvider } from './contexts/SocketContext';
 
 // Import components
 import Header from './components/Header';
@@ -16,6 +17,7 @@ import Services from './pages/Services';
 import Portfolio from './pages/Portfolio';
 import Pricing from './pages/Pricing';
 import Blog from './pages/Blog';
+import BlogDetails from './pages/BlogDetails';
 import Contact from './pages/Contact';
 import Video from './pages/Video';
 import VideoDetail from './pages/VideoDetail';
@@ -46,14 +48,16 @@ import SystemManagement from './pages/SystemManagement';
 // Role landing pages
 import TaskerHome from './pages/tasker/TaskerHome';
 import AdminHome from './pages/admin/AdminHome';
+import ChatPage from './pages/Chat';
 
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <div className="App">
-          <Header />
-          <main>
+      <SocketProvider>
+        <Router>
+          <div className="App">
+            <Header />
+            <main>
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/about" element={<About />} />
@@ -61,6 +65,7 @@ function App() {
               <Route path="/portfolio" element={<Portfolio />} />
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/blog" element={<Blog />} />
+              <Route path="/blog/:id" element={<BlogDetails />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/video" element={<Video />} />
               <Route path="/videoDetail" element={<VideoDetail />} />
@@ -128,6 +133,16 @@ function App() {
                   <SystemManagement />
                 </ProtectedRoute>
               } />
+              <Route path="/chat" element={
+                <ProtectedRoute>
+                  <ChatPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/chat/:conversationId" element={
+                <ProtectedRoute>
+                  <ChatPage />
+                </ProtectedRoute>
+              } />
               {/* Role landing */}
               <Route path="/tasker" element={
                 <ProtectedRoute requiredRole="Tasker">
@@ -140,10 +155,11 @@ function App() {
                 </ProtectedRoute>
               } />
             </Routes>
-          </main>
-          <Footer />
-        </div>
-      </Router>
+            </main>
+            <Footer />
+          </div>
+        </Router>
+      </SocketProvider>
     </AuthProvider>
   );
 }

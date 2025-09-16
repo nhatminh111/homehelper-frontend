@@ -10,7 +10,7 @@ const Footer = () => {
       <div className="container">
         <div className="row">
           <div className="col-md-6 col-lg-3 mb-4 mb-md-0">
-            <h2 className="footer-heading">Cleaning Company</h2>
+            <h2 className="footer-heading">Cleaning Company ddđ</h2>
             <p>
               A small river named Duden flows by their place and supplies it with the necessary regelialia. 
               It is a paradisematic country, in which roasted parts of sentences fly into your mouth.
