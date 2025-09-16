@@ -4,7 +4,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faPlay, faStar, faHeart, faPhone, faShare, faFlag, faEllipsisH, faCircleCheck, faEye
 } from '@fortawesome/free-solid-svg-icons';
-import { faCommentAlt } from '@fortawesome/free-regular-svg-icons';
+
 import '../css/videoDetail.css'
 
 const VideoDetail = () => {

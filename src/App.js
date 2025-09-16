@@ -49,7 +49,7 @@ function App() {
     <AuthProvider>
       <Router>
         <div className="App">
-          <Header />
+           <Header />
           <main>
             <Routes>
               <Route path="/" element={<Home />} />
