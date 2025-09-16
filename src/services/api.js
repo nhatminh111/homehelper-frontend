@@ -1,4 +1,6 @@
-const API_BASE_URL = 'http://localhost:3001/api';
+const RAW_BASE =
+  (process.env.REACT_APP_API_BASE || 'https://homehelper-api-bwdmh7bgeme5e2az.southeastasia-01.azurewebsites.net').replace(/\/+$/, '');
+export const API_BASE_URL = `${RAW_BASE}/api`;
 
 // Helper function để tạo headers với token
 const createHeaders = (token = null) => {
@@ -15,12 +17,13 @@ const createHeaders = (token = null) => {
 
 // Helper function để xử lý response
 const handleResponse = async (response) => {
-  const data = await response.json();
-  
+  const text = await response.text();
+  let data; try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
+
   if (!response.ok) {
-    throw new Error(data.error || 'Có lỗi xảy ra');
+    const msg = data?.error || data?.message || data?.raw || `HTTP ${response.status}`;
+    throw new Error(msg);
   }
-  
   return data;
 };
 
@@ -88,7 +91,8 @@ export const authAPI = {
 
 // Health check
 export const healthCheck = async () => {
-  const response = await fetch(`${API_BASE_URL.replace('/api', '')}/health`);
+  const baseOrigin = RAW_BASE; // không kèm /api
+  const response = await fetch(`${baseOrigin}/health`);
   return handleResponse(response);
 };
 
