@@ -13,6 +13,7 @@ import {
   faUserPlus
 } from '@fortawesome/free-solid-svg-icons';
 import { useAuth } from '../contexts/AuthContext';
+import NotificationBell from './notifications/NotificationBell';
 
 const Header = () => {
   const [isNavCollapsed, setIsNavCollapsed] = useState(true);
@@ -109,6 +110,9 @@ const Header = () => {
               </li>
               <li className={`nav-item ${isActive('/contact')}`}>
                 <Link to="/contact" className="nav-link">Contact</Link>
+              </li>
+              <li className={`nav-item ${isActive('/chat')}`}>
+                <Link to="/chat" className="nav-link">Chat</Link>
               </li>
               
               {/* Auth Menu */}
@@ -211,11 +215,9 @@ const Header = () => {
                 </Link>
               </li>
               
-              {/* Notification Icon */}
-              <li className="nav-item">
-                              <button className="nav-link btn btn-link">
-                <FontAwesomeIcon icon={faBell} />
-              </button>
+              {/* Notification Bell */}
+              <li className="nav-item d-flex align-items-center">
+                <NotificationBell />
               </li>
             </ul>
           </div>
