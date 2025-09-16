@@ -21,6 +21,9 @@ import BlogDetails from './pages/BlogDetails';
 import Contact from './pages/Contact';
 import Video from './pages/Video';
 import VideoDetail from './pages/VideoDetail';
+import TopUp from './pages/TopUp';
+import PaymentResult from './pages/PaymentResult';
+import Wallet from './pages/Wallet';
 
 // Import authentication pages
 import Login from './pages/auth/Login';
@@ -66,6 +69,9 @@ function App() {
               <Route path="/contact" element={<Contact />} />
               <Route path="/video" element={<Video />} />
               <Route path="/videoDetail" element={<VideoDetail />} />
+              <Route path="/topUp" element={<TopUp />} />
+              <Route path="/payment-result" element={<PaymentResult />} />
+              <Route path="/wallet" element={<Wallet />} />
               
               {/* Authentication routes */}
               <Route path="/login" element={<Login />} />

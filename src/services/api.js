@@ -22,7 +22,6 @@ export const handleResponse = async (response) => {
   if (!response.ok) {
     throw new Error(data.message || data.error || 'Có lỗi xảy ra'); // Hỗ trợ cả message và error từ backend
   }
-  
   return data;
 };
 
@@ -255,7 +254,8 @@ export const servicesAPI = {
 };
 
 export const healthCheck = async () => {
-  const response = await fetch(`${API_BASE_URL.replace('/api', '')}/health`);
+  const baseOrigin = RAW_BASE; // không kèm /api
+  const response = await fetch(`${baseOrigin}/health`);
   return handleResponse(response);
 };
 
