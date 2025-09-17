@@ -266,23 +266,32 @@ const BlogDetails = () => {
                   <h3>Dịch vụ liên quan</h3>
                   <div className="services-grid">
                     {services.map((service) => (
-                      <div key={service.post_service_id} className="service-card">
-                        <h4>
-                              <span className="service-variant-tag">{service.name}</span>
-                        </h4>
+                      <div key={service.post_service_id} className="service-card improved-service-card">
+                        <div className="service-header">
+                          <span className="service-main-label">Dịch vụ chính:</span>
+                          <span className="service-main improved-service-main">{service.name}</span>
+                          {service.variant_name && (
+                            <>
+                              <span className="service-variant-label">Nhóm:</span>
+                              <span className="service-variant improved-service-variant">{service.variant_name}</span>
+                            </>
+                          )}
+                        </div>
                         <p className="service-description">{service.description}</p>
-                        <div className="service-pricing">
-                          <span className="base-price">
-                            Giá gốc: {formatPrice(service.reference_price)}
-                          </span>
+                        <div className="service-pricing improved-service-pricing">
+                          <div className="price-row">
+                            <span className="base-price-label">Giá gốc:</span>
+                            <span className="base-price improved-base-price">{formatPrice(service.specific_price)}</span>
+                          </div>
                           {service.desired_price && (
-                            <span className="desired-price">
-                              Giá mong muốn: {formatPrice(service.desired_price)}
-                            </span>
+                            <div className="price-row">
+                              <span className="desired-price-label">Giá mong muốn:</span>
+                              <span className="desired-price improved-desired-price">{formatPrice(service.desired_price)}</span>
+                            </div>
                           )}
                         </div>
                         {service.notes && (
-                          <p className="service-notes">
+                          <p className="service-notes improved-service-notes">
                             <strong>Ghi chú:</strong> {service.notes}
                           </p>
                         )}
@@ -291,6 +300,7 @@ const BlogDetails = () => {
                   </div>
                 </div>
               )}
+
 
               {/* Actions */}
               <div className="post-actions">
