@@ -174,7 +174,8 @@
   content: '';
   position: absolute;
   bottom: -8px;
-  left: 0;
+  left: 50%;
+  transform: translateX(-50%);
   width: 40px;
   height: 3px;
   background: #ff6b35;
@@ -199,7 +200,7 @@
 
 .form-group input {
   width: 100%;
-  padding: 15px 45px 15px 20px;
+  padding: 15px 45px 15px 30px;
   border: 2px solid #e1e5e9;
   border-radius: 12px;
   font-size: 16px;
@@ -300,6 +301,9 @@
   text-align: center;
   margin: 25px 0;
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .social-separator::before {
@@ -310,13 +314,16 @@
   right: 0;
   height: 1px;
   background: #e1e5e9;
+  z-index: 1;
 }
 
 .social-separator span {
   background: white;
-  padding: 0 15px;
+  padding: 0 20px;
   color: #666;
   font-size: 14px;
+  position: relative;
+  z-index: 2;
 }
 
 /* Social Buttons */

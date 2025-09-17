@@ -22,9 +22,15 @@ import "./Auth.css";
 const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
+<<<<<<< HEAD
   const { login, error, setError, isAuthenticated } = useAuth();
 
   const [userType, setUserType] = useState("user"); // 'user' or 'tasker'
+=======
+  const { login, loginWithGoogle, error, setError, isAuthenticated } = useAuth();
+  
+  const [userType, setUserType] = useState('user'); // 'user' or 'tasker'
+>>>>>>> f7d84bc98da8d00686ffbb6d735ecfadf325aff3
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -40,6 +46,41 @@ const Login = () => {
       navigate(from, { replace: true });
     }
   }, [isAuthenticated, navigate, location]);
+
+  // Initialize Google button with popup (disable FedCM/One Tap)
+  useEffect(() => {
+    const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
+    if (!window.google || !clientId) return;
+
+    try {
+      window.google.accounts.id.initialize({
+        client_id: clientId,
+        callback: ({ credential }) => {
+          if (credential) {
+            loginWithGoogle(credential).catch((e) => {
+              console.error(e);
+              setError(e.message || 'Đăng nhập Google thất bại');
+            });
+          }
+        },
+        ux_mode: 'popup',
+        auto_select: false,
+        use_fedcm_for_prompt: false
+      });
+
+      const container = document.getElementById('google-btn');
+      if (container) {
+        window.google.accounts.id.renderButton(container, {
+          theme: 'outline',
+          size: 'large',
+          text: 'continue_with',
+          shape: 'rectangular'
+        });
+      }
+    } catch (e) {
+      console.error('Google init error:', e);
+    }
+  }, [loginWithGoogle, setError]);
 
   const handleInputChange = (e) => {
     setFormData({
@@ -80,6 +121,8 @@ const Login = () => {
       setLoading(false);
     }
   };
+
+  // One Tap/FedCM removed; using Google-rendered button instead
 
   return (
     <div
@@ -210,10 +253,10 @@ const Login = () => {
           </div>
 
           <div className="social-buttons">
-            <button className="social-button google">
+            <div id="google-btn" className="social-button google">
               <FontAwesomeIcon icon={faGoogle} />
               <span>Continue with Google</span>
-            </button>
+            </div>
             <button className="social-button facebook">
               <FontAwesomeIcon icon={faFacebook} />
               <span>Continue with Facebook</span>
@@ -228,6 +271,7 @@ const Login = () => {
             </Link>
           </div>
         </div>
+<<<<<<< HEAD
 
         {/* Footer */}
         <div className="auth-footer">
@@ -257,6 +301,8 @@ const Login = () => {
             </button>
           </div>
         </div>
+=======
+>>>>>>> f7d84bc98da8d00686ffbb6d735ecfadf325aff3
       </div>
     </div>
   );

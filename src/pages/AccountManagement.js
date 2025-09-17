@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
   faUser, 
@@ -23,20 +23,29 @@ import {
   faGlobe,
   faGraduationCap,
   faCertificate,
-  faClock
+  faClock,
+  faMapPin
 } from '@fortawesome/free-solid-svg-icons';
+import { addressAPI } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 
 const AccountManagement = () => {
+  const { token, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('profile');
   const [isEditing, setIsEditing] = useState(false);
   const [userType, setUserType] = useState('customer'); // 'customer' or 'tasker'
+  const [addresses, setAddresses] = useState([]);
+  const [newAddress, setNewAddress] = useState('');
+  const [editingAddress, setEditingAddress] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
 
   const [profileData, setProfileData] = useState({
     firstName: 'John',
     lastName: 'Doe',
     email: 'john.doe@example.com',
     phone: '+1 (555) 123-4567',
-    address: '123 Main Street, Downtown, NY 10001',
     dateOfBirth: '1990-05-15',
     profileImage: '/images/person_1.jpg',
     bio: 'Professional cleaner with 5+ years of experience in residential and commercial cleaning services.',
@@ -55,12 +64,34 @@ const AccountManagement = () => {
 
   const tabs = [
     { id: 'profile', label: 'Profile', icon: faUser },
+    { id: 'addresses', label: 'Addresses', icon: faMapMarkerAlt },
     { id: 'security', label: 'Security', icon: faLock },
     { id: 'certifications', label: 'Certifications', icon: faCertificate },
     { id: 'points', label: 'Points & Rewards', icon: faStar },
     { id: 'history', label: 'History', icon: faHistory },
     { id: 'settings', label: 'Settings', icon: faCog }
   ];
+
+  useEffect(() => {
+    const fetchAddresses = async () => {
+      if (!token) return;
+      try {
+        setIsLoading(true);
+        const addresses = await addressAPI.getAll(token);
+        setAddresses(addresses);
+      } catch (error) {
+        if (error.message.includes('Phiên đăng nhập hết hạn') || error.message.includes('không có quyền truy cập')) {
+          setError(error.message);
+          logout();
+        } else {
+          setError(error.message || 'Không thể tải danh sách địa chỉ');
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchAddresses();
+  }, [token, logout]);
 
   const handleInputChange = (field, value) => {
     setProfileData(prev => ({
@@ -69,11 +100,119 @@ const AccountManagement = () => {
     }));
   };
 
+  const handleAddAddress = async () => {
+    if (!newAddress.trim()) {
+      setError('Vui lòng nhập địa chỉ');
+      return;
+    }
+    try {
+      setError(null);
+      setSuccess(null);
+      setIsLoading(true);
+      const response = await addressAPI.create(newAddress.trim(), token);
+      setAddresses(prev => [...prev, response]);
+      setNewAddress('');
+      setSuccess(response.message || 'Thêm địa chỉ thành công! Tọa độ đã được tự động lấy từ bản đồ.');
+    } catch (error) {
+      console.error('Lỗi khi thêm địa chỉ:', error);
+      if (error.message.includes('Không tìm thấy địa chỉ trên bản đồ')) {
+        setError('Không tìm thấy địa chỉ này trên bản đồ VietMap. Vui lòng kiểm tra chính tả, thêm thông tin chi tiết (phường, quận, thành phố), hoặc thử địa chỉ khác.');
+      } else if (error.message.includes('Lỗi API VietMap')) {
+        setError('Lỗi kết nối bản đồ VietMap. Vui lòng thử lại sau.');
+      } else if (error.message.includes('Phiên đăng nhập hết hạn') || error.message.includes('không có quyền truy cập')) {
+        setError(error.message);
+        logout();
+      } else {
+        setError(error.message || 'Không thể thêm địa chỉ');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleEditAddress = (address) => {
+    setEditingAddress(address);
+    setNewAddress(address.address);
+  };
+
+  const handleUpdateAddress = async () => {
+    if (!newAddress.trim()) {
+      setError('Vui lòng nhập địa chỉ');
+      return;
+    }
+    try {
+      setError(null);
+      setSuccess(null);
+      setIsLoading(true);
+      const response = await addressAPI.update(editingAddress.address_id, newAddress.trim(), token);
+      setAddresses(prev => prev.map(addr => 
+        addr.address_id === editingAddress.address_id ? response : addr
+      ));
+      setEditingAddress(null);
+      setNewAddress('');
+      setSuccess(response.message || 'Cập nhật địa chỉ thành công! Tọa độ đã được tự động cập nhật.');
+    } catch (error) {
+      console.error('Lỗi khi cập nhật địa chỉ:', error);
+      if (error.message.includes('Không tìm thấy địa chỉ trên bản đồ')) {
+        setError('Không tìm thấy địa chỉ này trên bản đồ VietMap. Vui lòng kiểm tra chính tả, thêm thông tin chi tiết (phường, quận, thành phố), hoặc thử địa chỉ khác.');
+      } else if (error.message.includes('Lỗi API VietMap')) {
+        setError('Lỗi kết nối bản đồ VietMap. Vui lòng thử lại sau.');
+      } else if (error.message.includes('Phiên đăng nhập hết hạn') || error.message.includes('không có quyền truy cập')) {
+        setError(error.message);
+        logout();
+      } else {
+        setError(error.message || 'Không thể cập nhật địa chỉ');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteAddress = async (addressId) => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa địa chỉ này không?')) return;
+    try {
+      setError(null);
+      setSuccess(null);
+      setIsLoading(true);
+      await addressAPI.delete(addressId, token);
+      setAddresses(prev => prev.filter(addr => addr.address_id !== addressId));
+      setSuccess('Xóa địa chỉ thành công');
+    } catch (error) {
+      if (error.message.includes('Phiên đăng nhập hết hạn') || error.message.includes('không có quyền truy cập')) {
+        setError(error.message);
+        logout();
+      } else {
+        setError(error.message || 'Không thể xóa địa chỉ');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingAddress(null);
+    setNewAddress('');
+  };
+
   const handleSave = () => {
     setIsEditing(false);
-    // Here you would typically save to backend
     console.log('Profile updated:', profileData);
   };
+
+  const formatCoordinates = (lat, lng) => {
+    if (lat === 0 || lng === 0) {
+      return 'Chưa có tọa độ';
+    }
+    return `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+  };
+
+  if (!token) {
+    return (
+      <div className="container py-5 text-center">
+        <p>Vui lòng đăng nhập để quản lý tài khoản</p>
+      </div>
+    );
+  }
 
   return (
     <div className="account-management-container">
@@ -225,17 +364,6 @@ const AccountManagement = () => {
                 </div>
 
                 <div className="form-group mb-3">
-                  <label>Address</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    value={profileData.address}
-                    onChange={(e) => handleInputChange('address', e.target.value)}
-                    disabled={!isEditing}
-                  />
-                </div>
-
-                <div className="form-group mb-3">
                   <label>Date of Birth</label>
                   <input
                     type="date"
@@ -308,6 +436,139 @@ const AccountManagement = () => {
                     </button>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Addresses Tab */}
+            {activeTab === 'addresses' && (
+              <div className="content-card bg-white rounded shadow-sm p-4">
+                <h4 className="mb-4">Manage Addresses</h4>
+
+                {error && (
+                  <div className="alert alert-danger alert-dismissible fade show" role="alert">
+                    {error}
+                    <button type="button" className="close" onClick={() => setError(null)}>
+                      <span aria-hidden="true">&times;</span>
+                    </button>
+                  </div>
+                )}
+                {success && (
+                  <div className="alert alert-success alert-dismissible fade show" role="alert">
+                    {success}
+                    <button type="button" className="close" onClick={() => setSuccess(null)}>
+                      <span aria-hidden="true">&times;</span>
+                    </button>
+                  </div>
+                )}
+                {isLoading && (
+                  <div className="alert alert-info d-flex align-items-center">
+                    <div className="spinner-border spinner-border-sm mr-2" role="status">
+                      <span className="sr-only">Đang tải...</span>
+                    </div>
+                    Đang xử lý... (Đang lấy tọa độ từ bản đồ)
+                  </div>
+                )}
+
+                <div className="form-group mb-3">
+                  <label><FontAwesomeIcon icon={faMapMarkerAlt} className="mr-1" /> Địa chỉ</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={newAddress}
+                    onChange={(e) => setNewAddress(e.target.value)}
+                    placeholder="Nhập địa chỉ đầy đủ (ví dụ: 23 Nguyễn Văn Thoại, Phường An Hải, Thành Phố Đà Nẵng)"
+                    disabled={isLoading}
+                  />
+                  <small className="form-text text-muted">
+                    Tọa độ sẽ được tự động lấy từ bản đồ VietMap khi bạn lưu.
+                  </small>
+                  <div className="text-right mt-2">
+                    {editingAddress && (
+                      <button 
+                        className="btn btn-secondary mr-2" 
+                        onClick={handleCancelEdit}
+                        disabled={isLoading}
+                      >
+                        <FontAwesomeIcon icon={faTimes} className="mr-1" />
+                        Hủy
+                      </button>
+                    )}
+                    <button
+                      className="btn btn-primary"
+                      onClick={editingAddress ? handleUpdateAddress : handleAddAddress}
+                      disabled={isLoading || !newAddress.trim()}
+                    >
+                      <FontAwesomeIcon icon={faEdit} className="mr-1" />
+                      {editingAddress ? 'Cập nhật địa chỉ' : 'Thêm địa chỉ'}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="form-group mb-3">
+                  <h6>Danh sách địa chỉ</h6>
+                  {addresses.length > 0 ? (
+                    <div className="table-responsive">
+                      <table className="table table-hover">
+                        <thead className="thead-light">
+                          <tr>
+                            <th><FontAwesomeIcon icon={faMapMarkerAlt} className="mr-1" /> Địa chỉ</th>
+                            <th><FontAwesomeIcon icon={faMapPin} className="mr-1" /> Tọa độ</th>
+                            <th>Ngày tạo</th>
+                            <th>Hành động</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {addresses.map((address) => (
+                            <tr key={address.address_id}>
+                              <td>
+                                <strong>{address.address}</strong>
+                                {address.lat && address.lng && (
+                                  <small className="text-muted d-block">
+                                    <FontAwesomeIcon icon={faMapPin} className="mr-1 text-success" />
+                                    Đã có tọa độ
+                                  </small>
+                                )}
+                              </td>
+                              <td>
+                                {address.lat && address.lng ? (
+                                  <span className="badge badge-info">
+                                    {formatCoordinates(address.lat, address.lng)}
+                                  </span>
+                                ) : (
+                                  <span className="badge badge-secondary">Chưa có tọa độ</span>
+                                )}
+                              </td>
+                              <td>{new Date(address.created_at).toLocaleDateString('vi-VN')}</td>
+                              <td>
+                                <button
+                                  className="btn btn-sm btn-outline-warning mr-2"
+                                  onClick={() => handleEditAddress(address)}
+                                  disabled={isLoading}
+                                  title="Chỉnh sửa địa chỉ"
+                                >
+                                  <FontAwesomeIcon icon={faEdit} />
+                                </button>
+                                <button
+                                  className="btn btn-sm btn-outline-danger"
+                                  onClick={() => handleDeleteAddress(address.address_id)}
+                                  disabled={isLoading}
+                                  title="Xóa địa chỉ"
+                                >
+                                  <FontAwesomeIcon icon={faTimes} />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-4">
+                      <FontAwesomeIcon icon={faMapMarkerAlt} size="3x" className="text-muted mb-3" />
+                      <p className="text-muted">Không tìm thấy địa chỉ. Vui lòng thêm địa chỉ đầu tiên.</p>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -659,6 +920,18 @@ const AccountManagement = () => {
         .skills-tags .badge {
           font-size: 0.8rem;
           padding: 6px 12px;
+        }
+
+        .btn-outline-warning, .btn-outline-danger {
+          padding: 5px 10px;
+        }
+
+        .badge {
+          font-size: 0.8rem;
+        }
+
+        .text-muted {
+          font-size: 0.9rem;
         }
       `}</style>
     </div>

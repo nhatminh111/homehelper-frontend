@@ -10,15 +10,21 @@ import {
   faCog,
   faSignOutAlt,
   faSignInAlt,
-  faUserPlus
+  faUserPlus,
+  faWallet
 } from '@fortawesome/free-solid-svg-icons';
 import { useAuth } from '../contexts/AuthContext';
+import useWalletBalance from '../hooks/useWalletBalance';
+import { formatVND } from '../utils/formatVND';
+import NotificationBell from './notifications/NotificationBell';
 
 const Header = () => {
   const [isNavCollapsed, setIsNavCollapsed] = useState(true);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const location = useLocation();
   const { user, isAuthenticated, logout, isAdmin, isTasker } = useAuth();
+
+  const { balance, loading, error, refresh } = useWalletBalance();
 
   const handleNavCollapse = () => setIsNavCollapsed(!isNavCollapsed);
 
@@ -110,6 +116,9 @@ const Header = () => {
               <li className={`nav-item ${isActive('/contact')}`}>
                 <Link to="/contact" className="nav-link">Contact</Link>
               </li>
+              <li className={`nav-item ${isActive('/chat')}`}>
+                <Link to="/chat" className="nav-link">Chat</Link>
+              </li>
               
               {/* Auth Menu */}
               {isAuthenticated() ? (
@@ -135,6 +144,18 @@ const Header = () => {
                       <strong>{user?.name}</strong>
                       <small className="text-muted d-block">{user?.email}</small>
                       <span className="badge badge-primary">{user?.role}</span>
+
+                      {/* 👉 dòng số dư ví */}
+                      <div 
+                        className="mt-2 p-2 border rounded bg-light d-flex justify-content-between align-items-center"
+                        style={{cursor:'pointer'}}
+                        onClick={refresh}
+                      >
+                        <span>Số dư ví:</span>
+                        <strong style={{color:'#16a34a'}}>
+                          {error ? 'Lỗi' : (loading ? '...' : formatVND(balance))}
+                        </strong>
+                      </div>
                     </div>
                     <div className="dropdown-divider"></div>
                     
@@ -158,6 +179,11 @@ const Header = () => {
                     )}
                     
                     <div className="dropdown-divider"></div>
+                    {/* 👉 thêm mục Wallet */}
+                    <Link className="dropdown-item" to="/wallet">
+                      <FontAwesomeIcon icon={faWallet} className="mr-2" />
+                      Wallet
+                    </Link>
                     <Link className="dropdown-item" to="/account">
                       <FontAwesomeIcon icon={faUserSolid} className="mr-2" />
                       My Profile
@@ -211,11 +237,9 @@ const Header = () => {
                 </Link>
               </li>
               
-              {/* Notification Icon */}
-              <li className="nav-item">
-                              <button className="nav-link btn btn-link">
-                <FontAwesomeIcon icon={faBell} />
-              </button>
+              {/* Notification Bell */}
+              <li className="nav-item d-flex align-items-center">
+                <NotificationBell />
               </li>
             </ul>
           </div>
