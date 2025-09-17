@@ -1,36 +1,42 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { 
-  faEnvelope, 
-  faEye, 
-  faEyeSlash, 
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faEnvelope,
+  faEye,
+  faEyeSlash,
   faArrowRight,
   faUser,
-  faStar
-} from '@fortawesome/free-solid-svg-icons';
-import { faGoogle, faFacebook, faTwitter, faInstagram, faLinkedin } from '@fortawesome/free-brands-svg-icons';
-import './Auth.css';
+  faStar,
+} from "@fortawesome/free-solid-svg-icons";
+import {
+  faGoogle,
+  faFacebook,
+  faTwitter,
+  faInstagram,
+  faLinkedin,
+} from "@fortawesome/free-brands-svg-icons";
+import "./Auth.css";
 
 const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { login, error, setError, isAuthenticated } = useAuth();
-  
-  const [userType, setUserType] = useState('user'); // 'user' or 'tasker'
+
+  const [userType, setUserType] = useState("user"); // 'user' or 'tasker'
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    email: '',
-    password: ''
+    email: "",
+    password: "",
   });
 
   // Redirect nếu đã đăng nhập
   useEffect(() => {
     if (isAuthenticated()) {
-      const from = '/';
+      const from = "/";
       navigate(from, { replace: true });
     }
   }, [isAuthenticated, navigate, location]);
@@ -38,7 +44,7 @@ const Login = () => {
   const handleInputChange = (e) => {
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [e.target.name]: e.target.value,
     });
     // Clear error khi user bắt đầu nhập
     if (error) setError(null);
@@ -50,18 +56,37 @@ const Login = () => {
     setError(null);
 
     try {
-      await login(formData);
-      // Login thành công sẽ được redirect trong useEffect
+      // Gọi login từ AuthContext
+      const response = await login(formData);
+
+      // Lưu user info + token vào localStorage
+      const userData = {
+        userId: response.user.user_id, // đảm bảo trùng với backend
+        name: response.user.name,
+        email: response.user.email,
+        role: response.user.role,
+        token: response.token, // bắt buộc token để gọi API bảo mật
+      };
+      localStorage.setItem("user", JSON.stringify(userData));
+
+      console.log("Login successful, stored user:", userData);
+
+      // Redirect về trang chủ
+      navigate("/", { replace: true });
     } catch (error) {
-      console.error('Login error:', error);
-      // Error đã được set trong AuthContext
+      console.error("Login error:", error);
+      setError(error.message || "Login failed");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className={`auth-container ${userType === 'tasker' ? 'yellow-theme' : ''}`}>
+    <div
+      className={`auth-container ${
+        userType === "tasker" ? "yellow-theme" : ""
+      }`}
+    >
       <div className="auth-background">
         {/* Background decorative shapes */}
         <div className="bg-shape bg-circle-1"></div>
@@ -83,16 +108,16 @@ const Login = () => {
 
         {/* User Type Selector */}
         <div className="user-type-selector">
-          <button 
-            className={`type-option ${userType === 'user' ? 'active' : ''}`}
-            onClick={() => setUserType('user')}
+          <button
+            className={`type-option ${userType === "user" ? "active" : ""}`}
+            onClick={() => setUserType("user")}
           >
             <FontAwesomeIcon icon={faUser} />
             <span>User</span>
           </button>
-          <button 
-            className={`type-option ${userType === 'tasker' ? 'active' : ''}`}
-            onClick={() => setUserType('tasker')}
+          <button
+            className={`type-option ${userType === "tasker" ? "active" : ""}`}
+            onClick={() => setUserType("tasker")}
           >
             <FontAwesomeIcon icon={faStar} />
             <span>Tasker</span>
@@ -103,7 +128,7 @@ const Login = () => {
         <div className="auth-card">
           <h2 className="auth-title">Sign In</h2>
           <p className="auth-subtitle">
-            {userType === 'user' ? 'Welcome back!' : 'Welcome back, helper!'}
+            {userType === "user" ? "Welcome back!" : "Welcome back, helper!"}
           </p>
 
           <form onSubmit={handleSubmit} className="auth-form">
@@ -121,15 +146,15 @@ const Login = () => {
 
             <div className="form-group">
               <input
-                type={showPassword ? 'text' : 'password'}
+                type={showPassword ? "text" : "password"}
                 name="password"
                 placeholder="Password"
                 value={formData.password}
                 onChange={handleInputChange}
                 required
               />
-              <FontAwesomeIcon 
-                icon={showPassword ? faEyeSlash : faEye} 
+              <FontAwesomeIcon
+                icon={showPassword ? faEyeSlash : faEye}
                 className="input-icon clickable"
                 onClick={() => setShowPassword(!showPassword)}
               />
@@ -154,12 +179,19 @@ const Login = () => {
                 {error}
               </div>
             )}
-            
-            <button type="submit" className="auth-button primary" disabled={loading}>
+
+            <button
+              type="submit"
+              className="auth-button primary"
+              disabled={loading}
+            >
               {loading ? (
                 <>
                   <span>Đang đăng nhập...</span>
-                  <div className="spinner-border spinner-border-sm ms-2" role="status">
+                  <div
+                    className="spinner-border spinner-border-sm ms-2"
+                    role="status"
+                  >
                     <span className="visually-hidden">Loading...</span>
                   </div>
                 </>
@@ -191,18 +223,25 @@ const Login = () => {
           {/* Register Link */}
           <div className="auth-link">
             <span>Don't have an account? </span>
-            <Link to="/register" className="link-text">Sign up now</Link>
+            <Link to="/register" className="link-text">
+              Sign up now
+            </Link>
           </div>
         </div>
 
         {/* Footer */}
         <div className="auth-footer">
           <p className="terms-text">
-            By continuing, you agree to our{' '}
-            <a href="#" className="link-text">Terms of Service</a> and{' '}
-            <a href="#" className="link-text">Privacy Policy</a>
+            By continuing, you agree to our{" "}
+            <a href="#" className="link-text">
+              Terms of Service
+            </a>{" "}
+            and{" "}
+            <a href="#" className="link-text">
+              Privacy Policy
+            </a>
           </p>
-          
+
           <div className="social-icons">
             <button className="social-icon btn btn-link">
               <FontAwesomeIcon icon={faFacebook} />
