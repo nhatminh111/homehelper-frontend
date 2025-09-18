@@ -33,5 +33,17 @@
   },
   "explorer.excludeGitIgnore": true,
   "scm.diffDecorations": "none",
-  "scm.diffDecorationsGutterVisibility": "never"
+  "scm.diffDecorationsGutterVisibility": "never",
+  "git.ignoreLimitWarning": true,
+  "git.ignoreSubmodules": true,
+  "git.ignoreRebaseWarning": true,
+  "git.showProgress": false,
+  "git.enableSmartCommit": false,
+  "git.confirmSync": false,
+  "git.autoStash": false,
+  "git.autorefresh": false,
+  "git.detectSubmodules": false,
+  "git.detectSubmodulesLimit": 0,
+  "git.maxFileSize": 0,
+  "git.maxFiles": 0
 }
