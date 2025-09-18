@@ -190,6 +190,59 @@ export const authAPI = {
   },
 };
 
+// CCCD API
+export const cccdAPI = {
+  submit: async (payload, token) => {
+    const form = new FormData();
+    Object.entries(payload).forEach(([k, v]) => {
+      if (v !== undefined && v !== null) form.append(k, v);
+    });
+    const response = await fetch(`${API_BASE_URL}/cccd/submit`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      body: form,
+    });
+    return handleResponse(response);
+  },
+  getByUser: async (userId, token) => {
+    const response = await fetch(`${API_BASE_URL}/cccd/user/${userId}`, {
+      method: "GET",
+      headers: createHeaders(token),
+    });
+    return handleResponse(response);
+  }
+};
+
+// Python OCR API (Direct integration)
+export const pythonOCRAPI = {
+  // Extract CCCD using Python OCR
+  extractCCCD: async (frontImage, backImage = null) => {
+    const form = new FormData();
+    form.append('front_image', frontImage);
+    if (backImage) {
+      form.append('back_image', backImage);
+    }
+    const response = await fetch('http://localhost:8080/api/cccd/extract', {
+      method: 'POST',
+      body: form,
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || 'Python OCR processing failed');
+    }
+    return data;
+  },
+  // Health check for Python OCR
+  healthCheck: async () => {
+    const response = await fetch('http://localhost:8080/api/ocr/health');
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error('Python OCR service not available');
+    }
+    return data;
+  }
+};
+
 // Address API (giữ nguyên, backend tự xử lý lat/lng)
 export const addressAPI = {
   create: async (address, token) => {
