@@ -22,15 +22,9 @@ import "./Auth.css";
 const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
-<<<<<<< HEAD
-  const { login, error, setError, isAuthenticated } = useAuth();
-
-  const [userType, setUserType] = useState("user"); // 'user' or 'tasker'
-=======
   const { login, loginWithGoogle, error, setError, isAuthenticated } = useAuth();
   
   const [userType, setUserType] = useState('user'); // 'user' or 'tasker'
->>>>>>> f7d84bc98da8d00686ffbb6d735ecfadf325aff3
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -271,7 +265,6 @@ const Login = () => {
             </Link>
           </div>
         </div>
-<<<<<<< HEAD
 
         {/* Footer */}
         <div className="auth-footer">
@@ -301,8 +294,6 @@ const Login = () => {
             </button>
           </div>
         </div>
-=======
->>>>>>> f7d84bc98da8d00686ffbb6d735ecfadf325aff3
       </div>
     </div>
   );

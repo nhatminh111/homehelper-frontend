@@ -1,46 +1,50 @@
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL =
+  process.env.REACT_APP_API_URL || "http://localhost:3001/api";
 
 // Helper function để tạo headers với token
 const createHeaders = (token = null, isFormData = false) => {
   const headers = {};
-  
+
   if (!isFormData) {
-    headers['Content-Type'] = 'application/json';
+    headers["Content-Type"] = "application/json";
   }
-  
+
   if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+    headers["Authorization"] = `Bearer ${token}`;
   }
-  
+
   return headers;
 };
 
 // Helper function để xử lý response
 export const handleResponse = async (response) => {
   const data = await response.json();
-  
+
   if (!response.ok) {
-    throw new Error(data.message || data.error || 'Có lỗi xảy ra'); // Hỗ trợ cả message và error từ backend
+    throw new Error(data.message || data.error || "Có lỗi xảy ra"); // Hỗ trợ cả message và error từ backend
   }
   return data;
 };
 
 // Helper: build URL with query params (axios-like options.params)
 const buildUrl = (url, params) => {
-  if (!params || Object.keys(params).length === 0) return `${API_BASE_URL}${url}`;
+  if (!params || Object.keys(params).length === 0)
+    return `${API_BASE_URL}${url}`;
   const usp = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
     if (value !== undefined && value !== null) {
       usp.append(key, String(value));
     }
   });
-  return `${API_BASE_URL}${url}${url.includes('?') ? '&' : '?'}${usp.toString()}`;
+  return `${API_BASE_URL}${url}${
+    url.includes("?") ? "&" : "?"
+  }${usp.toString()}`;
 };
 
 // Helper: get token from localStorage (if present)
 const getStoredToken = () => {
   try {
-    return localStorage.getItem('token');
+    return localStorage.getItem("token");
   } catch (_) {
     return null;
   }
@@ -51,27 +55,34 @@ const api = {
   async get(url, options = {}) {
     const fullUrl = buildUrl(url, options.params);
     const token = options.token ?? getStoredToken();
-    const headers = { ...createHeaders(token, false), ...(options.headers || {}) };
-    const res = await fetch(fullUrl, { method: 'GET', headers });
+    const headers = {
+      ...createHeaders(token, false),
+      ...(options.headers || {}),
+    };
+    const res = await fetch(fullUrl, { method: "GET", headers });
     const data = await handleResponse(res);
     return { data };
   },
   async delete(url, options = {}) {
     const fullUrl = buildUrl(url, options.params);
     const token = options.token ?? getStoredToken();
-    const headers = { ...createHeaders(token, false), ...(options.headers || {}) };
-    const res = await fetch(fullUrl, { method: 'DELETE', headers });
+    const headers = {
+      ...createHeaders(token, false),
+      ...(options.headers || {}),
+    };
+    const res = await fetch(fullUrl, { method: "DELETE", headers });
     const data = await handleResponse(res);
     return { data };
   },
   async post(url, body, options = {}) {
     const fullUrl = buildUrl(url, options.params);
     const token = options.token ?? getStoredToken();
-    const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+    const isFormData =
+      typeof FormData !== "undefined" && body instanceof FormData;
     const baseHeaders = createHeaders(token, isFormData);
     const headers = { ...baseHeaders, ...(options.headers || {}) };
     const res = await fetch(fullUrl, {
-      method: 'POST',
+      method: "POST",
       headers,
       body: isFormData ? body : JSON.stringify(body ?? {}),
     });
@@ -81,11 +92,12 @@ const api = {
   async put(url, body, options = {}) {
     const fullUrl = buildUrl(url, options.params);
     const token = options.token ?? getStoredToken();
-    const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+    const isFormData =
+      typeof FormData !== "undefined" && body instanceof FormData;
     const baseHeaders = createHeaders(token, isFormData);
     const headers = { ...baseHeaders, ...(options.headers || {}) };
     const res = await fetch(fullUrl, {
-      method: 'PUT',
+      method: "PUT",
       headers,
       body: isFormData ? body : JSON.stringify(body ?? {}),
     });
@@ -99,7 +111,7 @@ export const authAPI = {
   // Đăng ký
   register: async (userData) => {
     const response = await fetch(`${API_BASE_URL}/auth/register`, {
-      method: 'POST',
+      method: "POST",
       headers: createHeaders(null, false),
       body: JSON.stringify(userData),
     });
@@ -109,7 +121,7 @@ export const authAPI = {
   // Đăng nhập
   login: async (credentials) => {
     const response = await fetch(`${API_BASE_URL}/auth/login`, {
-      method: 'POST',
+      method: "POST",
       headers: createHeaders(null, false),
       body: JSON.stringify(credentials),
     });
@@ -119,7 +131,7 @@ export const authAPI = {
   // Đăng nhập với Google ID token
   loginWithGoogle: async (idToken) => {
     const response = await fetch(`${API_BASE_URL}/auth/google`, {
-      method: 'POST',
+      method: "POST",
       headers: createHeaders(),
       body: JSON.stringify({ idToken }),
     });
@@ -129,7 +141,7 @@ export const authAPI = {
   // Lấy thông tin user hiện tại
   getCurrentUser: async (token) => {
     const response = await fetch(`${API_BASE_URL}/auth/me`, {
-      method: 'GET',
+      method: "GET",
       headers: createHeaders(token, false),
     });
     return handleResponse(response);
@@ -138,7 +150,7 @@ export const authAPI = {
   // Đổi password
   changePassword: async (passwordData, token) => {
     const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
-      method: 'POST',
+      method: "POST",
       headers: createHeaders(token, false),
       body: JSON.stringify(passwordData),
     });
@@ -148,7 +160,7 @@ export const authAPI = {
   // Quên password
   forgotPassword: async (email) => {
     const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
-      method: 'POST',
+      method: "POST",
       headers: createHeaders(null, false),
       body: JSON.stringify({ email }),
     });
@@ -158,7 +170,7 @@ export const authAPI = {
   // Reset password
   resetPassword: async (resetData) => {
     const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
-      method: 'POST',
+      method: "POST",
       headers: createHeaders(null, false),
       body: JSON.stringify(resetData),
     });
@@ -167,17 +179,22 @@ export const authAPI = {
 
   // Verify email
   verifyEmail: async (email, token) => {
-    const url = `${API_BASE_URL}/auth/verify-email?email=${encodeURIComponent(email)}&token=${encodeURIComponent(token)}`;
-    const response = await fetch(url, { method: 'GET', headers: createHeaders() });
+    const url = `${API_BASE_URL}/auth/verify-email?email=${encodeURIComponent(
+      email
+    )}&token=${encodeURIComponent(token)}`;
+    const response = await fetch(url, {
+      method: "GET",
+      headers: createHeaders(),
+    });
     return handleResponse(response);
-  }
+  },
 };
 
 // Address API (giữ nguyên, backend tự xử lý lat/lng)
 export const addressAPI = {
   create: async (address, token) => {
     const response = await fetch(`${API_BASE_URL}/tasker/address`, {
-      method: 'POST',
+      method: "POST",
       headers: createHeaders(token),
       body: JSON.stringify({ address }),
     });
@@ -186,7 +203,7 @@ export const addressAPI = {
 
   getAll: async (token) => {
     const response = await fetch(`${API_BASE_URL}/tasker/address`, {
-      method: 'GET',
+      method: "GET",
       headers: createHeaders(token),
     });
     const data = await handleResponse(response);
@@ -194,39 +211,52 @@ export const addressAPI = {
   },
 
   update: async (addressId, address, token) => {
-    const response = await fetch(`${API_BASE_URL}/tasker/address/${addressId}`, {
-      method: 'PUT',
-      headers: createHeaders(token),
-      body: JSON.stringify({ address }),
-    });
+    const response = await fetch(
+      `${API_BASE_URL}/tasker/address/${addressId}`,
+      {
+        method: "PUT",
+        headers: createHeaders(token),
+        body: JSON.stringify({ address }),
+      }
+    );
     return handleResponse(response);
   },
 
   delete: async (addressId, token) => {
-    const response = await fetch(`${API_BASE_URL}/tasker/address/${addressId}`, {
-      method: 'DELETE',
-      headers: createHeaders(token),
-    });
+    const response = await fetch(
+      `${API_BASE_URL}/tasker/address/${addressId}`,
+      {
+        method: "DELETE",
+        headers: createHeaders(token),
+      }
+    );
     return handleResponse(response);
   },
-  searchNearby: async (lat, lng, radius, services = [], minRating = 0, token = null) => {
+  searchNearby: async (
+    lat,
+    lng,
+    radius,
+    services = [],
+    minRating = 0,
+    token = null
+  ) => {
     const headers = {
-      'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` })
+      "Content-Type": "application/json",
+      ...(token && { Authorization: `Bearer ${token}` }),
     };
 
     const response = await fetch(`${API_BASE_URL}/tasker/search-nearby`, {
-      method: 'POST',
+      method: "POST",
       headers,
-      body: JSON.stringify({ 
-        lat: parseFloat(lat), 
-        lng: parseFloat(lng), 
-        radius: parseInt(radius), 
-        services: services.map(id => parseInt(id)), 
-        min_rating: parseFloat(minRating) || null 
+      body: JSON.stringify({
+        lat: parseFloat(lat),
+        lng: parseFloat(lng),
+        radius: parseInt(radius),
+        services: services.map((id) => parseInt(id)),
+        min_rating: parseFloat(minRating) || null,
       }),
     });
-    return handleResponse(response); 
+    return handleResponse(response);
   },
 };
 
@@ -236,7 +266,7 @@ export const servicesAPI = {
   // Get all services
   getAllServices: async (token = null) => {
     const response = await fetch(`${API_BASE_URL}/services`, {
-      method: 'GET',
+      method: "GET",
       headers: createHeaders(token),
     });
     const data = await handleResponse(response);
@@ -246,16 +276,15 @@ export const servicesAPI = {
   // Get service by ID
   getServiceById: async (serviceId, token = null) => {
     const response = await fetch(`${API_BASE_URL}/services/${serviceId}`, {
-      method: 'GET',
+      method: "GET",
       headers: createHeaders(token),
     });
     return handleResponse(response);
-  }
+  },
 };
 
 export const healthCheck = async () => {
-  const baseOrigin = RAW_BASE; // không kèm /api
-  const response = await fetch(`${baseOrigin}/health`);
+  const response = await fetch(`${API_BASE_URL.replace("/api", "")}/health`);
   return handleResponse(response);
 };
 
