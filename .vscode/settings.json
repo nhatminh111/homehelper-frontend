@@ -1,2 +1,37 @@
 {
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/.git": true,
+    "**/.DS_Store": true,
+    "**/Thumbs.db": true,
+    "node_modules": true,
+    "**/node_modules/**": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/.git": true,
+    "**/dist": true,
+    "**/build": true,
+    "node_modules": true,
+    "**/node_modules/**": true
+  },
+  "git.ignoreLimitWarning": true,
+  "git.ignoreSubmodules": true,
+  "git.ignoreRebaseWarning": true,
+  "git.showProgress": false,
+  "git.enableSmartCommit": false,
+  "git.confirmSync": false,
+  "git.autoStash": false,
+  "git.autorefresh": false,
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/dist/**": true,
+    "**/build/**": true,
+    "node_modules/**": true
+  },
+  "explorer.excludeGitIgnore": true,
+  "scm.diffDecorations": "none",
+  "scm.diffDecorationsGutterVisibility": "never"
 }
