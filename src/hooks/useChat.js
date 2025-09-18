@@ -291,23 +291,15 @@ export const useChat = (conversationId = null) => {
           if (prev.some(msg => msg.message_id === safeMessage.message_id)) {
             return prev;
           }
-          // Remove only the first optimistic message that matches content, sender, type, and created_at close to real message
+          // Xoá 1 optimistic message (tmp-) trùng content + sender + type (không cần so sánh thời gian)
           let removed = false;
           const filtered = prev.filter(msg => {
-            if (
-              !removed &&
-              String(msg.message_id).startsWith('tmp-') &&
+            if (!removed && String(msg.message_id).startsWith('tmp-') &&
               msg.content === safeMessage.content &&
               (msg.sender_id === safeMessage.sender_id || msg.sender_id === safeMessage.senderId) &&
-              msg.message_type === safeMessage.message_type
-            ) {
-              // Compare created_at within 10s window
-              const optimisticTime = new Date(msg.created_at).getTime();
-              const realTime = new Date(safeMessage.created_at).getTime();
-              if (Math.abs(optimisticTime - realTime) < 10000) {
-                removed = true;
-                return false;
-              }
+              msg.message_type === safeMessage.message_type) {
+              removed = true;
+              return false;
             }
             return true;
           });
@@ -343,6 +335,24 @@ export const useChat = (conversationId = null) => {
       }
     };
 
+    const handleMessageUpdated = (event) => {
+      const { conversationId, message } = event.detail;
+      if (!message) return;
+      // Update message content in current list if same conversation
+      if (String(conversationId) === String(currentConversationRef.current)) {
+        setMessages(prev => prev.map(m => m.message_id === message.message_id ? { ...m, ...message } : m));
+      }
+      // Update last_message if the updated message is the last one of that conversation
+      setConversations(prev => prev.map(c => {
+        if (c.conversation_id === conversationId) {
+          if (c.last_message && c.last_message.message_id === message.message_id) {
+            return { ...c, last_message: { ...c.last_message, ...message } };
+          }
+        }
+        return c;
+      }));
+    };
+
     const handleUserTyping = (event) => {
       const { conversationId, userId, userName, isTyping } = event.detail;
       
@@ -375,12 +385,14 @@ export const useChat = (conversationId = null) => {
     window.addEventListener('socket_new_message', handleNewMessage);
     window.addEventListener('socket_user_typing', handleUserTyping);
     window.addEventListener('socket_message_read', handleMessageRead);
+  window.addEventListener('socket_message_updated', handleMessageUpdated);
 
     return () => {
       console.log('[useChat] Removing socket_new_message event listener');
       window.removeEventListener('socket_new_message', handleNewMessage);
       window.removeEventListener('socket_user_typing', handleUserTyping);
       window.removeEventListener('socket_message_read', handleMessageRead);
+      window.removeEventListener('socket_message_updated', handleMessageUpdated);
     };
   }, []);
 
