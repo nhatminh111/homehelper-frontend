@@ -11,7 +11,8 @@ import {
   faSignOutAlt,
   faSignInAlt,
   faUserPlus,
-  faWallet
+  faWallet,
+  faIdCard
 } from '@fortawesome/free-solid-svg-icons';
 import { useAuth } from '../contexts/AuthContext';
 import useWalletBalance from '../hooks/useWalletBalance';
@@ -118,6 +119,11 @@ const Header = () => {
               </li>
               <li className={`nav-item ${isActive('/chat')}`}>
                 <Link to="/chat" className="nav-link">Chat</Link>
+              </li>
+              <li className={`nav-item ${isActive('/cccd')}`}>
+                <Link to="/cccd" className="nav-link">
+                  <FontAwesomeIcon icon={faIdCard} className="mr-1" /> CCCD
+                </Link>
               </li>
               
               {/* Auth Menu */}

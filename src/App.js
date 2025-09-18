@@ -49,6 +49,7 @@ import SystemManagement from './pages/SystemManagement';
 import TaskerHome from './pages/tasker/TaskerHome';
 import AdminHome from './pages/admin/AdminHome';
 import ChatPage from './pages/Chat';
+import CCCDExtractor from './pages/CCCDExtractor';
 
 function App() {
   return (
@@ -72,6 +73,7 @@ function App() {
               <Route path="/topUp" element={<TopUp />} />
               <Route path="/payment-result" element={<PaymentResult />} />
               <Route path="/wallet" element={<Wallet />} />
+              <Route path="/cccd" element={<CCCDExtractor />} />
               
               {/* Authentication routes */}
               <Route path="/login" element={<Login />} />

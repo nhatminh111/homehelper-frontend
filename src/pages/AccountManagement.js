@@ -24,9 +24,10 @@ import {
   faGraduationCap,
   faCertificate,
   faClock,
-  faMapPin
+  faMapPin,
+  faIdCard
 } from '@fortawesome/free-solid-svg-icons';
-import { addressAPI } from '../services/api';
+import { addressAPI, cccdAPI, pythonOCRAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
 const AccountManagement = () => {
@@ -40,6 +41,11 @@ const AccountManagement = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [cccdForm, setCccdForm] = useState({ number: '', full_name: '', dob: '', gender: 'Nữ' });
+  const [front, setFront] = useState(null);
+  const [back, setBack] = useState(null);
+  const [cccdResult, setCccdResult] = useState(null);
+  const [cccdLoading, setCccdLoading] = useState(false);
 
   const [profileData, setProfileData] = useState({
     firstName: 'John',
@@ -65,6 +71,7 @@ const AccountManagement = () => {
   const tabs = [
     { id: 'profile', label: 'Profile', icon: faUser },
     { id: 'addresses', label: 'Addresses', icon: faMapMarkerAlt },
+    { id: 'cccd', label: 'CCCD Verification', icon: faIdCard },
     { id: 'security', label: 'Security', icon: faLock },
     { id: 'certifications', label: 'Certifications', icon: faCertificate },
     { id: 'points', label: 'Points & Rewards', icon: faStar },
@@ -197,6 +204,45 @@ const AccountManagement = () => {
   const handleSave = () => {
     setIsEditing(false);
     console.log('Profile updated:', profileData);
+  };
+
+  const handleCccdChange = (e) => setCccdForm({ ...cccdForm, [e.target.name]: e.target.value });
+
+  const submitCccd = async (e) => {
+    e.preventDefault();
+    if (!front || !back) return alert('Vui lòng tải ảnh mặt trước và mặt sau CCCD');
+    try {
+      setCccdLoading(true);
+      // Try Python OCR first
+      try {
+        const pythonResult = await pythonOCRAPI.extractCCCD(front, back);
+        if (pythonResult.success) {
+          setCccdForm({
+            number: String(pythonResult.data.number || ''),
+            full_name: String(pythonResult.data.full_name || ''),
+            dob: String(pythonResult.data.dob || ''),
+            gender: String(pythonResult.data.gender || 'Nam')
+          });
+          setCccdResult({
+            success: true,
+            message: 'Python OCR extraction successful',
+            data: pythonResult.data,
+            source: 'python_ocr',
+            raw_ocr_text: pythonResult.raw_ocr_text,
+            processing_info: pythonResult.processing_info
+          });
+          return;
+        }
+      } catch (_) {}
+      // Fallback to Node backend submit
+      const payload = { ...cccdForm, front, back };
+      const res = await cccdAPI.submit(payload, token);
+      setCccdResult(res);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setCccdLoading(false);
+    }
   };
 
   const formatCoordinates = (lat, lng) => {
@@ -569,6 +615,56 @@ const AccountManagement = () => {
                     </div>
                   )}
                 </div>
+              </div>
+            )}
+
+            {/* CCCD Verification Tab */}
+            {activeTab === 'cccd' && (
+              <div className="content-card bg-white rounded shadow-sm p-4">
+                <h4 className="mb-3">Xác minh CCCD</h4>
+                <form onSubmit={submitCccd}>
+                  <div className="row g-3">
+                    <div className="col-md-3">
+                      <label className="form-label">Số CCCD</label>
+                      <input className="form-control" name="number" value={cccdForm.number} onChange={handleCccdChange} required />
+                    </div>
+                    <div className="col-md-4">
+                      <label className="form-label">Họ và tên</label>
+                      <input className="form-control" name="full_name" value={cccdForm.full_name} onChange={handleCccdChange} required />
+                    </div>
+                    <div className="col-md-3">
+                      <label className="form-label">Ngày sinh (dd/mm/yyyy)</label>
+                      <input className="form-control" name="dob" value={cccdForm.dob} onChange={handleCccdChange} required />
+                    </div>
+                    <div className="col-md-2">
+                      <label className="form-label">Giới tính</label>
+                      <select className="form-select" name="gender" value={cccdForm.gender} onChange={handleCccdChange}>
+                        <option>Nam</option>
+                        <option>Nữ</option>
+                      </select>
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label">Ảnh CCCD mặt trước</label>
+                      <input className="form-control" type="file" accept="image/*" onChange={(e) => setFront(e.target.files[0])} required />
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label">Ảnh CCCD mặt sau</label>
+                      <input className="form-control" type="file" accept="image/*" onChange={(e) => setBack(e.target.files[0])} required />
+                    </div>
+                  </div>
+                  <button className="btn btn-primary mt-3" disabled={cccdLoading}>
+                    {cccdLoading ? 'Đang xử lý...' : 'Gửi xác minh'}
+                  </button>
+                </form>
+                {cccdResult && (
+                  <div className="alert alert-info mt-3">
+                    <div className="d-flex justify-content-between">
+                      <strong>Kết quả:</strong>
+                      <span className="badge badge-secondary">Nguồn: {cccdResult.source || 'backend'}</span>
+                    </div>
+                    <pre className="mt-2" style={{ whiteSpace: 'pre-wrap' }}>{JSON.stringify(cccdResult, null, 2)}</pre>
+                  </div>
+                )}
               </div>
             )}
 
