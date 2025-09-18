@@ -2,7 +2,8 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-  faPlay, faStar, faHeart, faPhone, faShare, faFlag, faEllipsisH, faCircleCheck, faEye, faCommentAlt
+  faPlay, faStar, faHeart, faPhone, faShare, faFlag, faEllipsisH, faCircleCheck, faEye,
+  faCommentAlt
 } from '@fortawesome/free-solid-svg-icons';
 
 import '../css/videoDetail.css'
