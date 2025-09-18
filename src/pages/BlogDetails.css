@@ -238,49 +238,71 @@
   gap: 1.5rem;
 }
 
-.service-card {
+
+/* Improved Service Card UI */
+.improved-service-card {
   background: #fff;
   padding: 1.5rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  border-left: 4px solid #007bff;
-}
-
-.service-card h4 {
-  color: #007bff;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.08);
+  border-left: 5px solid #007bff;
   margin-bottom: 0.5rem;
-  font-size: 1.2rem;
+  transition: box-shadow 0.2s;
 }
-
-.service-description {
-  color: #666;
-  margin-bottom: 1rem;
-  font-size: 0.95rem;
+.improved-service-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 123, 255, 0.18);
 }
-
-.service-pricing {
+.service-header {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.service-main-label, .service-variant-label {
+  color: #6c757d;
+  font-size: 0.95em;
+  font-weight: 500;
+}
+.improved-service-main {
+  color: #007bff;
+  font-weight: 700;
+  font-size: 1.1em;
+  margin-right: 0.5em;
+}
+.improved-service-variant {
+  color: #17a2b8;
+  font-weight: 600;
+  font-size: 1em;
+  margin-left: 0.25em;
+}
+.improved-service-pricing {
   margin-bottom: 1rem;
 }
-
-.base-price {
+.price-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  margin-bottom: 0.2em;
+}
+.base-price-label, .desired-price-label {
   color: #6c757d;
-  font-size: 0.9rem;
+  font-size: 0.95em;
 }
-
-.desired-price {
-  color: #28a745;
+.improved-base-price {
+  color: #ff9800;
   font-weight: 600;
-  font-size: 1rem;
+  font-size: 1em;
 }
-
-.service-notes {
+.improved-desired-price {
+  color: #28a745;
+  font-weight: 700;
+  font-size: 1.05em;
+}
+.improved-service-notes {
   color: #666;
-  font-size: 0.9rem;
+  font-size: 0.95em;
   font-style: italic;
-  margin: 0;
+  margin: 0.5em 0 0 0;
 }
 
 /* Post Actions */
