@@ -50,8 +50,8 @@ const BlogDetails = () => {
       // Check like status
       if (user) {
         try {
-          const response = await blogService.isPostLikedByUser(id, user.user_id);
-          setLiked(response.data?.isLiked || false);
+          const isLiked = await blogService.isPostLikedByUser(id, user.user_id);
+          setLiked(!!isLiked);
         } catch (err) {
           console.error('Error checking like status:', err);
         }
@@ -217,7 +217,7 @@ const BlogDetails = () => {
                     <span className="stat-item">
                       <i className="fas fa-eye"></i> {post.views || 0}
                     </span>
-                    <span className="stat-item like-count {liked ? 'liked' : ''}">
+                    <span className={`stat-item like-count ${liked ? 'liked' : ''}`}>
                       <i className="fas fa-heart"></i> {likesCount}
                     </span>
                     <span className="stat-item">
@@ -229,8 +229,11 @@ const BlogDetails = () => {
 
               <div className="post-content">
                 {(() => {
+                  // Normalize: if content has no HTML tags (older posts), wrap in <p>
+                  const hasTag = /<[^>]+>/.test(post.content || '');
+                  const normalizedContent = hasTag ? post.content : (post.content ? `<p>${post.content}</p>` : '');
                   let imgIndex = 0; // dùng biến cục bộ
-                  return parse(post.content, {
+                  return parse(normalizedContent, {
                     replace: (domNode) => {
                       if (domNode.name === "p") {
                         const img =
@@ -280,8 +283,14 @@ const BlogDetails = () => {
                         <p className="service-description">{service.description}</p>
                         <div className="service-pricing improved-service-pricing">
                           <div className="price-row">
-                            <span className="base-price-label">Giá gốc:</span>
-                            <span className="base-price improved-base-price">{formatPrice(service.specific_price)}</span>
+                            <span className="base-price-label">Khoảng giá:</span>
+                            <span className="base-price improved-base-price">
+                              {service.price_min != null && service.price_max != null
+                                ? `${formatPrice(service.price_min)} - ${formatPrice(service.price_max)}${service.unit ? ` / ${service.unit}` : ''}`
+                                : (service.specific_price != null
+                                  ? `${formatPrice(service.specific_price)}${service.unit ? ` / ${service.unit}` : ''}`
+                                  : '—')}
+                            </span>
                           </div>
                           {service.desired_price && (
                             <div className="price-row">
@@ -428,11 +437,13 @@ const BlogDetails = () => {
                         <h6>
                             <span className="service-variant-tag">{service.name}</span>
                         </h6>
-                        {service.desired_price && (
-                          <span className="service-price">
-                            {formatPrice(service.reference_price)}
-                          </span>
-                        )}
+                        <span className="service-price">
+                          {service.price_min != null && service.price_max != null
+                            ? `${formatPrice(service.price_min)} - ${formatPrice(service.price_max)}${service.unit ? ` / ${service.unit}` : ''}`
+                            : (service.specific_price != null
+                              ? `${formatPrice(service.specific_price)}${service.unit ? ` / ${service.unit}` : ''}`
+                              : '')}
+                        </span>
                       </div>
                     ))}
                   </div>

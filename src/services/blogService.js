@@ -214,6 +214,28 @@ class BlogService {
     }
   }
 
+  // Lấy bookings của user hiện tại (để chọn liên kết post)
+  async getMyBookings(params = {}) {
+    try {
+      const response = await api.get('/bookings/my', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching my bookings:', error);
+      throw error;
+    }
+  }
+
+  // Lấy danh sách services (kèm variants) để chọn không cần nhớ ID
+  async getAllServices() {
+    try {
+      const response = await api.get('/services');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching services:', error);
+      throw error;
+    }
+  }
+
   // Lấy posts đã like của user
   async getUserLikedPosts(userId, params = {}) {
     try {
