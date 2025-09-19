@@ -104,6 +104,12 @@ class SocketService {
       this.emit('message_read', data);
     });
 
+    // Message updated
+    this.socket.on('message_updated', (data) => {
+      console.log('✏️ Message updated:', data);
+      this.emit('message_updated', data);
+    });
+
     // Notification events
     this.socket.on('new_notification', (data) => {
       console.log('🔔 New notification:', data);
@@ -241,11 +247,11 @@ class SocketService {
       this.eventListeners.set(event, []);
     }
     this.eventListeners.get(event).push(callback);
-    // Đăng ký trực tiếp lên socket.io-client instance nếu đã có
-    if (this.socket) {
-      console.log('socketService: Đăng ký listener', event);
-      this.socket.on(event, callback);
-    }
+    // IMPORTANT: Không gắn trực tiếp listener vào this.socket ở đây nữa.
+    // Lý do: Các sự kiện từ server đã được forward một lần trong setupEventListeners()
+    // bằng this.emit(). Nếu gắn thêm socket.on(event, callback) ở đây sẽ dẫn tới
+    // callback chạy 2 lần (ví dụ new_message hiển thị 2 tin). Chúng ta chỉ lưu callback
+    // vào bộ nhớ và để hàm emit() gọi.
   }
 
   off(event, callback) {
@@ -258,14 +264,8 @@ class SocketService {
       if (index > -1) {
         listeners.splice(index, 1);
       }
-      if (this.socket) {
-        this.socket.off(event, callback);
-      }
     } else {
       // Xóa tất cả listener nếu không truyền callback
-      if (this.socket) {
-        listeners.forEach(cb => this.socket.off(event, cb));
-      }
       this.eventListeners.set(event, []);
     }
   }
