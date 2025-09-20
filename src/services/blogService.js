@@ -176,11 +176,8 @@ class BlogService {
         formData.append(`images`, file);
       });
 
-      const response = await api.post('/uploads/post-images', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      // Do NOT set Content-Type manually; the browser will include the correct boundary
+      const response = await api.post('/uploads/post-images', formData);
       return response.data;
     } catch (error) {
       console.error('Error uploading images:', error);

@@ -3,11 +3,10 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import parse, { domToReact } from "html-react-parser";
 import blogService from '../services/blogService';
 import { useAuth } from '../contexts/AuthContext';
-import './BlogDetails.css';
+import '../css/BlogDetails.css';
 
 const BlogDetails = () => {
   const { id } = useParams();
-  const navigate = useNavigate();
   const { user } = useAuth();
 
   const [post, setPost] = useState(null);
@@ -109,13 +108,22 @@ const BlogDetails = () => {
 
   const formatDate = (dateString) => {
     if (!dateString) return '';
-    return new Date(dateString).toLocaleDateString('vi-VN', {
+    const date = new Date(dateString);
+    const endsWithZ = /z$/i.test(String(dateString)); // ISO UTC like 2025-09-20T12:07:00Z
+    const options = {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
-    });
+      minute: '2-digit',
+      hour12: false,
+    };
+    // If the input is explicitly UTC (ends with 'Z'), format in UTC to avoid +7h shift
+    if (endsWithZ) {
+      return new Intl.DateTimeFormat('vi-VN', { ...options, timeZone: 'UTC' }).format(date);
+    }
+    // Otherwise, render with default locale settings
+    return new Intl.DateTimeFormat('vi-VN', options).format(date);
   };
 
   const formatPrice = (price) => {
@@ -196,7 +204,13 @@ const BlogDetails = () => {
             <article className="blog-post">
               {/* Preview Image */}
               <div className="post-preview-image">
-                <img src={getPreviewImage()} alt={post.title} className="preview-image" />
+                <img
+                  src={getPreviewImage()}
+                  alt={post.title}
+                  className="preview-image"
+                  loading="lazy"
+                  decoding="async"
+                />
               </div>
               {/* Header */}
               <header className="post-header">
@@ -242,6 +256,8 @@ const BlogDetails = () => {
                               src={post.photo_urls[imgIndex]}
                               alt={`img-${imgIndex}`}
                               className="post-inline-image"
+                              loading="lazy"
+                              decoding="async"
                             />
                           ) : null;
 

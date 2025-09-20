@@ -19,6 +19,7 @@ import Pricing from './pages/Pricing';
 import Blog from './pages/Blog';
 import BlogDetails from './pages/BlogDetails';
 import BlogCreate from './pages/BlogCreate';
+import MyBlogs from './pages/MyBlogs';
 import Contact from './pages/Contact';
 import Video from './pages/Video';
 import VideoDetail from './pages/VideoDetail';
@@ -70,6 +71,11 @@ function App() {
               <Route path="/blog/create" element={
                 <ProtectedRoute>
                   <BlogCreate />
+                </ProtectedRoute>
+              } />
+              <Route path="/my-blogs" element={
+                <ProtectedRoute>
+                  <MyBlogs />
                 </ProtectedRoute>
               } />
               <Route path="/blog/:id" element={<BlogDetails />} />
