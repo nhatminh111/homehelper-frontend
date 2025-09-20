@@ -1,3 +1,43 @@
+/* Breadcrumb blurred background styles */
+.breadcrumb-bg-blur {
+  position: relative;
+  width: 100%;
+  min-height: 500px;
+  display: flex;
+  align-items: flex-end;
+  margin-bottom: 24px;
+  overflow: hidden;
+}
+.breadcrumb-bg-img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: blur(1.5px) brightness(0.7);
+  z-index: 1;
+}
+.breadcrumb-bg-overlay {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  padding: 32px 0 24px 32px;
+  background: rgba(255,255,255,0.08);
+  backdrop-filter: blur(0.5px);
+}
+.blog-breadcrumb {
+  color: #fff;
+  font-size: 1.1em;
+}
+.blog-breadcrumb .breadcrumb-item a {
+  color: #fff;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.25);
+}
+.blog-breadcrumb .breadcrumb-item.active {
+  color: #ffffff;
+  font-weight: 600;
+}
 /* Blog Details Styles */
 .blog-details {
   padding: 2rem 0;
@@ -50,9 +90,7 @@
   text-decoration: underline;
 }
 
-.blog-breadcrumb .breadcrumb-item.active {
-  color: #6c757d;
-}
+
 
 /* Main Post */
 .blog-post {
@@ -144,6 +182,23 @@
   object-fit: cover;
 }
 
+/* Preview image at top */
+.post-preview-image {
+  width: 100%;
+  max-height: 350px;
+  overflow: hidden;
+  border-radius: 12px 12px 0 0;
+  margin-bottom: 0.5rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+}
+
+.preview-image {
+  width: 100%;
+  height: 350px;
+  object-fit: cover;
+  display: block;
+}
+
 /* Post Content */
 .post-content {
   padding: 2rem;
@@ -152,8 +207,43 @@
   color: #444;
 }
 
+.post-content strong {
+  display: block;       /* bắt buộc xuống hàng */
+  font-size: 1.25rem;   /* to hơn */
+  margin: 12px 0 6px;   /* tạo khoảng cách trên/dưới */
+  font-weight: bold;
+  color: #333;
+}
+
 .post-content p {
   margin-bottom: 1.5rem;
+}
+
+/* Constrain inline images inside post content */
+.post-content img,
+.post-inline-image {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0.5rem 0 1rem 0;
+  border-radius: 10px;
+}
+
+/* Optional: cap very tall images to keep balance with text */
+@media (min-width: 769px) {
+  .post-content img,
+  .post-inline-image {
+    max-height: 420px;
+    object-fit: contain;
+  }
+}
+
+@media (max-width: 768px) {
+  .post-content img,
+  .post-inline-image {
+    max-height: 260px;
+    object-fit: contain;
+  }
 }
 
 /* Services Section */
@@ -175,49 +265,71 @@
   gap: 1.5rem;
 }
 
-.service-card {
+
+/* Improved Service Card UI */
+.improved-service-card {
   background: #fff;
   padding: 1.5rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  border-left: 4px solid #007bff;
-}
-
-.service-card h4 {
-  color: #007bff;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.08);
+  border-left: 5px solid #007bff;
   margin-bottom: 0.5rem;
-  font-size: 1.2rem;
+  transition: box-shadow 0.2s;
 }
-
-.service-description {
-  color: #666;
-  margin-bottom: 1rem;
-  font-size: 0.95rem;
+.improved-service-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 123, 255, 0.18);
 }
-
-.service-pricing {
+.service-header {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+.service-main-label, .service-variant-label {
+  color: #6c757d;
+  font-size: 0.95em;
+  font-weight: 500;
+}
+.improved-service-main {
+  color: #007bff;
+  font-weight: 700;
+  font-size: 1.1em;
+  margin-right: 0.5em;
+}
+.improved-service-variant {
+  color: #17a2b8;
+  font-weight: 600;
+  font-size: 1em;
+  margin-left: 0.25em;
+}
+.improved-service-pricing {
   margin-bottom: 1rem;
 }
-
-.base-price {
+.price-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  margin-bottom: 0.2em;
+}
+.base-price-label, .desired-price-label {
   color: #6c757d;
-  font-size: 0.9rem;
+  font-size: 0.95em;
 }
-
-.desired-price {
-  color: #28a745;
+.improved-base-price {
+  color: #ff9800;
   font-weight: 600;
-  font-size: 1rem;
+  font-size: 1em;
 }
-
-.service-notes {
+.improved-desired-price {
+  color: #28a745;
+  font-weight: 700;
+  font-size: 1.05em;
+}
+.improved-service-notes {
   color: #666;
-  font-size: 0.9rem;
+  font-size: 0.95em;
   font-style: italic;
-  margin: 0;
+  margin: 0.5em 0 0 0;
 }
 
 /* Post Actions */
@@ -244,6 +356,13 @@
   color: #fff;
 }
 
+/* Like count highlight */
+.like-count.liked {
+  color: #dc3545;
+  font-weight: bold;
+  transition: color 0.2s;
+}
+
 .btn-share {
   background: #fff;
   border: 2px solid #007bff;
@@ -256,6 +375,18 @@
 .btn-share:hover {
   background: #007bff;
   color: #fff;
+}
+
+/* Button hover effect */
+.btn-like,
+.btn-share {
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.btn-like:active,
+.btn-share:active {
+  transform: scale(0.97);
 }
 
 /* Comments Section */
@@ -309,7 +440,8 @@
 
 /* Comments List */
 .comments-list {
-  space-y: 1.5rem;
+  /* add spacing between comment items */
+  margin-bottom: 0.5rem;
 }
 
 .comment-item {
@@ -488,6 +620,28 @@
     align-items: flex-start;
     gap: 0.5rem;
   }
+  
+  .preview-image {
+    height: 180px;
+  }
+  
+  .post-preview-image {
+    max-height: 180px;
+  }
+}
+
+.service-variant-tag {
+  display: inline-block;
+  background: #f3f4f6;
+  color: #1e293b;
+  border-radius: 8px;
+  padding: 8px 18px;
+  font-size: 1em;
+  font-weight: 500;
+  box-shadow: 0 2px 8px rgba(30,41,59,0.06);
+  border: 1px solid #e5e7eb;
+  margin-bottom: 8px;
+  margin-top: 4px;
 }
 
 @media (max-width: 576px) {
@@ -510,3 +664,4 @@
     padding: 1rem;
   }
 }
+
