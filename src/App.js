@@ -73,6 +73,11 @@ function App() {
                   <BlogCreate />
                 </ProtectedRoute>
               } />
+              <Route path="/blog/:id/edit" element={
+                <ProtectedRoute>
+                  <BlogCreate />
+                </ProtectedRoute>
+              } />
               <Route path="/my-blogs" element={
                 <ProtectedRoute>
                   <MyBlogs />

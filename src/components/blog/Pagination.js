@@ -8,9 +8,11 @@ const Pagination = ({
   onPageChange, 
   showPrevNext = true,
   className = '',
-  size = 'default' // 'small', 'default', 'large'
+  size = 'default', // 'small', 'default', 'large'
+  alwaysShow = false
 }) => {
-  if (totalPages <= 1) return null;
+  // If not forced to show, hide when only one page
+  if (!alwaysShow && totalPages <= 1) return null;
 
   const handlePageChange = (pageNumber) => {
     if (pageNumber >= 1 && pageNumber <= totalPages) {

@@ -5,16 +5,18 @@ import blogService from '../services/blogService';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEdit, faTrash, faCalendar, faComment, faHeart, faUser } from '@fortawesome/free-solid-svg-icons';
 import Pagination from '../components/blog/Pagination';
+import '../css/MyBlogs.css';
 
 const MyBlogs = () => {
   const { user } = useAuth();
   const [posts, setPosts] = useState([]);
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
+  const [limit, setLimit] = useState(5);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [statusFilter, setStatusFilter] = useState('all'); // all | Approved | Pending | Rejected
+  const [deletingId, setDeletingId] = useState(null);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / limit)), [total, limit]);
 
@@ -44,6 +46,33 @@ const MyBlogs = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.user_id, page, limit, statusFilter]);
 
+  const confirmAndDelete = async (post) => {
+    if (!user?.user_id) return;
+    const title = post.title?.slice(0, 70) || `#${post.post_id}`;
+    const ok = window.confirm(`Bạn có chắc muốn xóa bài: "${title}"?\nHành động này không thể hoàn tác.`);
+    if (!ok) return;
+    try {
+      setDeletingId(post.post_id);
+      const res = await blogService.deletePost(post.post_id);
+      if (res?.success) {
+        // If this was the only item on the last page, go back one page
+        const nextCount = posts.length - 1;
+        if (nextCount === 0 && page > 1) {
+          setPage(page - 1);
+        } else {
+          // refresh current page
+          await fetchData();
+        }
+      } else {
+        alert(res?.message || 'Không thể xóa bài viết.');
+      }
+    } catch (err) {
+      alert(err?.response?.data?.message || err?.message || 'Lỗi khi xóa bài viết.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const getStatusInfo = (statusRaw) => {
     const s = (statusRaw || '').toString().trim().toLowerCase();
     if (s === 'approved' || s.includes('phê duyệt')) {
@@ -59,15 +88,15 @@ const MyBlogs = () => {
   };
 
   return (
-    <section className="ftco-section bg-light">
+    <section className="ftco-section bg-light myblogs-page">
       <div className="container">
-        <div className="row justify-content-center mb-5 pb-3">
-          <div className="col-md-7 heading-section text-center">
-            <h2 className="mb-4">Bài viết của tôi</h2>
+        <div className="row justify-content-center myblogs-heading">
+          <div className="col-md-8 heading-section text-center">
+            <h2 className="mb-3">Bài viết của tôi</h2>
           </div>
         </div>
 
-        <div className="mb-3 d-flex justify-content-between align-items-center">
+        <div className="mb-3 d-flex justify-content-between align-items-center myblogs-filterbar">
           <div className="d-flex align-items-center">
             <button className="btn btn-outline-secondary mr-2" disabled>
               Tổng: {total}
@@ -108,25 +137,30 @@ const MyBlogs = () => {
             const preview = (post.content || '').replace(/<[^>]+>/g, '').slice(0, 220);
             return (
               <div className="col-12 mb-3" key={post.post_id}>
-                <div className="card shadow-sm">
+                <div className="card myblogs-card">
                   <div className="row no-gutters">
                     <div className="col-md-4">
                       <Link to={`/blog/${post.post_id}`} className="d-block h-100 w-100">
-                        <img src={imageUrl} alt={post.title} className="w-100 h-100" style={{ objectFit: 'cover', minHeight: 180 }} />
+                        <img src={imageUrl} alt={post.title} className="myblogs-thumb" />
                       </Link>
                     </div>
                     <div className="col-md-8">
                       <div className="card-body d-flex flex-column h-100">
                         <div className="d-flex justify-content-between align-items-start">
-                          <h5 className="card-title mb-2" style={{ maxWidth: '75%' }}>
+                          <h5 className="card-title mb-2 myblogs-title">
                             <Link to={`/blog/${post.post_id}`}>{post.title}</Link>
                           </h5>
                           <div className="d-flex align-items-center">
                             <span className={`badge ${badgeClass} mr-2`}>{statusText}</span>
-                            <button className="btn btn-sm btn-outline-secondary mr-2" title="Edit (coming soon)" disabled>
+                            <Link to={`/blog/${post.post_id}/edit`} className="btn btn-sm btn-outline-secondary mr-2" title="Chỉnh sửa">
                               <FontAwesomeIcon icon={faEdit} />
-                            </button>
-                            <button className="btn btn-sm btn-outline-danger" title="Delete (coming soon)" disabled>
+                            </Link>
+                            <button
+                              className="btn btn-sm btn-outline-danger"
+                              title="Xóa bài viết"
+                              onClick={() => confirmAndDelete(post)}
+                              disabled={deletingId === post.post_id}
+                            >
                               <FontAwesomeIcon icon={faTrash} />
                             </button>
                           </div>
@@ -137,11 +171,11 @@ const MyBlogs = () => {
                           <span className="mr-3"><span className="icon-person"><FontAwesomeIcon icon={faUser} /></span> {post.author_name || 'Bạn'}</span>
                         </p>
 
-                        <p className="card-text" style={{ overflow: 'hidden', display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 3 }}>
+                        <p className="card-text myblogs-preview">
                           {preview}
                         </p>
 
-                        <div className="d-flex align-items-center mt-auto">
+                        <div className="d-flex align-items-center mt-auto myblogs-actions">
                           <p className="mb-0"><Link to={`/blog/${post.post_id}`} className="btn btn-secondary btn-sm">Xem chi tiết <span className="ion-ios-arrow-round-forward"></span></Link></p>
                           <p className="ml-auto mb-0">
                             <span className="mr-3"><span className="icon-heart"><FontAwesomeIcon icon={faHeart} /></span> {post.likes || 0}</span>
@@ -165,6 +199,7 @@ const MyBlogs = () => {
                 totalPages={totalPages}
                 onPageChange={(p) => setPage(p)}
                 size="default"
+                alwaysShow
               />
             </div>
           </div>
