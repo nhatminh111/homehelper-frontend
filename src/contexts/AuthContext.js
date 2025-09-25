@@ -155,6 +155,9 @@ export const AuthProvider = ({ children }) => {
   // Kiểm tra user có phải customer không
   const isCustomer = () => user?.role === 'Customer';
 
+  // Kiểm tra user có phải staff không
+  const isStaff = () => user?.role === 'Staff';
+
   // Kiểm tra user đã đăng nhập chưa
   const isAuthenticated = () => !!user && !!token;
 
@@ -174,6 +177,7 @@ export const AuthProvider = ({ children }) => {
     isAdmin,
     isTasker,
     isCustomer,
+    isStaff,
     isAuthenticated,
     setError,
   };
