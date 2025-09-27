@@ -1,41 +1,38 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronRight, faPlay } from '@fortawesome/free-solid-svg-icons';
+import blogService from '../services/blogService';
 
 const Services = () => {
-  const services = [
-    {
-      icon: 'flaticon-workplace',
-      title: 'Office Cleaning',
-      description: 'Even the all-powerful Pointing has no control about the blind texts it is an almost unorthographic.'
-    },
-    {
-      icon: 'flaticon-pool',
-      title: 'Pool Cleaning',
-      description: 'Even the all-powerful Pointing has no control about the blind texts it is an almost unorthographic.'
-    },
-    {
-      icon: 'flaticon-rug',
-      title: 'Carpet Cleaning',
-      description: 'Even the all-powerful Pointing has no control about the blind texts it is an almost unorthographic.'
-    },
-    {
-      icon: 'flaticon-kitchen',
-      title: 'Kitchen Cleaning',
-      description: 'Even the all-powerful Pointing has no control about the blind texts it is an almost unorthographic.'
-    },
-    {
-      icon: 'flaticon-garden',
-      title: 'Garden Cleaning',
-      description: 'Even the all-powerful Pointing has no control about the blind texts it is an almost unorthographic.'
-    },
-    {
-      icon: 'flaticon-balcony',
-      title: 'Window Cleaning',
-      description: 'Even the all-powerful Pointing has no control about the blind texts it is an almost unorthographic.'
-    }
-  ];
+  // Load from DB Services table (fields: name, description)
+  const [services, setServices] = useState([]);
+  const [svcLoading, setSvcLoading] = useState(true);
+  const [svcError, setSvcError] = useState(null);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        setSvcLoading(true);
+        const res = await blogService.getAllServices();
+        const list = res?.data ?? res; // blogService returns {success,data} in this project
+        const items = Array.isArray(list) ? list : Array.isArray(list?.items) ? list.items : [];
+        // Map to minimal fields needed
+        const mapped = items.map((s) => ({
+          id: s.service_id ?? s.id,
+          name: s.name,
+          description: s.description,
+        }));
+        if (alive) setServices(mapped);
+      } catch (e) {
+        if (alive) setSvcError('Không thể tải danh sách dịch vụ.');
+      } finally {
+        if (alive) setSvcLoading(false);
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
 
   const pricingPlans = [
     {
@@ -103,7 +100,7 @@ const Services = () => {
                 </span> 
                 <span>Services <FontAwesomeIcon icon={faChevronRight} /></span>
               </p>
-              <h1 className="mb-0 bread">Services</h1>
+              <h1 className="mb-0 bread">Dịch vụ</h1>
             </div>
           </div>
         </div>
@@ -118,22 +115,30 @@ const Services = () => {
               <h2>How We Works</h2>
             </div>
           </div>
-          <div className="row">
-            {services.map((service, index) => (
-              <div key={index} className="col-md-6 col-lg-4 services ftco-animate">
-                <div className="d-block d-flex">
-                  <div className="icon d-flex justify-content-center align-items-center">
-                    <span className={service.icon}></span>
-                  </div>
-                  <div className="media-body pl-3">
-                    <h3 className="heading">{service.title}</h3>
-                    <p>{service.description}</p>
-                    <p><a href="#" className="btn-custom">Read more</a></p>
-                  </div>
+          {svcLoading && <div className="text-center">Đang tải dịch vụ...</div>}
+          {svcError && <div className="alert alert-danger">{svcError}</div>}
+          {!svcLoading && !svcError && (
+            <div className="row">
+              {services.map((service, index) => (
+                <div key={service.id ?? index} className="col-md-6 col-lg-4 services ftco-animate">
+                  <Link to={`/services/${service.id ?? service.service_id}`} className="d-block d-flex text-decoration-none text-reset">
+                    <div className="icon d-flex justify-content-center align-items-center">
+                      {/* DB only supplies name/description; use a default icon */}
+                      <span className="flaticon-cleaning"></span>
+                    </div>
+                    <div className="media-body pl-3">
+                      <h3 className="heading">{service.name}</h3>
+                      <p>{service.description}</p>
+                      <p className="btn-custom">Xem bảng giá</p>
+                    </div>
+                  </Link>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+              {services.length === 0 && (
+                <div className="col-12 text-center text-muted">Chưa có dịch vụ nào.</div>
+              )}
+            </div>
+          )}
         </div>
       </section>
 
@@ -152,42 +157,7 @@ const Services = () => {
         </div>
       </section>
 
-      {/* Pricing Section */}
-      <section className="ftco-section bg-light">
-        <div className="container">
-          <div className="row justify-content-center pb-5 mb-3">
-            <div className="col-md-7 heading-section text-center ftco-animate">
-              <span className="subheading mb-3">Price &amp; Plans</span>
-              <h2>Choose Your Perfect Plans</h2>
-            </div>
-          </div>
-          <div className="row">
-            {pricingPlans.map((plan, index) => (
-              <div key={index} className="col-md-6 col-lg-3 ftco-animate">
-                <div className={`block-7 ${plan.active ? 'active' : ''}`}>
-                  <div className="text-center">
-                    <div className="icon d-flex align-items-center justify-content-center">
-                      <span className={`fa ${plan.icon}`}></span>
-                    </div>
-                    <h4 className="heading-2">{plan.title}</h4>
-                    <span className="price">
-                      <sup>$</sup> <span className="number">{plan.price}</span>
-                    </span>
-                    <ul className="pricing-text mb-5">
-                      {plan.features.map((feature, featureIndex) => (
-                        <li key={featureIndex}>
-                          <span className="fa fa-check mr-2"></span>{feature}
-                        </li>
-                      ))}
-                    </ul>
-                    <a href="#" className="btn btn-primary px-4 py-3">Get Started</a>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* Pricing moved to ServiceDetails */}
     </>
   );
 };

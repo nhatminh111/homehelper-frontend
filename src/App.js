@@ -14,6 +14,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Home from './pages/Home';
 import About from './pages/About';
 import Services from './pages/Services';
+import ServiceDetails from './pages/ServiceDetails';
 import Portfolio from './pages/Portfolio';
 import Pricing from './pages/Pricing';
 import Blog from './pages/Blog';
@@ -65,6 +66,7 @@ function App() {
               <Route path="/" element={<Home />} />
               <Route path="/about" element={<About />} />
               <Route path="/services" element={<Services />} />
+              <Route path="/services/:id" element={<ServiceDetails />} />
               <Route path="/portfolio" element={<Portfolio />} />
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/blog" element={<Blog />} />

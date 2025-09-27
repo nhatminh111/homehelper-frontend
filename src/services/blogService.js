@@ -233,6 +233,17 @@ class BlogService {
     }
   }
 
+  // Lấy chi tiết service theo ID (bao gồm variants)
+  async getServiceById(id) {
+    try {
+      const response = await api.get(`/services/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching service by id:', error);
+      throw error;
+    }
+  }
+
   // Lấy posts đã like của user
   async getUserLikedPosts(userId, params = {}) {
     try {

@@ -6,6 +6,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEdit, faTrash, faCalendar, faComment, faHeart, faUser } from '@fortawesome/free-solid-svg-icons';
 import Pagination from '../components/blog/Pagination';
 import '../css/MyBlogs.css';
+import ConfirmModal from '../components/blog/ConfirmModal';
 
 const MyBlogs = () => {
   const { user } = useAuth();
@@ -17,6 +18,8 @@ const MyBlogs = () => {
   const [error, setError] = useState(null);
   const [statusFilter, setStatusFilter] = useState('all'); // all | Approved | Pending | Rejected
   const [deletingId, setDeletingId] = useState(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [postToDelete, setPostToDelete] = useState(null);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / limit)), [total, limit]);
 
@@ -46,23 +49,25 @@ const MyBlogs = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.user_id, page, limit, statusFilter]);
 
-  const confirmAndDelete = async (post) => {
-    if (!user?.user_id) return;
-    const title = post.title?.slice(0, 70) || `#${post.post_id}`;
-    const ok = window.confirm(`Bạn có chắc muốn xóa bài: "${title}"?\nHành động này không thể hoàn tác.`);
-    if (!ok) return;
+  const openDeleteModal = (post) => {
+    setPostToDelete(post);
+    setModalOpen(true);
+  };
+
+  const performDelete = async () => {
+    if (!user?.user_id || !postToDelete) return;
     try {
-      setDeletingId(post.post_id);
-      const res = await blogService.deletePost(post.post_id);
+      setDeletingId(postToDelete.post_id);
+      const res = await blogService.deletePost(postToDelete.post_id);
       if (res?.success) {
-        // If this was the only item on the last page, go back one page
         const nextCount = posts.length - 1;
         if (nextCount === 0 && page > 1) {
           setPage(page - 1);
         } else {
-          // refresh current page
           await fetchData();
         }
+        setModalOpen(false);
+        setPostToDelete(null);
       } else {
         alert(res?.message || 'Không thể xóa bài viết.');
       }
@@ -140,7 +145,7 @@ const MyBlogs = () => {
                 <div className="card myblogs-card">
                   <div className="row no-gutters">
                     <div className="col-md-4">
-                      <Link to={`/blog/${post.post_id}`} className="d-block h-100 w-100">
+                      <Link to={`/blog/${post.post_id}`} className="myblogs-thumb-link">
                         <img src={imageUrl} alt={post.title} className="myblogs-thumb" />
                       </Link>
                     </div>
@@ -158,7 +163,7 @@ const MyBlogs = () => {
                             <button
                               className="btn btn-sm btn-outline-danger"
                               title="Xóa bài viết"
-                              onClick={() => confirmAndDelete(post)}
+                              onClick={() => openDeleteModal(post)}
                               disabled={deletingId === post.post_id}
                             >
                               <FontAwesomeIcon icon={faTrash} />
@@ -204,6 +209,17 @@ const MyBlogs = () => {
             </div>
           </div>
         )}
+
+        <ConfirmModal
+          show={modalOpen}
+          title="Xóa bài viết"
+          message={postToDelete ? `Bạn có chắc chắn muốn xóa bài: "${(postToDelete.title || '').slice(0, 70)}"? Hành động này không thể hoàn tác.` : ''}
+          confirmText="Xóa"
+          cancelText="Hủy"
+          onConfirm={performDelete}
+          onCancel={() => { if (!deletingId) { setModalOpen(false); setPostToDelete(null); } }}
+          loading={!!deletingId}
+        />
       </div>
     </section>
   );

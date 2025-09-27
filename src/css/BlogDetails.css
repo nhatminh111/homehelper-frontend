@@ -228,12 +228,17 @@
   display: block;
 }
 
+/* Bold text should be inline by default; do NOT force line breaks */
 .post-content strong {
-  display: block;       /* bắt buộc xuống hàng */
-  font-size: 1.25rem;   /* to hơn */
-  margin: 12px 0 6px;   /* tạo khoảng cách trên/dưới */
-  font-weight: bold;
+  font-weight: 700;
   color: #333;
+}
+
+/* Treat as a subheading ONLY when <p> contains only a <strong> */
+.post-content p > strong:only-child {
+  display: block;
+  font-size: 1.25rem;
+  margin: 12px 0 6px;
 }
 
 .post-content p {

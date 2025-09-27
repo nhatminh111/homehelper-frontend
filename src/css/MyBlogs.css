@@ -37,9 +37,14 @@
   box-shadow: 0 10px 26px rgba(16,24,40,0.10);
 }
 
-/* Image area */
+/* Image area: keep thumbnails same size regardless of source image */
+.myblogs-thumb-link {
+  display: block;
+  width: 100%;
+  height: 250px; 
+  overflow: hidden;
+}
 .myblogs-thumb {
-  min-height: 180px;
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -83,4 +88,5 @@
 @media (max-width: 767px) {
   .myblogs-page { padding-top: 20px; }
   .myblogs-card .card-body { padding: 12px; }
+  .myblogs-thumb-link { height: 150px; }
 }
