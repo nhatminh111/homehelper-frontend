@@ -1,11 +1,11 @@
-import React from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import "bootstrap/dist/css/bootstrap.min.css";
-import "./App.css";
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import './App.css';
 
 // Import contexts
-import { AuthProvider } from "./contexts/AuthContext";
-import { SocketProvider } from "./contexts/SocketContext";
+import { AuthProvider } from './contexts/AuthContext';
+import { SocketProvider } from './contexts/SocketContext';
 
 // Import components
 import Header from './components/Header';
@@ -29,25 +29,25 @@ import PaymentResult from './pages/PaymentResult';
 import Wallet from './pages/Wallet';
 
 // Import authentication pages
-import Login from "./pages/auth/Login";
-import Register from "./pages/auth/Register";
-import ForgotPassword from "./pages/auth/ForgotPassword";
-import ResetPassword from "./pages/auth/ResetPassword";
-import AuthDemo from "./pages/auth/AuthDemo";
+import Login from './pages/auth/Login';
+import Register from './pages/auth/Register';
+import ForgotPassword from './pages/auth/ForgotPassword';
+import ResetPassword from './pages/auth/ResetPassword';
+import AuthDemo from './pages/auth/AuthDemo';
 
 // Import new pages for functional objectives
-import Dashboard from "./pages/Dashboard";
-import TaskerSearch from "./pages/TaskerSearch";
-import TaskerProfile from "./pages/TaskerProfile";
-import AccountManagement from "./pages/AccountManagement";
-import TaskManagement from "./pages/TaskManagement";
-import PaymentInvoicing from "./pages/PaymentInvoicing";
-import RatingComplaints from "./pages/RatingComplaints";
-import ContentManagement from "./pages/ContentManagement";
-import VideoUpload from "./pages/VideoUpload";
-import TaskerManagement from "./pages/TaskerManagement";
-import AIInteraction from "./pages/AIInteraction";
-import SystemManagement from "./pages/SystemManagement";
+import Dashboard from './pages/Dashboard';
+import TaskerSearch from './pages/TaskerSearch';
+import TaskerProfile from './pages/TaskerProfile';
+import AccountManagement from './pages/AccountManagement';
+import TaskManagement from './pages/TaskManagement';
+import PaymentInvoicing from './pages/PaymentInvoicing';
+import RatingComplaints from './pages/RatingComplaints';
+import ContentManagement from './pages/ContentManagement';
+import VideoUpload from './pages/VideoUpload';
+import TaskerManagement from './pages/TaskerManagement';
+import AIInteraction from './pages/AIInteraction';
+import SystemManagement from './pages/SystemManagement';
 // Role landing pages
 import TaskerHome from './pages/tasker/TaskerHome';
 import AdminHome from './pages/admin/AdminHome';
@@ -57,8 +57,6 @@ import CCCDExtractor from './pages/CCCDExtractor';
 import BecomeTasker from './pages/BecomeTasker';
 import TaskerApprovals from './pages/admin/TaskerApprovals';
 import Wishlist from "./pages/Wishlist";
-
-
 function App() {
   return (
     <AuthProvider>
@@ -71,10 +69,16 @@ function App() {
               <Route path="/" element={<Home />} />
               <Route path="/about" element={<About />} />
               <Route path="/services" element={<Services />} />
+              <Route path="/services/:id" element={<ServiceDetails />} />
               <Route path="/portfolio" element={<Portfolio />} />
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/blog" element={<Blog />} />
               <Route path="/blog/create" element={
+                <ProtectedRoute>
+                  <BlogCreate />
+                </ProtectedRoute>
+              } />
+              <Route path="/blog/:id/edit" element={
                 <ProtectedRoute>
                   <BlogCreate />
                 </ProtectedRoute>
@@ -92,6 +96,7 @@ function App() {
               <Route path="/payment-result" element={<PaymentResult />} />
               <Route path="/wallet" element={<Wallet />} />
               <Route path="/cccd" element={<CCCDExtractor />} />
+              <Route path="/become-tasker" element={<BecomeTasker />} />
               
               {/* Authentication routes */}
               <Route path="/login" element={<Login />} />
@@ -128,7 +133,7 @@ function App() {
                   <RatingComplaints />
                 </ProtectedRoute>
               } />
-                <Route
+              <Route
                   path="/wishlists"
                   element={
                     <ProtectedRoute>
@@ -177,9 +182,19 @@ function App() {
                   <TaskerHome />
                 </ProtectedRoute>
               } />
+              <Route path="/customer" element={
+                <ProtectedRoute requiredRole="Customer">
+                  <CustomerHome />
+                </ProtectedRoute>
+              } />
               <Route path="/admin" element={
                 <ProtectedRoute requiredRole="Admin">
                   <AdminHome />
+                </ProtectedRoute>
+              } />
+              <Route path="/tasker-approvals" element={
+                <ProtectedRoute requiredRole="Staff">
+                  <TaskerApprovals />
                 </ProtectedRoute>
               } />
             </Routes>
