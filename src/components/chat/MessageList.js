@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { formatDistanceToNow, format, isToday, isYesterday } from 'date-fns';
+import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import MessageItem from './MessageItem';
 import './Chat.css';
@@ -32,11 +32,9 @@ const MessageList = ({
 
   // Format date header
   const formatDateHeader = (dateString) => {
-    // dateString là yyyy-MM-dd (UTC)
+
     const [year, month, day] = dateString.split('-');
-    // Tạo date object ở UTC
     const date = new Date(Date.UTC(year, month - 1, day));
-    // So sánh với local hôm nay/hôm qua
     const today = new Date();
     const todayYMD = today.toISOString().slice(0, 10);
     const yesterday = new Date(today);

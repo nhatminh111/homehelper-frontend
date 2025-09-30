@@ -3,11 +3,10 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import parse, { domToReact } from "html-react-parser";
 import blogService from '../services/blogService';
 import { useAuth } from '../contexts/AuthContext';
-import './BlogDetails.css';
+import '../css/BlogDetails.css';
 
 const BlogDetails = () => {
   const { id } = useParams();
-  const navigate = useNavigate();
   const { user } = useAuth();
 
   const [post, setPost] = useState(null);
@@ -50,8 +49,8 @@ const BlogDetails = () => {
       // Check like status
       if (user) {
         try {
-          const response = await blogService.isPostLikedByUser(id, user.user_id);
-          setLiked(response.data?.isLiked || false);
+          const isLiked = await blogService.isPostLikedByUser(id, user.user_id);
+          setLiked(!!isLiked);
         } catch (err) {
           console.error('Error checking like status:', err);
         }
@@ -109,13 +108,22 @@ const BlogDetails = () => {
 
   const formatDate = (dateString) => {
     if (!dateString) return '';
-    return new Date(dateString).toLocaleDateString('vi-VN', {
+    const date = new Date(dateString);
+    const endsWithZ = /z$/i.test(String(dateString)); // ISO UTC like 2025-09-20T12:07:00Z
+    const options = {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
-    });
+      minute: '2-digit',
+      hour12: false,
+    };
+    // If the input is explicitly UTC (ends with 'Z'), format in UTC to avoid +7h shift
+    if (endsWithZ) {
+      return new Intl.DateTimeFormat('vi-VN', { ...options, timeZone: 'UTC' }).format(date);
+    }
+    // Otherwise, render with default locale settings
+    return new Intl.DateTimeFormat('vi-VN', options).format(date);
   };
 
   const formatPrice = (price) => {
@@ -196,7 +204,13 @@ const BlogDetails = () => {
             <article className="blog-post">
               {/* Preview Image */}
               <div className="post-preview-image">
-                <img src={getPreviewImage()} alt={post.title} className="preview-image" />
+                <img
+                  src={getPreviewImage()}
+                  alt={post.title}
+                  className="preview-image"
+                  loading="lazy"
+                  decoding="async"
+                />
               </div>
               {/* Header */}
               <header className="post-header">
@@ -217,7 +231,7 @@ const BlogDetails = () => {
                     <span className="stat-item">
                       <i className="fas fa-eye"></i> {post.views || 0}
                     </span>
-                    <span className="stat-item like-count {liked ? 'liked' : ''}">
+                    <span className={`stat-item like-count ${liked ? 'liked' : ''}`}>
                       <i className="fas fa-heart"></i> {likesCount}
                     </span>
                     <span className="stat-item">
@@ -229,8 +243,11 @@ const BlogDetails = () => {
 
               <div className="post-content">
                 {(() => {
+                  // Normalize: if content has no HTML tags (older posts), wrap in <p>
+                  const hasTag = /<[^>]+>/.test(post.content || '');
+                  const normalizedContent = hasTag ? post.content : (post.content ? `<p>${post.content}</p>` : '');
                   let imgIndex = 0; // dùng biến cục bộ
-                  return parse(post.content, {
+                  return parse(normalizedContent, {
                     replace: (domNode) => {
                       if (domNode.name === "p") {
                         const img =
@@ -239,6 +256,8 @@ const BlogDetails = () => {
                               src={post.photo_urls[imgIndex]}
                               alt={`img-${imgIndex}`}
                               className="post-inline-image"
+                              loading="lazy"
+                              decoding="async"
                             />
                           ) : null;
 
@@ -280,8 +299,14 @@ const BlogDetails = () => {
                         <p className="service-description">{service.description}</p>
                         <div className="service-pricing improved-service-pricing">
                           <div className="price-row">
-                            <span className="base-price-label">Giá gốc:</span>
-                            <span className="base-price improved-base-price">{formatPrice(service.specific_price)}</span>
+                            <span className="base-price-label">Khoảng giá:</span>
+                            <span className="base-price improved-base-price">
+                              {service.price_min != null && service.price_max != null
+                                ? `${formatPrice(service.price_min)} - ${formatPrice(service.price_max)}${service.unit ? ` / ${service.unit}` : ''}`
+                                : (service.specific_price != null
+                                  ? `${formatPrice(service.specific_price)}${service.unit ? ` / ${service.unit}` : ''}`
+                                  : '—')}
+                            </span>
                           </div>
                           {service.desired_price && (
                             <div className="price-row">
@@ -428,11 +453,13 @@ const BlogDetails = () => {
                         <h6>
                             <span className="service-variant-tag">{service.name}</span>
                         </h6>
-                        {service.desired_price && (
-                          <span className="service-price">
-                            {formatPrice(service.reference_price)}
-                          </span>
-                        )}
+                        <span className="service-price">
+                          {service.price_min != null && service.price_max != null
+                            ? `${formatPrice(service.price_min)} - ${formatPrice(service.price_max)}${service.unit ? ` / ${service.unit}` : ''}`
+                            : (service.specific_price != null
+                              ? `${formatPrice(service.specific_price)}${service.unit ? ` / ${service.unit}` : ''}`
+                              : '')}
+                        </span>
                       </div>
                     ))}
                   </div>

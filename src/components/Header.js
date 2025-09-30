@@ -167,6 +167,10 @@ const Header = () => {
                       <FontAwesomeIcon icon={faCog} className="mr-2" />
                       Dashboard
                     </Link>
+                    <Link className="dropdown-item" to="/my-blogs">
+                      <FontAwesomeIcon icon={faCog} className="mr-2" />
+                      My Blog
+                    </Link>
                     
                     {isTasker() && (
                       <Link className="dropdown-item" to="/tasker">

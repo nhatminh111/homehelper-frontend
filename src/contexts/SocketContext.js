@@ -90,6 +90,11 @@ export const SocketProvider = ({ children }) => {
       window.dispatchEvent(new CustomEvent('socket_message_read', { detail: data }));
     });
 
+    // Message updated
+    socketService.on('message_updated', (data) => {
+      window.dispatchEvent(new CustomEvent('socket_message_updated', { detail: data }));
+    });
+
     // New notification
     socketService.on('new_notification', (data) => {
       setUnreadCount(prev => prev + 1);
@@ -132,6 +137,7 @@ export const SocketProvider = ({ children }) => {
       socketService.off('user_left');
       socketService.off('user_typing');
       socketService.off('message_read');
+  socketService.off('message_updated');
       socketService.off('new_notification');
       socketService.off('user_status_changed');
       socketService.off('socket_error');

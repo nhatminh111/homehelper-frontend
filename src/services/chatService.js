@@ -1,7 +1,6 @@
 import ConversationService from './conversationService';
 import MessageService from './messageService';
 import NotificationService from './notificationService';
-import { useSocket } from '../contexts/SocketContext';
 
 class ChatService {
   constructor() {

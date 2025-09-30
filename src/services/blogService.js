@@ -176,11 +176,8 @@ class BlogService {
         formData.append(`images`, file);
       });
 
-      const response = await api.post('/uploads/post-images', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      // Do NOT set Content-Type manually; the browser will include the correct boundary
+      const response = await api.post('/uploads/post-images', formData);
       return response.data;
     } catch (error) {
       console.error('Error uploading images:', error);
@@ -210,6 +207,28 @@ class BlogService {
       return response.data;
     } catch (error) {
       console.error('Error fetching posts by service:', error);
+      throw error;
+    }
+  }
+
+  // Lấy bookings của user hiện tại (để chọn liên kết post)
+  async getMyBookings(params = {}) {
+    try {
+      const response = await api.get('/bookings/my', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching my bookings:', error);
+      throw error;
+    }
+  }
+
+  // Lấy danh sách services (kèm variants) để chọn không cần nhớ ID
+  async getAllServices() {
+    try {
+      const response = await api.get('/services');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching services:', error);
       throw error;
     }
   }
