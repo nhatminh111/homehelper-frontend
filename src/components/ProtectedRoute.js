@@ -3,7 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 const ProtectedRoute = ({ children, requiredRole = null }) => {
-  const { loading, isAuthenticated, isAdmin, isTasker, isCustomer } = useAuth();
+  const { loading, isAuthenticated, isAdmin, isTasker, isCustomer, isStaff } = useAuth();
   const location = useLocation();
 
   // Hiển thị loading khi đang kiểm tra auth
@@ -36,6 +36,9 @@ const ProtectedRoute = ({ children, requiredRole = null }) => {
         break;
       case 'Customer':
         hasRole = isCustomer() || isAdmin();
+        break;
+      case 'Staff':
+        hasRole = isStaff() || isAdmin();
         break;
       default:
         hasRole = true;

@@ -23,7 +23,7 @@ const Header = () => {
   const [isNavCollapsed, setIsNavCollapsed] = useState(true);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const location = useLocation();
-  const { user, isAuthenticated, logout, isAdmin, isTasker } = useAuth();
+  const { user, isAuthenticated, logout, isAdmin, isTasker, isStaff } = useAuth();
 
   const { balance, loading, error, refresh } = useWalletBalance();
 
@@ -120,10 +120,8 @@ const Header = () => {
               <li className={`nav-item ${isActive('/chat')}`}>
                 <Link to="/chat" className="nav-link">Chat</Link>
               </li>
-              <li className={`nav-item ${isActive('/cccd')}`}>
-                <Link to="/cccd" className="nav-link">
-                  <FontAwesomeIcon icon={faIdCard} className="mr-1" /> CCCD
-                </Link>
+              <li className={`nav-item ${isActive('/become-tasker')}`}>
+                <Link to="/become-tasker" className="nav-link">Become a Tasker</Link>
               </li>
               
               {/* Auth Menu */}
@@ -185,6 +183,12 @@ const Header = () => {
                       <Link className="dropdown-item" to="/admin">
                         <FontAwesomeIcon icon={faCog} className="mr-2" />
                         Admin Panel
+                      </Link>
+                    )}
+                    {(isStaff() || isAdmin()) && (
+                      <Link className="dropdown-item" to="/tasker-approvals">
+                        <FontAwesomeIcon icon={faCog} className="mr-2" />
+                        Approve Taskers
                       </Link>
                     )}
                     

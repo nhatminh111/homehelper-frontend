@@ -46,6 +46,8 @@ const AccountManagement = () => {
   const [back, setBack] = useState(null);
   const [cccdResult, setCccdResult] = useState(null);
   const [cccdLoading, setCccdLoading] = useState(false);
+  const [cccdStatus, setCccdStatus] = useState(null);
+  const [hasVerifiedCCCD, setHasVerifiedCCCD] = useState(false);
 
   const [profileData, setProfileData] = useState({
     firstName: 'John',
@@ -99,6 +101,30 @@ const AccountManagement = () => {
     };
     fetchAddresses();
   }, [token, logout]);
+
+  // Kiểm tra trạng thái CCCD
+  useEffect(() => {
+    const checkCCCDStatus = async () => {
+      if (!token) return;
+      try {
+        const [statusRes, verifiedRes] = await Promise.all([
+          cccdAPI.getCCCDStatus(token),
+          cccdAPI.checkVerifiedCCCD(token)
+        ]);
+        
+        if (statusRes.success) {
+          setCccdStatus(statusRes.data);
+        }
+        
+        if (verifiedRes.success) {
+          setHasVerifiedCCCD(verifiedRes.data.hasVerified);
+        }
+      } catch (error) {
+        console.error('Lỗi kiểm tra trạng thái CCCD:', error);
+      }
+    };
+    checkCCCDStatus();
+  }, [token]);
 
   const handleInputChange = (field, value) => {
     setProfileData(prev => ({
@@ -208,38 +234,102 @@ const AccountManagement = () => {
 
   const handleCccdChange = (e) => setCccdForm({ ...cccdForm, [e.target.name]: e.target.value });
 
+  // Function để refresh trạng thái CCCD
+  const refreshCCCDStatus = async () => {
+    if (!token) return;
+    try {
+      const [statusRes, verifiedRes] = await Promise.all([
+        cccdAPI.getCCCDStatus(token),
+        cccdAPI.checkVerifiedCCCD(token)
+      ]);
+      
+      if (statusRes.success) {
+        setCccdStatus(statusRes.data);
+      }
+      
+      if (verifiedRes.success) {
+        setHasVerifiedCCCD(verifiedRes.data.hasVerified);
+      }
+    } catch (error) {
+      console.error('Lỗi refresh trạng thái CCCD:', error);
+    }
+  };
+
   const submitCccd = async (e) => {
     e.preventDefault();
     if (!front || !back) return alert('Vui lòng tải ảnh mặt trước và mặt sau CCCD');
+    
+    // Validate ngày sinh
+    const validateDate = (dateStr) => {
+      if (!dateStr) return false;
+      const parts = dateStr.split('/');
+      if (parts.length !== 3) return false;
+      
+      const day = parseInt(parts[0]);
+      const month = parseInt(parts[1]);
+      const year = parseInt(parts[2]);
+      
+      if (day < 1 || day > 31 || month < 1 || month > 12 || year < 1900 || year > 2100) {
+        return false;
+      }
+      
+      const date = new Date(year, month - 1, day);
+      return date.getDate() === day && date.getMonth() === month - 1 && date.getFullYear() === year;
+    };
+    
+    if (!validateDate(cccdForm.dob)) {
+      alert('Ngày sinh không hợp lệ! Vui lòng nhập đúng định dạng dd/mm/yyyy (ví dụ: 01/01/1990)');
+      return;
+    }
+    
     try {
       setCccdLoading(true);
-      // Try Python OCR first
-      try {
-        const pythonResult = await pythonOCRAPI.extractCCCD(front, back);
-        if (pythonResult.success) {
-          setCccdForm({
-            number: String(pythonResult.data.number || ''),
-            full_name: String(pythonResult.data.full_name || ''),
-            dob: String(pythonResult.data.dob || ''),
-            gender: String(pythonResult.data.gender || 'Nam')
-          });
-          setCccdResult({
-            success: true,
-            message: 'Python OCR extraction successful',
-            data: pythonResult.data,
-            source: 'python_ocr',
-            raw_ocr_text: pythonResult.raw_ocr_text,
-            processing_info: pythonResult.processing_info
-          });
-          return;
-        }
-      } catch (_) {}
-      // Fallback to Node backend submit
-      const payload = { ...cccdForm, front, back };
+      console.log('🚀 Starting CCCD submission...');
+      console.log('📋 Form data:', cccdForm);
+      console.log('📸 Front file:', front);
+      console.log('📸 Back file:', back);
+      
+      const payload = { 
+        ...cccdForm, 
+        front, 
+        back 
+      };
+      
+      console.log('📦 Payload:', payload);
+      
       const res = await cccdAPI.submit(payload, token);
+      console.log('✅ CCCD submission result:', res);
+      
       setCccdResult(res);
+      
+      if (res.success) {
+        alert(res.message || 'Xác minh CCCD thành công!');
+        // Refresh trạng thái CCCD thay vì reload toàn trang
+        await refreshCCCDStatus();
+      }
+      
     } catch (err) {
-      alert(err.message);
+      console.error('❌ CCCD submission error:', err);
+      console.error('❌ Error type:', typeof err);
+      console.error('❌ Error message:', err.message);
+      console.error('❌ Error stack:', err.stack);
+      console.error('❌ Full error object:', err);
+      
+      let errorMessage = 'Có lỗi xảy ra khi xử lý CCCD';
+      
+      if (typeof err === 'string') {
+        errorMessage = err;
+      } else if (err && err.message) {
+        errorMessage = err.message;
+      } else if (err && typeof err === 'object') {
+        try {
+          errorMessage = JSON.stringify(err);
+        } catch (e) {
+          errorMessage = 'Lỗi không xác định';
+        }
+      }
+      
+      alert(errorMessage);
     } finally {
       setCccdLoading(false);
     }
@@ -621,8 +711,59 @@ const AccountManagement = () => {
             {/* CCCD Verification Tab */}
             {activeTab === 'cccd' && (
               <div className="content-card bg-white rounded shadow-sm p-4">
-                <h4 className="mb-3">Xác minh CCCD</h4>
-                <form onSubmit={submitCccd}>
+                <h4 className="mb-3">
+                  <FontAwesomeIcon icon={faIdCard} className="me-2" />
+                  Xác minh CCCD
+                </h4>
+                
+                {/* Hiển thị trạng thái CCCD */}
+                {cccdStatus && (
+                  <div className={`alert ${cccdStatus.status === 'Verified' ? 'alert-success' : 
+                    cccdStatus.status === 'Pending' ? 'alert-warning' : 
+                    cccdStatus.status === 'Rejected' ? 'alert-danger' : 'alert-info'} mb-4`}>
+                    <div className="d-flex align-items-center">
+                      <FontAwesomeIcon 
+                        icon={cccdStatus.status === 'Verified' ? faCheckCircle : 
+                              cccdStatus.status === 'Pending' ? faClock : 
+                              cccdStatus.status === 'Rejected' ? faTimes : faIdCard} 
+                        className="me-2" 
+                      />
+                      <div>
+                        <strong>{cccdStatus.message}</strong>
+                        {cccdStatus.verified_at && (
+                          <div className="small text-muted">
+                            Duyệt lúc: {new Date(cccdStatus.verified_at).toLocaleString('vi-VN')}
+                          </div>
+                        )}
+                        {cccdStatus.created_at && cccdStatus.status !== 'Verified' && (
+                          <div className="small text-muted">
+                            Gửi lúc: {new Date(cccdStatus.created_at).toLocaleString('vi-VN')}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Nếu đã duyệt, hiển thị thông tin đã duyệt */}
+                {hasVerifiedCCCD ? (
+                  <div className="text-center py-5">
+                    <FontAwesomeIcon icon={faCheckCircle} size="4x" className="text-success mb-3" />
+                    <h5 className="text-success mb-3">CCCD đã được xác minh thành công!</h5>
+                    <p className="text-muted">Tài khoản của bạn đã được xác minh danh tính. Bạn có thể sử dụng đầy đủ các tính năng của hệ thống.</p>
+                    <div className="mt-4">
+                      <button 
+                        className="btn btn-outline-primary"
+                        onClick={refreshCCCDStatus}
+                      >
+                        <FontAwesomeIcon icon={faCog} className="me-1" />
+                        Làm mới trạng thái
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  /* Form xác minh CCCD */
+                  <form onSubmit={submitCccd}>
                   <div className="row g-3">
                     <div className="col-md-3">
                       <label className="form-label">Số CCCD</label>
@@ -634,7 +775,16 @@ const AccountManagement = () => {
                     </div>
                     <div className="col-md-3">
                       <label className="form-label">Ngày sinh (dd/mm/yyyy)</label>
-                      <input className="form-control" name="dob" value={cccdForm.dob} onChange={handleCccdChange} required />
+                      <input 
+                        className="form-control" 
+                        name="dob" 
+                        value={cccdForm.dob} 
+                        onChange={handleCccdChange} 
+                        placeholder="01/01/1990"
+                        pattern="\d{2}/\d{2}/\d{4}"
+                        title="Nhập ngày sinh theo định dạng dd/mm/yyyy (ví dụ: 01/01/1990)"
+                        required 
+                      />
                     </div>
                     <div className="col-md-2">
                       <label className="form-label">Giới tính</label>
@@ -652,10 +802,13 @@ const AccountManagement = () => {
                       <input className="form-control" type="file" accept="image/*" onChange={(e) => setBack(e.target.files[0])} required />
                     </div>
                   </div>
-                  <button className="btn btn-primary mt-3" disabled={cccdLoading}>
-                    {cccdLoading ? 'Đang xử lý...' : 'Gửi xác minh'}
-                  </button>
-                </form>
+                    <button className="btn btn-primary mt-3" disabled={cccdLoading}>
+                      {cccdLoading ? 'Đang xử lý...' : 'Gửi xác minh'}
+                    </button>
+                  </form>
+                )}
+
+                {/* Hiển thị kết quả xử lý */}
                 {cccdResult && (
                   <div className="alert alert-info mt-3">
                     <div className="d-flex justify-content-between">
