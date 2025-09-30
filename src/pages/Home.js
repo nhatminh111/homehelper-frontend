@@ -1,16 +1,16 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { useAuth } from "../contexts/AuthContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faChevronDown,
   faStar,
   faCheckCircle,
   faMapMarkerAlt,
-  faUser,
-  faCommentDots,
   faEye,
   faComments,
+  faHeart as faHeartSolid,
 } from "@fortawesome/free-solid-svg-icons";
+import { faHeart as faHeartRegular } from "@fortawesome/free-regular-svg-icons";
 import { Link } from "react-router-dom";
 
 const Home = () => {
@@ -18,6 +18,77 @@ const Home = () => {
   const [searchName, setSearchName] = useState("");
   const [selectedService, setSelectedService] = useState("");
   const [taskers, setTaskers] = useState([]);
+  const { user, token } = useAuth();
+  const [wishlistTaskers, setWishlistTaskers] = useState([]);
+
+  const createHeaders = (token) => ({
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  });
+  // Load wishlist for current user
+  useEffect(() => {
+    if (user && token) {
+      fetch(`http://localhost:3001/api/wishlists/${user.user_id}`, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          setWishlistTaskers(data.taskers?.map((t) => t.tasker_id) || []);
+        })
+        .catch(() => setWishlistTaskers([]));
+    } else {
+      setWishlistTaskers([]);
+    }
+  }, [user, token]);
+
+  const handleAddWishlist = async (taskerId) => {
+    if (!user) return alert("Vui lòng đăng nhập để thêm vào wishlist!");
+    try {
+      const res = await fetch(`http://localhost:3001/api/wishlists/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          customer_id: user.user_id,
+          favorite_taskers: [taskerId],
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setWishlistTaskers((prev) => [...prev, Number(taskerId)]);
+        alert("Đã thêm vào wishlist!");
+      } else {
+        alert(data.error || "Có lỗi xảy ra");
+      }
+    } catch (err) {
+      alert("Có lỗi xảy ra khi thêm vào wishlist!");
+      console.error(err);
+    }
+  };
+
+  const removeTasker = async (taskerId) => {
+    if (!window.confirm("Bạn có chắc muốn xóa tasker này khỏi wishlist?"))
+      return;
+    try {
+      const res = await fetch(`http://localhost:3001/api/wishlists/remove`, {
+        method: "POST",
+        headers: createHeaders(token),
+        body: JSON.stringify({ customer_id: user.user_id, taskerId }),
+      });
+      if (res.ok) {
+        setWishlistTaskers((prev) =>
+          prev.filter((id) => id !== Number(taskerId))
+        );
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   useEffect(() => {
     fetch("http://localhost:3001/api/services/servicebasic")
@@ -47,28 +118,7 @@ const Home = () => {
     }
   };
 
-  const [formData, setFormData] = useState({
-    name: "",
-    phone: "",
-    service: "",
-    date: "",
-    time: "",
-    message: "",
-  });
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    console.log("Form submitted:", formData);
-    // Handle form submission here
-  };
+  // ...existing code...
 
   const cleaners = [
     {
@@ -247,136 +297,181 @@ const Home = () => {
 
           {/* Hiển thị kết quả taskers */}
           <div className="row mt-5">
-            {taskers.map((t) => (
-              <div key={t.tasker_id} className="col-md-6 col-lg-4 mb-4">
-                <div className="card h-100 shadow-sm border rounded-3 p-3">
-                  <div className="d-flex align-items-center mb-2">
-                    <img
-                      src={t.profileImage || "/default-avatar.png"}
-                      alt={t.name}
-                      className="rounded-circle me-3"
-                      style={{ width: 50, height: 50, objectFit: "cover" }}
-                    />
-                    <div>
-                      <h5 className="mb-0 d-flex align-items-center">
-                        {t.name}
-                        {t.verified && (
-                          <span className="badge bg-info text-white ms-2">
-                            Đã xác minh
+            {taskers.length > 0 ? (
+              taskers.map((t) => (
+                <div key={t.tasker_id} className="col-md-6 col-lg-4 mb-4">
+                  <div className="card h-100 shadow-sm border rounded-3 p-3">
+                    <div className="d-flex align-items-center mb-2 position-relative">
+                      {/* Heart icon top right */}
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          right: 0,
+                          zIndex: 2,
+                          background: "transparent",
+                          border: "none",
+                          boxShadow: "none",
+                        }}
+                        onClick={() =>
+                          wishlistTaskers.includes(Number(t.tasker_id))
+                            ? removeTasker(t.tasker_id)
+                            : handleAddWishlist(t.tasker_id)
+                        }
+                        title={
+                          wishlistTaskers.includes(Number(t.tasker_id))
+                            ? "Remove from wishlist"
+                            : "Add to wishlist"
+                        }
+                      >
+                        <FontAwesomeIcon
+                          icon={
+                            wishlistTaskers.includes(Number(t.tasker_id))
+                              ? faHeartSolid
+                              : faHeartRegular
+                          }
+                          style={{
+                            cursor: "pointer",
+                            fontSize: "1.7rem",
+                            color: "#dc3545",
+                            background: "transparent",
+                          }}
+                        />
+                      </div>
+                      <img
+                        src={t.profileImage || "/default-avatar.png"}
+                        alt={t.name}
+                        className="rounded-circle me-3"
+                        style={{ width: 50, height: 50, objectFit: "cover" }}
+                      />
+                      <div>
+                        <h5 className="mb-0 d-flex align-items-center">
+                          {t.name}
+                          {t.verified && (
+                            <span className="badge bg-info text-white ms-2">
+                              Verified
+                            </span>
+                          )}
+                        </h5>
+                        <div className="text-warning d-flex align-items-center">
+                          {[...Array(5)].map((_, i) => (
+                            <FontAwesomeIcon
+                              key={i}
+                              icon={faStar}
+                              color={
+                                i < Math.round(t.rating || 0)
+                                  ? "#ffd700"
+                                  : "#ccc"
+                              }
+                              className="me-1"
+                            />
+                          ))}
+                          <span className="text-muted ms-2">
+                            {(t.rating || 0).toFixed(1)} ({t.reviewsCount || 0}{" "}
+                            reviews)
                           </span>
-                        )}
-                      </h5>
-                      <div className="text-warning d-flex align-items-center">
-                        {[...Array(5)].map((_, i) => (
-                          <FontAwesomeIcon
-                            key={i}
-                            icon={faStar}
-                            color={
-                              i < Math.round(t.rating || 0) ? "#ffd700" : "#ccc"
-                            }
-                            className="me-1"
-                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {t.location && t.distance && (
+                      <p className="text-muted mb-1">
+                        <FontAwesomeIcon
+                          icon={faMapMarkerAlt}
+                          className="me-1"
+                        />
+                        {t.location} • {t.distance} km away
+                      </p>
+                    )}
+
+                    <p className="text-muted mb-2">
+                      {t.experience ? `${t.experience} years experience` : ""}
+                    </p>
+
+                    {t.tags?.length > 0 && (
+                      <div className="mb-2">
+                        {t.tags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="badge bg-light text-dark me-2 mb-1"
+                          >
+                            {tag}
+                          </span>
                         ))}
-                        <span className="text-muted ms-2">
-                          {(t.rating || 0).toFixed(1)} ({t.reviewsCount || 0} đánh giá)
-                        </span>
+                      </div>
+                    )}
+
+                    <div className="mb-2">
+                      {t.completedJobs !== undefined && (
+                        <p className="mb-1">
+                          <strong>Completed Jobs:</strong> {t.completedJobs}
+                        </p>
+                      )}
+                      {t.languages?.length > 0 && (
+                        <p className="mb-1">
+                          <strong>Languages:</strong> {t.languages.join(", ")}
+                        </p>
+                      )}
+                      <p className="text-muted small">
+                        Usually responds within 1 hour
+                      </p>
+                    </div>
+
+                    {/* Dịch vụ và variants */}
+                    {t.services?.length > 0 && (
+                      <div className="mt-3">
+                        <h6>Dịch vụ cung cấp:</h6>
+                        {t.services.map((s) => (
+                          <div key={s.service_id} className="mb-2">
+                            <strong>{s.name}</strong>
+                            <ul className="ps-3 mb-0">
+                              {s.variants?.length > 0 ? (
+                                s.variants.map((v) => (
+                                  <li key={v.variant_id}>
+                                    {v.variant_name} ({v.price_min}-
+                                    {v.price_max} {v.unit})
+                                  </li>
+                                ))
+                              ) : (
+                                <li>Không có gói dịch vụ cụ thể</li>
+                              )}
+                            </ul>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="d-flex gap-2 mb-3">
+                      <span className="badge bg-success">Top Rated</span>
+                      <span className="badge bg-success">Quick Response</span>
+                    </div>
+
+                    <div className="col-12 mt-3">
+                      <div className="d-flex justify-content-end">
+                        <Link
+                          to={`/tasker-profile/${t.tasker_id}`}
+                          className="btn btn-outline-primary btn-sm mr-2"
+                        >
+                          <FontAwesomeIcon icon={faEye} className="mr-1" />
+                          Xem Hồ Sơ
+                        </Link>
+                        <button className="btn btn-outline-secondary btn-sm mr-2">
+                          <FontAwesomeIcon icon={faComments} className="mr-1" />
+                          Start Chat
+                        </button>
+                        <button className="btn btn-primary btn-sm">
+                          Đặt Lịch Ngay
+                        </button>
                       </div>
                     </div>
                   </div>
-
-                  {t.location && t.distance && (
-                    <p className="text-muted mb-1">
-                      <FontAwesomeIcon icon={faMapMarkerAlt} className="me-1" />
-                      {t.location} • cách {t.distance} km
-                    </p>
-                  )}
-
-                  <h5 className="text-primary">
-                    {t.rate ? `$${t.rate}/giờ` : "Giá: Chưa có"}
-                  </h5>
-                  <p className="text-muted mb-2">
-                    {t.experience ? `${t.experience} năm kinh nghiệm` : ""}
-                  </p>
-
-                  {t.tags?.length > 0 && (
-                    <div className="mb-2">
-                      {t.tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="badge bg-light text-dark me-2 mb-1"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  <div className="mb-2">
-                    {t.completedJobs !== undefined && (
-                      <p className="mb-1">
-                        <strong>Completed Jobs:</strong> {t.completedJobs}
-                      </p>
-                    )}
-                    {t.languages?.length > 0 && (
-                      <p className="mb-1">
-                        <strong>Languages:</strong> {t.languages.join(", ")}
-                      </p>
-                    )}
-                    <p className="text-muted small">
-                      Usually responds within 1 hour
-                    </p>
-                  </div>
-
-                  {/* Dịch vụ và variants */}
-                  {t.services?.length > 0 && (
-                    <div className="mt-3">
-                      <h6>Dịch vụ cung cấp:</h6>
-                      {t.services.map((s) => (
-                        <div key={s.service_id} className="mb-2">
-                          <strong>{s.name}</strong>
-                          <ul className="ps-3 mb-0">
-                            {s.variants?.length > 0 ? (
-                              s.variants.map((v) => (
-                                <li key={v.variant_id}>
-                                  {v.variant_name} ({v.price_min}-{v.price_max}{" "}
-                                  {v.unit})
-                                </li>
-                              ))
-                            ) : (
-                              <li>Không có gói dịch vụ cụ thể</li>
-                            )}
-                          </ul>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  <div className="d-flex gap-2 mb-3">
-                    <span className="badge bg-success">Đánh giá cao</span>
-                    <span className="badge bg-success">Phản hồi nhanh</span>
-                  </div>
-
-                  <div className="col-12 mt-3">
-                    <div className="d-flex justify-content-end">
-                      <Link
-                        to={`/tasker-profile/${t.tasker_id}`}
-                        className="btn btn-outline-primary btn-sm mr-2"
-                      >
-                        <FontAwesomeIcon icon={faEye} className="mr-1" />
-                        Xem hồ sơ
-                      </Link>
-                      <button className="btn btn-outline-secondary btn-sm mr-2">
-                        <FontAwesomeIcon icon={faComments} className="mr-1" />
-                        Bắt đầu chat
-                      </button>
-                      <button className="btn btn-primary btn-sm">
-                        Đặt lịch ngay
-                      </button>
-                    </div>
-                  </div>
                 </div>
+              ))
+            ) : (
+              <div className="col-12 text-center text-muted py-5">
+                Không có tasker nào được tìm thấy.
               </div>
-            ))}
+            )}
           </div>
         </div>
       </section>

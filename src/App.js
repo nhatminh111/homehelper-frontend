@@ -56,7 +56,7 @@ import ChatPage from './pages/Chat';
 import CCCDExtractor from './pages/CCCDExtractor';
 import BecomeTasker from './pages/BecomeTasker';
 import TaskerApprovals from './pages/admin/TaskerApprovals';
-
+import Wishlist from "./pages/Wishlist";
 function App() {
   return (
     <AuthProvider>
@@ -133,6 +133,14 @@ function App() {
                   <RatingComplaints />
                 </ProtectedRoute>
               } />
+              <Route
+                  path="/wishlists"
+                  element={
+                    <ProtectedRoute>
+                      <Wishlist />
+                    </ProtectedRoute>
+                  }
+                />
               <Route path="/content" element={
                 <ProtectedRoute requiredRole="Admin">
                   <ContentManagement />
