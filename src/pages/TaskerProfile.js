@@ -11,7 +11,9 @@ import {
   faMapMarkerAlt,
   faCalendarCheck,
   faComments,
+  faHeart as faHeartSolid,
 } from "@fortawesome/free-solid-svg-icons";
+import { faHeart as faHeartRegular } from "@fortawesome/free-regular-svg-icons";
 
 const API_BASE_URL = "http://localhost:3001/api";
 
@@ -38,6 +40,7 @@ const TaskerProfile = () => {
   const [newRating, setNewRating] = useState(5);
   const [newFeedback, setNewFeedback] = useState("");
   const [loadingUser, setLoadingUser] = useState(true);
+  const [inWishlist, setInWishlist] = useState(false);
 
   // Load tasker profile
   useEffect(() => {
@@ -71,6 +74,35 @@ const TaskerProfile = () => {
         .catch((err) => console.error(err));
     }
   }, [id, token, isAuthenticated]);
+
+  useEffect(() => {
+    if (!user) return;
+    fetch(`${API_BASE_URL}/wishlists/${user.user_id}`, {
+      headers: createHeaders(token),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        // data.taskers là mảng các tasker_id trong wishlist
+        setInWishlist(data.taskers?.some((t) => t.tasker_id === Number(id)));
+      })
+      .catch(() => setInWishlist(false));
+  }, [user, id, token]);
+   const removeTasker = async (taskerId) => {
+    if (!window.confirm("Bạn có chắc muốn xóa tasker này khỏi wishlist?"))
+      return;
+    try {
+      const res = await fetch(`http://localhost:3001/api/wishlists/remove`, {
+        method: "POST",
+        headers: createHeaders(token),
+        body: JSON.stringify({ customer_id: user.user_id, taskerId }),
+      });
+      if (res.ok) {
+        setInWishlist(false);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const submitReview = async () => {
     if (!newFeedback.trim()) return alert("Please enter your feedback");
@@ -126,6 +158,30 @@ const TaskerProfile = () => {
     }
   };
 
+  const handleAddWishlist = async () => {
+    if (!user) return alert("Vui lòng đăng nhập để thêm vào wishlist!");
+    try {
+      const res = await fetch(`${API_BASE_URL}/wishlists/`, {
+        method: "POST",
+        headers: createHeaders(token),
+        body: JSON.stringify({
+          customer_id: user.user_id,
+          favorite_taskers: [id],
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setInWishlist(true);
+        alert("Đã thêm vào wishlist!");
+      } else {
+        alert(data.error || "Có lỗi xảy ra");
+      }
+    } catch (err) {
+      alert("Có lỗi xảy ra khi thêm vào wishlist!");
+      console.error(err);
+    }
+  };
+
   if (!tasker)
     return <div className="container py-5 text-center">Loading...</div>;
 
@@ -140,7 +196,36 @@ const TaskerProfile = () => {
   return (
     <div className="container py-5">
       {/* Header */}
-      <div className="card p-4 shadow-sm">
+      <div className="card p-4 shadow-sm" style={{ position: "relative" }}>
+        {/* Trái tim góc phải trên */}
+        <div
+                             style={{
+                               position: "absolute",
+                               top: 0,
+                               right: 0,
+                               zIndex: 2,
+                               background: "transparent",
+                               border: "none",
+                               boxShadow: "none",
+                             }}
+                             onClick={() =>
+                               inWishlist
+                                 ? removeTasker(tasker.tasker_id)
+                                 : handleAddWishlist(tasker.tasker_id)
+                             }
+                             title={inWishlist ? "Remove from wishlist" : "Add to wishlist"}
+                           >
+                             <FontAwesomeIcon
+                               icon={inWishlist ? faHeartSolid : faHeartRegular}
+                               style={{
+                                 cursor: "pointer",
+                                 fontSize: "1.7rem",
+                                 color: "#dc3545",
+                                 background: "transparent",
+                               }}
+                             />
+                           </div>
+
         <div className="row align-items-center gx-3">
           <div className="col-md-6 ps-md-4">
             <div className="d-flex align-items-center mb-3">
@@ -210,78 +295,113 @@ const TaskerProfile = () => {
           {activeTab === "reviews" && (
             <div className="row">
               {/* Rating Overview */}
-              <div className="col-md-4">
-                <h5>Rating Overview</h5>
-                {reviewsData ? (
-                  <>
-                    <h3 className="fw-bold">
-                      {reviewsData.average?.toFixed(1)} / 5
-                    </h3>
-                    <p>{reviewsData.total} reviews</p>
+              <div className="col-md-4 text-center">
+                <h1 className="display-4 fw-bold text-primary">
+                  {reviewsData.average?.toFixed(1) || "0.0"}
+                </h1>
+                <div className="mb-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <FontAwesomeIcon
+                      key={star}
+                      icon={faStar}
+                      className={
+                        star <= Math.round(reviewsData.average || 0)
+                          ? "text-warning"
+                          : "text-muted"
+                      }
+                    />
+                  ))}
+                </div>
+                <p className="text-muted">{reviewsData.total} reviews</p>
 
-                    {[5, 4, 3, 2, 1].map((star) => {
-                      const count = reviewsData.ratingsCount?.[star] || 0;
-                      const percent = reviewsData.total
-                        ? Math.round((count / reviewsData.total) * 100)
-                        : 0;
+                {[5, 4, 3, 2, 1].map((star) => {
+                  const count = reviewsData.ratingsCount?.[star] || 0;
+                  const percent = reviewsData.total
+                    ? Math.round((count / reviewsData.total) * 100)
+                    : 0;
 
-                      return (
+                  return (
+                    <div key={star} className="d-flex align-items-center mb-2">
+                      <span style={{ width: 30 }}>{star}★</span>
+                      <div
+                        className="progress flex-grow-1 mx-2"
+                        style={{ height: 10 }}
+                      >
                         <div
-                          key={star}
-                          className="d-flex align-items-center mb-2"
-                        >
-                          <span style={{ width: 30 }}>{star}★</span>
-                          <div
-                            className="progress flex-grow-1 mx-2"
-                            style={{ height: 10 }}
-                          >
-                            <div
-                              className="progress-bar bg-warning"
-                              role="progressbar"
-                              style={{ width: `${percent}%` }}
-                              aria-valuenow={percent}
-                              aria-valuemin="0"
-                              aria-valuemax="100"
-                            ></div>
-                          </div>
-                          <span>{count}</span>
-                        </div>
-                      );
-                    })}
-                  </>
-                ) : (
-                  <p>Loading ratings...</p>
-                )}
+                          className="progress-bar bg-warning"
+                          role="progressbar"
+                          style={{ width: `${percent}%` }}
+                        ></div>
+                      </div>
+                      <span>{count}</span>
+                    </div>
+                  );
+                })}
               </div>
 
               {/* Reviews + Form */}
               <div className="col-md-8">
                 {reviewsData?.reviews?.length > 0 ? (
                   reviewsData.reviews
-                    .filter((review) => review) // bỏ các giá trị null/undefined
+                    .filter((review) => review)
                     .map((review) => (
                       <div
                         key={review.id || Math.random()}
-                        className="border-bottom pb-3 mb-3"
+                        className="card shadow-sm mb-3 p-3"
                       >
-                        <strong>{review?.name || "Ẩn danh"}</strong>
-                        <div>
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <FontAwesomeIcon
-                              key={star}
-                              icon={faStar}
-                              className={
-                                star <= (review?.rating || 0)
-                                  ? "text-warning"
-                                  : "text-muted"
-                              }
-                            />
-                          ))}
+                        <div className="d-flex align-items-start">
+                          {/* Avatar */}
+                          <img
+                            src={review.avatar || "/images/default-avatar.png"}
+                            alt={review.name}
+                            className="rounded-circle me-3"
+                            style={{
+                              width: "50px",
+                              height: "50px",
+                              objectFit: "cover",
+                            }}
+                          />
+
+                          <div className="flex-grow-1">
+                            {/* Header */}
+                            <div className="d-flex align-items-center mb-1">
+                              <strong className="me-2">
+                                {review?.name || "Ẩn danh"}
+                              </strong>
+                              <span className="badge bg-primary me-2">
+                                Verified
+                              </span>
+                              <div>
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                  <FontAwesomeIcon
+                                    key={star}
+                                    icon={faStar}
+                                    className={
+                                      star <= (review?.rating || 0)
+                                        ? "text-warning"
+                                        : "text-muted"
+                                    }
+                                  />
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Date */}
+                            <small className="text-muted d-block mb-2">
+                              {review.date ? review.date.split("T")[0] : ""}
+                            </small>
+
+                            {/* Comment */}
+                            <p className="mb-2">
+                              {review?.text || "Không có nhận xét."}
+                            </p>
+
+                            {/* Helpful button */}
+                            <button className="btn btn-sm btn-outline-secondary">
+                              👍 Helpful ({review.helpful || 0})
+                            </button>
+                          </div>
                         </div>
-                        <p>{review?.text || "Không có nhận xét."}</p>
-                        <small className="text-muted">
-                          {review.date ? review.date.split(".")[0] : ""}
-                        </small>
                       </div>
                     ))
                 ) : (
