@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronRight, faTrash, faArrowLeft, faPlus } from '@fortawesome/free-solid-svg-icons';
 import blogService from '../services/blogService';
@@ -16,7 +16,9 @@ const ToolbarButton = ({ icon, title, onClick }) => (
 
 function BlogCreate() {
   const navigate = useNavigate();
+  const { id: editId } = useParams();
   const { user } = useAuth();
+  const isEdit = !!editId;
 
   const editorWrapperRef = useRef(null);
   const editorRef = useRef(null);
@@ -134,6 +136,16 @@ function BlogCreate() {
     };
   }, []);
 
+  // Reflect preloaded content into Quill (for edit mode)
+  useEffect(() => {
+    const quill = quillRef.current;
+    if (!quill) return;
+    if (typeof contentHtml === 'string' && contentHtml) {
+      const current = quill.root.innerHTML;
+      if (current !== contentHtml) quill.root.innerHTML = contentHtml;
+    }
+  }, [contentHtml]);
+
 
   const removePhotoUrl = (idx) => {
     setPhotoUrls((prev) => prev.filter((_, i) => i !== idx));
@@ -196,9 +208,10 @@ function BlogCreate() {
     const payload = {
       title: title.trim(),
       content: normalized, // backend stores HTML as-is
-      status: 'Pending',
       photo_urls: photoUrls.length ? photoUrls : null,
     };
+    // Reset status to Pending on both create and edit for re-approval
+    payload.status = 'Pending';
 
     if (linkBooking && relatedBookingId.trim()) {
       payload.related_booking_id = parseInt(relatedBookingId, 10);
@@ -247,21 +260,21 @@ function BlogCreate() {
 
     try {
       setSubmitting(true);
-      const res = await blogService.createPost(payload);
+      const res = isEdit ? await blogService.updatePost(editId, payload) : await blogService.createPost(payload);
       if (res.success) {
-        setSuccess('Post created successfully');
+        setSuccess(isEdit ? 'Post updated successfully' : 'Post created successfully');
         // Redirect to detail or back to list
-        const newId = res.data?.post_id;
+        const newId = isEdit ? editId : res.data?.post_id;
         setTimeout(() => {
           if (newId) navigate(`/blog/${newId}`);
           else navigate('/blog');
-        }, 500);
+        }, 400);
       } else {
-        setError(res.message || 'Failed to create post');
+        setError(res.message || (isEdit ? 'Failed to update post' : 'Failed to create post'));
       }
     } catch (err) {
       console.error(err);
-      setError(err.response?.data?.message || err.message || 'Error creating post');
+      setError(err.response?.data?.message || err.message || (isEdit ? 'Error updating post' : 'Error creating post'));
     } finally {
       setSubmitting(false);
     }
@@ -285,6 +298,41 @@ function BlogCreate() {
     loadSelectors();
   }, []);
 
+  // Load existing post for edit
+  useEffect(() => {
+    const loadExisting = async () => {
+      if (!isEdit) return;
+      try {
+        const res = await blogService.getPostById(editId);
+        const post = res?.data;
+        if (!post) return;
+        setTitle(post.title || '');
+        setContentHtml(post.content || '');
+        setPhotoUrls(Array.isArray(post.photo_urls) ? post.photo_urls : []);
+
+        // Preload service selection if available
+        try {
+          const svcRes = await blogService.getPostServices(editId);
+          const services = svcRes?.data || [];
+          const svc = services.length ? services[0] : null;
+          if (post.related_booking_id) {
+            setLinkBooking(true);
+            setRelatedBookingId(String(post.related_booking_id));
+            if (svc?.variant_id) setBookingVariantId(String(svc.variant_id));
+          } else if (svc) {
+            if (svc.service_id) setSelectedServiceId(String(svc.service_id));
+            if (svc.variant_id) setSelectedVariantId(String(svc.variant_id));
+            if (svc.desired_price != null) setDesiredPrice(String(svc.desired_price));
+            if (svc.notes) setServiceNotes(svc.notes);
+          }
+        } catch (_) {}
+      } catch (e) {
+        console.warn('Failed to load existing post', e);
+      }
+    };
+    loadExisting();
+  }, [isEdit, editId]);
+
   return (
     <>
       {/* Hero */}
@@ -300,9 +348,9 @@ function BlogCreate() {
                 <span className="mr-2">
                   <Link to="/blog">Blog <FontAwesomeIcon icon={faChevronRight} /></Link>
                 </span>
-                <span>Create Post</span>
+                <span>{isEdit ? 'Edit Post' : 'Create Post'}</span>
               </p>
-              <h1 className="mb-0 bread">Create a New Post</h1>
+              <h1 className="mb-0 bread">{isEdit ? 'Edit Post' : 'Create a New Post'}</h1>
             </div>
           </div>
         </div>
@@ -315,7 +363,7 @@ function BlogCreate() {
             <div className="col-lg-10">
               <div className="bg-white p-4 p-md-5 shadow-sm rounded">
                 <div className="d-flex justify-content-between align-items-center mb-3">
-                  <h4 className="mb-0">Post details</h4>
+                  <h4 className="mb-0">{isEdit ? 'Edit details' : 'Post details'}</h4>
                   <button className="btn btn-outline-secondary" onClick={() => navigate(-1)}>
                     <FontAwesomeIcon icon={faArrowLeft} className="mr-1" /> Back
                   </button>
@@ -584,9 +632,9 @@ function BlogCreate() {
                   })()}
 
                   <div className="d-flex justify-content-end">
-                    <button type="button" className="btn btn-outline-secondary mr-2" onClick={() => navigate('/blog')} disabled={submitting}>Cancel</button>
+                    <button type="button" className="btn btn-outline-secondary mr-2" onClick={() => navigate(isEdit ? `/blog/${editId}` : '/blog')} disabled={submitting}>Cancel</button>
                     <button type="submit" className="btn btn-primary" disabled={submitting}>
-                      {submitting ? 'Creating...' : 'Create Post'}
+                      {submitting ? (isEdit ? 'Updating...' : 'Creating...') : (isEdit ? 'Update Post' : 'Create Post')}
                     </button>
                   </div>
                 </form>

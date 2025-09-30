@@ -189,14 +189,15 @@ const Home = () => {
         <div className="row align-items-center">
           <div className="col-lg-6 mb-4 mb-lg-0">
             <h1 className="display-4 font-weight-bold mb-3">
-              We do the dirty work, so you don't have to
+              HomeHelper – Giúp việc dễ dàng, cuộc sống thảnh thơi.
             </h1>
             <p className="lead text-muted mb-4">
-              Professional cleaning services for your home and office. Trusted
-              by thousands of customers.
+              Kết nối nhanh – Dịch vụ chuẩn – Ngôi nhà an tâm.
+              <br />
+              Dọn dẹp, chăm sóc, sửa chữa – Tất cả trong một chạm.
             </p>
             <a href="#search" className="btn btn-primary btn-lg">
-              Book Now
+              Khám phá ngay
             </a>
           </div>
           <div className="col-lg-6">
@@ -211,14 +212,14 @@ const Home = () => {
 
       <section id="search" className="py-5 text-center">
         <div className="container">
-          <h2 className="h1 mb-3">Find Professional Cleaners Near You</h2>
-          <p className="text-muted mb-4">Advanced Search</p>
+          <h2 className="h1 mb-3">Tìm người giúp việc chuyên nghiệp gần bạn</h2>
+          <p className="text-muted mb-4">Tìm kiếm nâng cao</p>
           <div className="row justify-content-center">
             <div className="col-lg-12">
               <div className="input-group input-group-lg d-flex align-items-center">
                 <input
                   className="form-control form-control-lg"
-                  placeholder="Search by cleaner name..."
+                  placeholder="Tìm theo tên người giúp việc..."
                   value={searchName}
                   onChange={(e) => setSearchName(e.target.value)}
                 />
@@ -227,7 +228,7 @@ const Home = () => {
                   value={selectedService}
                   onChange={(e) => setSelectedService(e.target.value)}
                 >
-                  <option value="">Select Service</option>
+                  <option value="">Chọn dịch vụ</option>
                   {services.map((s) => (
                     <option key={s.service_id} value={s.service_id}>
                       {s.name}
@@ -238,7 +239,7 @@ const Home = () => {
                   className="btn btn-primary btn-lg"
                   onClick={handleSearch}
                 >
-                  Search
+                  Tìm kiếm
                 </button>
               </div>
             </div>
@@ -261,7 +262,7 @@ const Home = () => {
                         {t.name}
                         {t.verified && (
                           <span className="badge bg-info text-white ms-2">
-                            Verified
+                            Đã xác minh
                           </span>
                         )}
                       </h5>
@@ -277,8 +278,7 @@ const Home = () => {
                           />
                         ))}
                         <span className="text-muted ms-2">
-                          {(t.rating || 0).toFixed(1)} ({t.reviewsCount || 0}{" "}
-                          reviews)
+                          {(t.rating || 0).toFixed(1)} ({t.reviewsCount || 0} đánh giá)
                         </span>
                       </div>
                     </div>
@@ -287,15 +287,15 @@ const Home = () => {
                   {t.location && t.distance && (
                     <p className="text-muted mb-1">
                       <FontAwesomeIcon icon={faMapMarkerAlt} className="me-1" />
-                      {t.location} • {t.distance} km away
+                      {t.location} • cách {t.distance} km
                     </p>
                   )}
 
                   <h5 className="text-primary">
-                    {t.rate ? `$${t.rate}/hr` : "Rate: N/A"}
+                    {t.rate ? `$${t.rate}/giờ` : "Giá: Chưa có"}
                   </h5>
                   <p className="text-muted mb-2">
-                    {t.experience ? `${t.experience} years experience` : ""}
+                    {t.experience ? `${t.experience} năm kinh nghiệm` : ""}
                   </p>
 
                   {t.tags?.length > 0 && (
@@ -352,8 +352,8 @@ const Home = () => {
                   )}
 
                   <div className="d-flex gap-2 mb-3">
-                    <span className="badge bg-success">Top Rated</span>
-                    <span className="badge bg-success">Quick Response</span>
+                    <span className="badge bg-success">Đánh giá cao</span>
+                    <span className="badge bg-success">Phản hồi nhanh</span>
                   </div>
 
                   <div className="col-12 mt-3">
@@ -363,14 +363,14 @@ const Home = () => {
                         className="btn btn-outline-primary btn-sm mr-2"
                       >
                         <FontAwesomeIcon icon={faEye} className="mr-1" />
-                        View Profile
+                        Xem hồ sơ
                       </Link>
                       <button className="btn btn-outline-secondary btn-sm mr-2">
                         <FontAwesomeIcon icon={faComments} className="mr-1" />
-                        Start Chat
+                        Bắt đầu chat
                       </button>
                       <button className="btn btn-primary btn-sm">
-                        Book Now
+                        Đặt lịch ngay
                       </button>
                     </div>
                   </div>
@@ -391,23 +391,23 @@ const Home = () => {
             />
           </div>
           <div className="col-lg-6">
-            <h2 className="display-5 mb-3">Let's make you fresher than ever</h2>
+            <h2 className="display-5 mb-3">Hãy để bạn tươi mới hơn bao giờ hết</h2>
             <p className="text-muted mb-4">
-              Our professional cleaning team uses eco-friendly products and
-              advanced techniques to ensure your space is spotless.
+              Đội ngũ vệ sinh chuyên nghiệp sử dụng sản phẩm thân thiện môi trường
+              và kỹ thuật hiện đại để đảm bảo không gian của bạn luôn sạch bóng.
             </p>
             <div className="d-flex justify-content-between">
               <div>
                 <h3 className="text-primary">45</h3>
-                <small className="text-muted">Years Experience</small>
+                <small className="text-muted">Năm kinh nghiệm</small>
               </div>
               <div>
                 <h3 className="text-primary">2,342</h3>
-                <small className="text-muted">Happy Customers</small>
+                <small className="text-muted">Khách hàng hài lòng</small>
               </div>
               <div>
                 <h3 className="text-primary">30+</h3>
-                <small className="text-muted">Service Areas</small>
+                <small className="text-muted">Khu vực dịch vụ</small>
               </div>
             </div>
           </div>
@@ -416,9 +416,9 @@ const Home = () => {
 
       <section className="py-5">
         <div className="container">
-          <h2 className="h1 text-center mb-2">Latest News</h2>
+          <h2 className="h1 text-center mb-2">Tin mới nhất</h2>
           <p className="text-center text-muted mb-5">
-            Stay updated with our latest tips and news
+            Cập nhật các mẹo và tin tức mới nhất từ chúng tôi
           </p>
           <div className="row">
             {news.map((n) => (
@@ -439,9 +439,7 @@ const Home = () => {
                     </span>
                     <h5 className="card-title">{n.title}</h5>
                     <p className="text-muted">{n.date}</p>
-                    <button className="btn btn-outline-primary">
-                      Read More
-                    </button>
+                    <button className="btn btn-outline-primary">Đọc thêm</button>
                   </div>
                 </div>
               </div>
@@ -452,19 +450,19 @@ const Home = () => {
 
       <section className="py-5" style={{ background: "#2b5cff" }}>
         <div className="container text-center text-white">
-          <h2 className="mb-3">Together we will explore new things</h2>
+          <h2 className="mb-3">Cùng nhau khám phá những điều mới</h2>
           <p className="mb-4">
-            Ready to experience the best cleaning service? Get started today!
+            Sẵn sàng trải nghiệm dịch vụ vệ sinh tốt nhất? Bắt đầu ngay hôm nay!
           </p>
-          <button className="btn btn-warning btn-lg">Get Started Now</button>
+          <button className="btn btn-warning btn-lg">Bắt đầu ngay</button>
         </div>
       </section>
 
       <section className="py-5">
         <div className="container">
-          <h2 className="h1 text-center mb-2">Loyalty Rewards Program</h2>
+          <h2 className="h1 text-center mb-2">Chương trình tích điểm thành viên</h2>
           <p className="text-center text-muted mb-5">
-            Earn points with every service and unlock exclusive member benefits
+            Tích điểm cho mỗi dịch vụ và mở khóa những quyền lợi dành riêng cho thành viên
           </p>
           <div className="row">
             {tiers.map((t) => (
