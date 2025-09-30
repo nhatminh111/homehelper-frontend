@@ -29,7 +29,7 @@ const Header = () => {
   const [isNavCollapsed, setIsNavCollapsed] = useState(true);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const location = useLocation();
-  const { user, isAuthenticated, logout, isAdmin, isTasker } = useAuth();
+  const { user, isAuthenticated, logout, isAdmin, isTasker, isStaff } = useAuth();
 
   const { balance, loading, error, refresh } = useWalletBalance();
 
@@ -41,7 +41,7 @@ const Header = () => {
 
   return (
     <>
-      {/* Top Bar */}
+      {/* Thanh trên cùng */}
       <div className="wrap">
         <div className="container">
           <div className="row justify-content-between">
@@ -91,14 +91,11 @@ const Header = () => {
         </div>
       </div>
 
-      {/* Navigation */}
-      <nav
-        className="navbar navbar-expand-lg navbar-dark ftco_navbar bg-dark ftco-navbar-light"
-        id="ftco-navbar"
-      >
+      {/* Điều hướng */}
+      <nav className="navbar navbar-expand-lg navbar-dark ftco_navbar bg-dark ftco-navbar-light" id="ftco-navbar">
         <div className="container">
           <Link className="navbar-brand" to="/">
-            Cleaning<span>company</span>
+            Home<span>Helper</span>
           </Link>
           <button
             className="navbar-toggler"
@@ -117,45 +114,25 @@ const Header = () => {
             id="ftco-nav"
           >
             <ul className="navbar-nav ml-auto">
-              <li className={`nav-item ${isActive("/")}`}>
-                <Link to="/" className="nav-link">
-                  Home
-                </Link>
+              <li className={`nav-item ${isActive('/')}`}>
+                <Link to="/" className="nav-link">Trang chủ</Link>
               </li>
-              <li className={`nav-item ${isActive("/about")}`}>
-                <Link to="/about" className="nav-link">
-                  About
-                </Link>
+              <li className={`nav-item ${isActive('/about')}`}>
+                <Link to="/about" className="nav-link">Giới thiệu</Link>
               </li>
-              <li className={`nav-item ${isActive("/services")}`}>
-                <Link to="/services" className="nav-link">
-                  Services
-                </Link>
+              <li className={`nav-item ${isActive('/services')}`}>
+                <Link to="/services" className="nav-link">Dịch vụ</Link>
               </li>
-              <li className={`nav-item ${isActive("/tasker-search")}`}>
-                <Link to="/tasker-search" className="nav-link">
-                  Find Cleaners
-                </Link>
-              </li>
-              <li className={`nav-item ${isActive("/portfolio")}`}>
-                <Link to="/portfolio" className="nav-link">
-                  Portfolio
-                </Link>
-              </li>
-              <li className={`nav-item ${isActive("/pricing")}`}>
-                <Link to="/pricing" className="nav-link">
-                  Pricing
-                </Link>
+              <li className={`nav-item ${isActive('/portfolio')}`}>
+                <Link to="/portfolio" className="nav-link">Dự án</Link>
               </li>
               <li className={`nav-item ${isActive("/blog")}`}>
                 <Link to="/blog" className="nav-link">
                   Blog
                 </Link>
               </li>
-              <li className={`nav-item ${isActive("/contact")}`}>
-                <Link to="/contact" className="nav-link">
-                  Contact
-                </Link>
+              <li className={`nav-item ${isActive('/contact')}`}>
+                <Link to="/contact" className="nav-link">Liên hệ</Link>
               </li>
               <li className={`nav-item ${isActive("/chat")}`}>
                 <Link to="/chat" className="nav-link">
@@ -185,7 +162,7 @@ const Header = () => {
                     }}
                   >
                     <FontAwesomeIcon icon={faUserSolid} className="mr-2" />
-                    {user?.name || "Account"}
+                    {user?.name || 'Tài khoản'}
                   </a>
                   <div
                     className={`dropdown-menu ${showUserMenu ? "show" : ""}`}
@@ -214,24 +191,30 @@ const Header = () => {
 
                     <Link className="dropdown-item" to="/dashboard">
                       <FontAwesomeIcon icon={faCog} className="mr-2" />
-                      Dashboard
+                      Bảng điều khiển
                     </Link>
                     <Link className="dropdown-item" to="/my-blogs">
                       <FontAwesomeIcon icon={faCog} className="mr-2" />
-                      My Blog
+                      Blog của tôi
                     </Link>
 
                     {isTasker() && (
                       <Link className="dropdown-item" to="/tasker">
                         <FontAwesomeIcon icon={faCog} className="mr-2" />
-                        Tasker Panel
+                        Bảng điều khiển Tasker
                       </Link>
                     )}
 
                     {isAdmin() && (
                       <Link className="dropdown-item" to="/admin">
                         <FontAwesomeIcon icon={faCog} className="mr-2" />
-                        Admin Panel
+                        Khu vực quản trị
+                      </Link>
+                    )}
+                    {(isStaff() || isAdmin()) && (
+                      <Link className="dropdown-item" to="/tasker-approvals">
+                        <FontAwesomeIcon icon={faCog} className="mr-2" />
+                        Approve Taskers
                       </Link>
                     )}
 
@@ -239,23 +222,23 @@ const Header = () => {
                     {/* 👉 thêm mục Wallet */}
                     <Link className="dropdown-item" to="/wallet">
                       <FontAwesomeIcon icon={faWallet} className="mr-2" />
-                      Wallet
+                      Ví tiền
                     </Link>
                     <Link className="dropdown-item" to="/account">
                       <FontAwesomeIcon icon={faUserSolid} className="mr-2" />
-                      My Profile
+                      Hồ sơ của tôi
                     </Link>
                     <Link className="dropdown-item" to="/tasks">
                       <FontAwesomeIcon icon={faCog} className="mr-2" />
-                      My Tasks
+                      Công việc của tôi
                     </Link>
                     <Link className="dropdown-item" to="/payment">
                       <FontAwesomeIcon icon={faCog} className="mr-2" />
-                      Payments
+                      Thanh toán
                     </Link>
                     <Link className="dropdown-item" to="/ratings">
                       <FontAwesomeIcon icon={faCog} className="mr-2" />
-                      Ratings
+                      Đánh giá
                     </Link>
                     <Link className="dropdown-item" to="/wishlists">
                       <FontAwesomeIcon icon={faHeart} className="mr-2" />
@@ -271,8 +254,8 @@ const Header = () => {
                       }}
                     >
                       <FontAwesomeIcon icon={faSignOutAlt} className="mr-2" />
-                      Logout
-                    </button>
+                                              Đăng xuất
+                      </button>
                   </div>
                 </li>
               ) : (
@@ -280,13 +263,13 @@ const Header = () => {
                   <li className="nav-item">
                     <Link to="/login" className="nav-link">
                       <FontAwesomeIcon icon={faSignInAlt} className="mr-1" />
-                      Login
+                      Đăng nhập
                     </Link>
                   </li>
                   <li className="nav-item">
                     <Link to="/register" className="nav-link">
                       <FontAwesomeIcon icon={faUserPlus} className="mr-1" />
-                      Register
+                      Đăng ký
                     </Link>
                   </li>
                 </>

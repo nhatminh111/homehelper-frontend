@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { pythonOCRAPI } from '../services/api';
+import { pythonOCRAPI, cccdAPI, checkVerifiedCCCD, getCCCDStatus } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faUpload,
@@ -12,6 +13,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 
 const CCCDExtractor = () => {
+  const { user: authUser } = useAuth();
   const [frontImage, setFrontImage] = useState(null);
   const [backImage, setBackImage] = useState(null);
   const [frontPreview, setFrontPreview] = useState(null);
@@ -20,6 +22,49 @@ const CCCDExtractor = () => {
   const [faceImage, setFaceImage] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  
+  // Thêm state cho user input
+  const [userInput, setUserInput] = useState({
+    number: '',
+    full_name: '',
+    dob: '',
+    gender: 'Nam'
+  });
+  const [comparisonResult, setComparisonResult] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitResult, setSubmitResult] = useState(null);
+  const [isVerified, setIsVerified] = useState(!!(authUser && authUser.cccd_status === 'Đã xác minh'));
+
+  // Check verified on mount
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const verifiedRes = await checkVerifiedCCCD(token);
+        if (verifiedRes && verifiedRes.hasVerified !== undefined) {
+          setIsVerified(!!verifiedRes.hasVerified);
+        } else if (verifiedRes?.data?.hasVerified) {
+          setIsVerified(true);
+        }
+
+        // Fallback: check latest status
+        if (!isVerified) {
+          const statusRes = await getCCCDStatus(token);
+          const status = statusRes?.data || statusRes;
+          if (status && (status.verification_status === 'Verified' || status.status === 'Verified')) {
+            setIsVerified(true);
+          }
+        }
+      } catch (_) {}
+    })();
+  }, []);
+
+  // React to auth user changes (if context already has verified status)
+  React.useEffect(() => {
+    if (authUser && authUser.cccd_status === 'Đã xác minh') {
+      setIsVerified(true);
+    }
+  }, [authUser]);
 
   const handleImageUpload = (e, type) => {
     const file = e.target.files[0];
@@ -75,6 +120,133 @@ const CCCDExtractor = () => {
     URL.revokeObjectURL(url);
   };
 
+  // Function so sánh dữ liệu
+  const compareData = () => {
+    if (!extractedData) {
+      setError('Vui lòng trích xuất dữ liệu từ ảnh trước');
+      return;
+    }
+
+    const normalize = (str) => {
+      if (!str) return '';
+      return str.toLowerCase()
+        .replace(/[àáạảãâầấậẩẫăằắặẳẵ]/g, 'a')
+        .replace(/[èéẹẻẽêềếệểễ]/g, 'e')
+        .replace(/[ìíịỉĩ]/g, 'i')
+        .replace(/[òóọỏõôồốộổỗơờớợởỡ]/g, 'o')
+        .replace(/[ùúụủũưừứựửữ]/g, 'u')
+        .replace(/[ỳýỵỷỹ]/g, 'y')
+        .replace(/đ/g, 'd')
+        .replace(/\s+/g, ' ')
+        .trim();
+    };
+
+    const normalizeDate = (dateStr) => {
+      if (!dateStr) return '';
+      const parts = dateStr.split('/');
+      if (parts.length === 3) {
+        const day = parts[0].padStart(2, '0');
+        const month = parts[1].padStart(2, '0');
+        const year = parts[2];
+        return `${year}-${month}-${day}`;
+      }
+      return dateStr;
+    };
+
+    const comparisons = {
+      number: normalize(extractedData.number) === normalize(userInput.number),
+      full_name: normalize(extractedData.full_name) === normalize(userInput.full_name),
+      dob: normalizeDate(extractedData.dob) === normalizeDate(userInput.dob),
+      gender: normalize(extractedData.gender) === normalize(userInput.gender)
+    };
+
+    const matchCount = Object.values(comparisons).filter(match => match).length;
+    const totalFields = Object.keys(comparisons).length;
+    const matchRate = matchCount / totalFields;
+
+    setComparisonResult({
+      comparisons,
+      matchCount,
+      totalFields,
+      matchRate,
+      isMatch: matchRate >= 0.8
+    });
+  };
+
+  // Function submit CCCD vào backend
+  const submitToBackend = async () => {
+    if (!frontImage || !comparisonResult || !comparisonResult.isMatch) {
+      setError('Vui lòng đảm bảo thông tin khớp 100% trước khi gửi');
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+    setSubmitResult(null);
+
+    try {
+      const token = (() => {
+        try { return localStorage.getItem('token'); } catch (_) { return null; }
+      })();
+
+      // Upload ảnh mặt lên Cloudinary trước
+      let faceCloudUrl = null;
+      if (faceImage) {
+        try {
+          console.log('🖼️ Uploading face image to Cloudinary:', faceImage);
+          const faceUploadResponse = await cccdAPI.uploadFaceImage(faceImage, token);
+          if (faceUploadResponse.success) {
+            faceCloudUrl = faceUploadResponse.data.face_cloud_url;
+            console.log('✅ Face image uploaded to Cloudinary:', faceCloudUrl);
+          }
+        } catch (error) {
+          console.warn('⚠️ Face image upload failed:', error.message);
+        }
+      }
+
+      const payload = {
+        front: frontImage,
+        back: backImage || undefined,
+        number: userInput.number,
+        full_name: userInput.full_name,
+        dob: userInput.dob,
+        gender: userInput.gender,
+        // Gửi kèm dữ liệu OCR đã trích xuất để backend so sánh trực tiếp
+        ocr_payload: extractedData ? JSON.stringify(extractedData) : undefined,
+        face_cloud_url: faceCloudUrl, // Thêm face_cloud_url vào payload
+      };
+      
+      console.log('📤 Sending payload with face_cloud_url:', faceCloudUrl);
+
+      const response = await cccdAPI.submit(payload, token);
+      
+      setSubmitResult({
+        success: true,
+        message: 'CCCD đã được gửi xác minh thành công!',
+        data: response
+      });
+
+      // Reset form sau khi submit thành công
+      setUserInput({ number: '', full_name: '', dob: '', gender: 'Nam' });
+      setComparisonResult(null);
+      setExtractedData(null);
+      setFaceImage(null);
+      setFrontImage(null);
+      setBackImage(null);
+      setFrontPreview(null);
+      setBackPreview(null);
+
+    } catch (error) {
+      console.error('Submit CCCD error:', error);
+      setSubmitResult({
+        success: false,
+        message: error.message || 'Lỗi khi gửi CCCD xác minh'
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const fieldLabels = {
     number: 'Số CCCD',
     full_name: 'Họ và tên',
@@ -85,6 +257,21 @@ const CCCDExtractor = () => {
     place_of_residence: 'Nơi thường trú',
     expiry_date: 'Có giá trị đến'
   };
+
+  // Nếu đã xác minh: chặn toàn bộ nội dung, chỉ hiển thị thông báo
+  if (isVerified) {
+    return (
+      <div className="container py-5">
+        <div className="row">
+          <div className="col-12">
+            <div className="alert alert-success">
+              Tài khoản của bạn đã được xác minh CCCD. Trang này đã bị khóa.
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container py-5">
@@ -100,7 +287,7 @@ const CCCDExtractor = () => {
 
       <div className="row">
         {/* Upload Section */}
-        <div className="col-lg-6">
+        <div className={`col-lg-6 ${isVerified ? 'pe-none opacity-50' : ''}`}>
           <div className="card h-100">
             <div className="card-header bg-primary text-white">
               <h4 className="mb-0">
@@ -193,27 +380,157 @@ const CCCDExtractor = () => {
           </div>
         </div>
 
-        {/* Result Section */}
-        <div className="col-lg-6">
+        {/* User Input Section */}
+        <div className={`col-lg-6 ${isVerified ? 'pe-none opacity-50' : ''}`}>
           <div className="card h-100">
-            <div className="card-header bg-success text-white d-flex align-items-center justify-content-between">
+            <div className="card-header bg-primary text-white">
               <h4 className="mb-0">
-                <FontAwesomeIcon icon={faCheckCircle} className="mr-2" />
-                Kết quả trích xuất
+                <FontAwesomeIcon icon={faIdCard} className="mr-2" />
+                Nhập thông tin để so sánh
               </h4>
-              <button className="btn btn-light btn-sm" onClick={downloadData} disabled={!extractedData}>
-                <FontAwesomeIcon icon={faDownload} className="mr-2" />
-                Tải dữ liệu
-              </button>
             </div>
             <div className="card-body">
-              {!extractedData ? (
-                <div className="text-center text-muted">
-                  <p>Chưa có dữ liệu. Vui lòng tải ảnh và bấm Trích xuất.</p>
+              <div className="mb-3">
+                <label className="form-label fw-bold">Số CCCD</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  value={userInput.number}
+                  onChange={(e) => setUserInput({...userInput, number: e.target.value})}
+                  placeholder="Nhập số CCCD"
+                />
+              </div>
+              
+              <div className="mb-3">
+                <label className="form-label fw-bold">Họ và tên</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  value={userInput.full_name}
+                  onChange={(e) => setUserInput({...userInput, full_name: e.target.value})}
+                  placeholder="Nhập họ và tên"
+                />
+              </div>
+              
+              <div className="mb-3">
+                <label className="form-label fw-bold">Ngày sinh (dd/mm/yyyy)</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  value={userInput.dob}
+                  onChange={(e) => setUserInput({...userInput, dob: e.target.value})}
+                  placeholder="dd/mm/yyyy"
+                />
+              </div>
+              
+              <div className="mb-3">
+                <label className="form-label fw-bold">Giới tính</label>
+                <select
+                  className="form-control"
+                  value={userInput.gender}
+                  onChange={(e) => setUserInput({...userInput, gender: e.target.value})}
+                >
+                  <option value="Nam">Nam</option>
+                  <option value="Nữ">Nữ</option>
+                </select>
+              </div>
+              
+              <button
+                className="btn btn-success btn-lg w-100"
+                onClick={compareData}
+                disabled={!extractedData}
+              >
+                <FontAwesomeIcon icon={faCheckCircle} className="mr-2" />
+                So sánh thông tin
+              </button>
+              
+              {comparisonResult && (
+                <div className="mt-4">
+                  <div className={`alert ${comparisonResult.isMatch ? 'alert-success' : 'alert-danger'}`}>
+                    <h5>
+                      {comparisonResult.isMatch ? '✅ Khớp' : '❌ Không khớp'}
+                    </h5>
+                    <p>Tỷ lệ khớp: {Math.round(comparisonResult.matchRate * 100)}% ({comparisonResult.matchCount}/{comparisonResult.totalFields})</p>
+                  </div>
+                  
+                  <div className="table-responsive">
+                    <table className="table table-sm">
+                      <thead>
+                        <tr>
+                          <th>Trường</th>
+                          <th>Kết quả</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Object.entries(comparisonResult.comparisons).map(([field, isMatch]) => (
+                          <tr key={field}>
+                            <td>{fieldLabels[field] || field}</td>
+                            <td>
+                              <span className={`badge ${isMatch ? 'bg-success' : 'bg-danger'}`}>
+                                {isMatch ? 'Khớp' : 'Không khớp'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Nút submit khi khớp 100% */}
+                  {comparisonResult.matchRate === 1 && (
+                    <div className="mt-3">
+                      <button
+                        className="btn btn-warning btn-lg w-100"
+                        onClick={submitToBackend}
+                        disabled={submitting}
+                      >
+                        {submitting ? (
+                          <>
+                            <FontAwesomeIcon icon={faSpinner} spin className="mr-2" />
+                            Đang gửi xác minh...
+                          </>
+                        ) : (
+                          <>
+                            <FontAwesomeIcon icon={faCheckCircle} className="mr-2" />
+                            Gửi xác minh CCCD
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
                 </div>
-              ) : (
+              )}
+
+              {/* Hiển thị kết quả submit */}
+              {submitResult && (
+                <div className={`alert ${submitResult.success ? 'alert-success' : 'alert-danger'} mt-3`}>
+                  <h6>{submitResult.success ? '✅ Thành công' : '❌ Lỗi'}</h6>
+                  <p>{submitResult.message}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Extracted Data Section */}
+      {extractedData && (
+        <div className="row mt-4">
+          <div className="col-12">
+            <div className="card">
+              <div className="card-header bg-info text-white d-flex align-items-center justify-content-between">
+                <h4 className="mb-0">
+                  <FontAwesomeIcon icon={faCheckCircle} className="mr-2" />
+                  Dữ liệu đã trích xuất từ ảnh
+                </h4>
+                <button className="btn btn-light btn-sm" onClick={downloadData}>
+                  <FontAwesomeIcon icon={faDownload} className="mr-2" />
+                  Tải dữ liệu
+                </button>
+              </div>
+              <div className="card-body">
                 <div className="row">
-                  <div className="col-12">
+                  <div className="col-md-8">
                     <ul className="list-group">
                       {Object.entries(extractedData).map(([key, value]) => (
                         <li key={key} className="list-group-item d-flex justify-content-between align-items-center">
@@ -224,17 +541,17 @@ const CCCDExtractor = () => {
                     </ul>
                   </div>
                   {faceImage && (
-                    <div className="col-12 mt-3">
+                    <div className="col-md-4">
                       <h6>Ảnh khuôn mặt</h6>
                       <img src={faceImage} alt="Face" className="img-fluid rounded shadow" />
                     </div>
                   )}
                 </div>
-              )}
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

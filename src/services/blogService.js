@@ -233,6 +233,29 @@ class BlogService {
     }
   }
 
+  // Lấy chi tiết service theo ID (bao gồm variants)
+  async getServiceById(id) {
+    try {
+      const response = await api.get(`/services/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching service by id:', error);
+      throw error;
+    }
+  }
+
+  // Lấy taskers theo variant_id
+  async getTaskersByVariant(variantId) {
+    try {
+      // Backend mounts tasker routes at "/api/tasker" (singular), not "/api/taskers"
+      const response = await api.get(`/tasker/by-variant/${variantId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching taskers by variant:', error);
+      throw error;
+    }
+  }
+
   // Lấy posts đã like của user
   async getUserLikedPosts(userId, params = {}) {
     try {
