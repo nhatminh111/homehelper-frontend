@@ -259,7 +259,7 @@ const Header = () => {
                     </Link>
                     <Link className="dropdown-item" to="/wishlists">
                       <FontAwesomeIcon icon={faHeart} className="mr-2" />
-                      Wishlist
+                      Yêu thích
                     </Link>
 
                     <div className="dropdown-divider"></div>

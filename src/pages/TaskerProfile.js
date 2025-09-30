@@ -87,6 +87,22 @@ const TaskerProfile = () => {
       })
       .catch(() => setInWishlist(false));
   }, [user, id, token]);
+   const removeTasker = async (taskerId) => {
+    if (!window.confirm("Bạn có chắc muốn xóa tasker này khỏi wishlist?"))
+      return;
+    try {
+      const res = await fetch(`http://localhost:3001/api/wishlists/remove`, {
+        method: "POST",
+        headers: createHeaders(token),
+        body: JSON.stringify({ customer_id: user.user_id, taskerId }),
+      });
+      if (res.ok) {
+        setInWishlist(false);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const submitReview = async () => {
     if (!newFeedback.trim()) return alert("Please enter your feedback");
@@ -183,28 +199,32 @@ const TaskerProfile = () => {
       <div className="card p-4 shadow-sm" style={{ position: "relative" }}>
         {/* Trái tim góc phải trên */}
         <div
-          style={{
-            position: "absolute",
-            top: "16px",
-            right: "16px",
-            zIndex: 2,
-            background: "transparent",
-            border: "none",
-            boxShadow: "none",
-          }}
-          onClick={handleAddWishlist}
-          title="Add to wishlist"
-        >
-          <FontAwesomeIcon
-            icon={inWishlist ? faHeartSolid : faHeartRegular}
-            style={{
-              cursor: "pointer",
-              fontSize: "2.2rem",
-              color: "#dc3545", // luôn màu đỏ
-              background: "transparent",
-            }}
-          />
-        </div>
+                             style={{
+                               position: "absolute",
+                               top: 0,
+                               right: 0,
+                               zIndex: 2,
+                               background: "transparent",
+                               border: "none",
+                               boxShadow: "none",
+                             }}
+                             onClick={() =>
+                               inWishlist
+                                 ? removeTasker(tasker.tasker_id)
+                                 : handleAddWishlist(tasker.tasker_id)
+                             }
+                             title={inWishlist ? "Remove from wishlist" : "Add to wishlist"}
+                           >
+                             <FontAwesomeIcon
+                               icon={inWishlist ? faHeartSolid : faHeartRegular}
+                               style={{
+                                 cursor: "pointer",
+                                 fontSize: "1.7rem",
+                                 color: "#dc3545",
+                                 background: "transparent",
+                               }}
+                             />
+                           </div>
 
         <div className="row align-items-center gx-3">
           <div className="col-md-6 ps-md-4">

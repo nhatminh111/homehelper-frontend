@@ -41,7 +41,8 @@ const Wishlist = () => {
 
   // Remove tasker
   const removeTasker = async (taskerId) => {
-    if (!window.confirm("Bạn có chắc muốn xóa tasker này khỏi wishlist?")) return;
+    if (!window.confirm("Bạn có chắc muốn xóa tasker này khỏi wishlist?"))
+      return;
     try {
       const res = await fetch(`${API_BASE_URL}/wishlists/remove`, {
         method: "POST",
@@ -68,12 +69,15 @@ const Wishlist = () => {
   //   return 0;
   // });
 
-  if (loading) return <div className="container py-5">Loading wishlist...</div>;
+  if (loading)
+    return (
+      <div className="container py-5">Đang tải danh sách yêu thích...</div>
+    );
 
   return (
     <div className="container py-5">
       <div className="d-flex justify-content-between align-items-center mb-4">
-        <h3>My Wishlist</h3>
+        <h3>Danh sách Tasker yêu thích</h3>
         <span>{filtered.length} items</span>
       </div>
 
@@ -83,7 +87,7 @@ const Wishlist = () => {
           <input
             type="text"
             className="form-control"
-            placeholder="Search by name ..."
+            placeholder="Tìm kiếm theo tên ..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -157,13 +161,13 @@ const Wishlist = () => {
                       to={`/tasker-profile/${tasker.tasker_id}`}
                       className="btn btn-primary btn-sm"
                     >
-                      View Profile
+                      Xem hồ sơ
                     </Link>
                     <button
                       className="btn btn-outline-danger btn-sm"
                       onClick={() => removeTasker(tasker.tasker_id)}
                     >
-                      Remove
+                      Xóa
                     </button>
                   </div>
                 </div>
@@ -172,7 +176,7 @@ const Wishlist = () => {
           ))
         ) : (
           <div className="col-12 text-center text-muted">
-            No items in your wishlist.
+            Không có tasker nào trong danh sách yêu thích
           </div>
         )}
       </div>
