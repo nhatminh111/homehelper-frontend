@@ -81,6 +81,10 @@ const api = {
       typeof FormData !== "undefined" && body instanceof FormData;
     const baseHeaders = createHeaders(token, isFormData);
     const headers = { ...baseHeaders, ...(options.headers || {}) };
+    // Xóa Content-Type nếu là FormData để trình duyệt tự xử lý
+    if (isFormData) {
+      delete headers['Content-Type'];
+    }
     const res = await fetch(fullUrl, {
       method: "POST",
       headers,
@@ -92,8 +96,7 @@ const api = {
   async put(url, body, options = {}) {
     const fullUrl = buildUrl(url, options.params);
     const token = options.token ?? getStoredToken();
-    const isFormData =
-      typeof FormData !== "undefined" && body instanceof FormData;
+    const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
     const baseHeaders = createHeaders(token, isFormData);
     const headers = { ...baseHeaders, ...(options.headers || {}) };
     const res = await fetch(fullUrl, {
@@ -104,8 +107,9 @@ const api = {
     const data = await handleResponse(res);
     return { data };
   },
+  getStoredToken, // Thêm getStoredToken vào object api
 };
-
+export { getStoredToken };
 // Auth API
 export const authAPI = {
   // Đăng ký

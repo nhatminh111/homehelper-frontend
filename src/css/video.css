@@ -24,7 +24,8 @@
 
 .breadcrumbs {
   color: #fff;
-  font-size: 14px;
+  font-size: 15px;
+  font-weight: 500;
 }
 
 .breadcrumbs a {
@@ -32,20 +33,25 @@
   text-decoration: none;
 }
 
+.breadcrumbs a:hover {
+  text-decoration: underline;
+  color: #e6f4ea;
+}
+
 .bread {
   color: #fff;
-  font-size: 40px;
+  font-size: 42px;
   font-weight: 700;
 }
 
 .ftco-section {
-  padding: 2em 0;
+  padding: 3em 0;
 }
 
 .heading-section h2 {
-  font-size: 28px;
+  font-size: 34px;
   font-weight: 700;
-  color: #000;
+  color: #222;
 }
 
 .row.align-items-center .input-group {
@@ -54,163 +60,184 @@
 
 .input-group .form-control {
   border: 1px solid #ced4da;
-  border-radius: 5px 0 0 5px;
-  padding: 8px 12px;
+  border-radius: 8px 0 0 8px;
+  padding: 10px 15px;
+  font-size: 15px;
 }
 
 .input-group-append .input-group-text {
   background: #fff;
   border: 1px solid #ced4da;
   border-left: none;
-  border-radius: 0 5px 5px 0;
-  padding: 8px 12px;
+  border-radius: 0 8px 8px 0;
+  padding: 10px 15px;
   cursor: pointer;
 }
 
 .btn-outline-primary {
-  color: #000000ff;
-  border: 1px solid #ffffffff;
+  color: #222;
+  border: 1px solid #007bff;
   padding: 8px 20px;
-  border-radius: 5px;
-  margin-right: 5px;
+  border-radius: 8px;
+  font-size: 15px;
+  transition: all 0.3s ease;
 }
 
 .btn-outline-primary:hover {
   background: #007bff;
   color: #fff;
+  transform: translateY(-2px);
 }
 
 .video-card {
-  border: 1px solid #ddd;
-  border-radius: 5px;
+  height: 420px;
+  border: none;
+  border-radius: 12px;
   overflow: hidden;
-  position: relative;
   background: #fff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.video-card:hover {
+  transform: scale(1.05);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
 }
 
 .thumbnail-wrap {
   position: relative;
-}
-
-.thumbnail-wrap img {
   width: 100%;
-  height: 150px;
-  object-fit: cover;
-  border-radius: 10px;
+  height: 200px;
+  overflow: hidden;
 }
 
-.duration {
-  position: absolute;
-  bottom: 8px;
-  right: 8px;
-  background: rgba(0,0,0,0.7);
-  color: #fff;
-  font-size: 12px;
-  padding: 2px 6px;
-  border-radius: 4px;
+.thumbnail-wrap video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #000;
+  display: block;
+  border-radius: 12px 12px 0 0;
 }
 
 .video-title {
-  font-size: 14px;
-  margin: 8px 10px;
+  font-size: 18px;
   font-weight: 600;
+  color: #222;
+  margin: 0 12px 10px; /* Sát trên, cách dưới */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.4;
+  text-align:center; /* Căn phải tiêu đề */
+}
+
+.video-title:hover {
+  color: #0056b3;
+  text-decoration: underline;
 }
 
 .expert-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  margin: 6px 10px;
+  gap: 10px;
+  font-size: 15px;
+  margin: 10px 12px;
 }
 
 .expert-avatar {
-  width: 20px;
-  height: 20px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   object-fit: cover;
   background: #eee;
+  border: 1px solid #dee2e6;
+}
+
+.expert-name {
+  font-weight: 500;
+  color: #333;
 }
 
 .expert-verified {
-  color: #3b82f6;
-  font-size: 14px;
+  color: #28a745;
+  font-size: 15px;
 }
 
 .stats-row {
-  font-size: 12px;
-  color: #666;
-  margin-left: 10px;
+  font-size: 14px;
+  color: #6c757d;
+  margin: 10px 12px;
 }
 
 .rating-price-row {
   display: flex;
   align-items: center;
-  justify-content: space-between; 
-  margin-top: 6px;
-  margin-left: 10px;
-  margin-right: 23px;
-  margin-bottom: 6px;
+  justify-content: space-between;
+  margin: 10px 12px;
+  font-size: 15px;
 }
 
 .rating {
-  color: #000000ff;
-  font-size: 13px;
+  color: #e6b800;
   font-weight: 500;
 }
 
 .price {
-  background: #ffffff;
-  color: #28a745;
-  padding: 2px 6px;
-  font-size: 13px;
-  border: 1px solid #28a745;
-  border-radius: 10px 10px 10px 10px;
+  background: #f0f9f2;
+  color: #218838;
+  padding: 4px 10px;
+  font-size: 14px;
+  font-weight: 500;
+  border: 1px solid #218838;
+  border-radius: 12px;
 }
 
 .likes {
-  font-size: 13px;
-  color: #dc3545;
+  font-size: 14px;
+  color: #c82333;
+  font-weight: 500;
 }
 
 .action-row {
   display: flex;
   align-items: center;
-  justify-content: space-between; 
-  margin-top: 15px;
-  margin-left: 10px;
-  margin-right: 7px;
-  margin-bottom: 15px;
+  justify-content: space-between;
+  margin: 12px;
 }
 
 .btn-outline-primary-1 {
   border: 1px solid #007bff;
   color: #007bff;
   background: transparent;
-  border-radius: 20px; /* bo tròn giống hình */
+  border-radius: 20px;
   padding: 6px 16px;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 500;
   display: inline-flex;
   align-items: center;
-  gap: 6px; /* khoảng cách icon và text */
+  gap: 6px;
+  transition: all 0.3s ease;
 }
 
 .btn-outline-primary-1:hover {
-  background: #007bff;
+  background: #0056b3;
   color: #fff;
+  transform: translateY(-2px);
 }
 
 .btn-success {
   background: #28a745;
   color: #fff;
   border: none;
-  padding: 5px 10px;
-  border-radius: 5px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  transition: all 0.3s ease;
 }
 
 .btn-success:hover {
   background: #218838;
+  transform: translateY(-2px);
 }
 
 .btn-sm {
@@ -220,4 +247,30 @@
 
 .btn-no-transform {
   text-transform: none !important;
+}
+
+.ftco-animate {
+  opacity: 0;
+  transform: translateY(20px);
+  animation: fadeInUp 0.5s ease forwards;
+}
+
+@keyframes fadeInUp {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.alert-danger {
+  margin: 20px 0;
+  border-radius: 8px;
+}
+
+.spinner-border {
+  margin: 20px auto;
+}
+
+.row:last-child {
+  margin-top: 30px; /* Khoảng cách với Load More Videos */
 }
