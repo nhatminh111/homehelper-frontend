@@ -33,6 +33,7 @@ const ServiceDetails = () => {
   const [service, setService] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [variantTaskers, setVariantTaskers] = useState({}); // { variant_id: [taskers] }
 
   useEffect(() => {
     let alive = true;
@@ -42,6 +43,26 @@ const ServiceDetails = () => {
         const res = await blogService.getServiceById(id);
         const data = res?.data ?? res;
         if (alive) setService(data || null);
+
+        // Fetch taskers for each variant (in parallel)
+        if (data?.variants && Array.isArray(data.variants)) {
+          const tasks = data.variants.map(async (v) => {
+            try {
+              const tr = await blogService.getTaskersByVariant(v.variant_id);
+              const list = tr?.data ?? tr;
+              console.log('Taskers for variant', v.variant_id, list);
+              return { id: v.variant_id, taskers: Array.isArray(list) ? list : [] };
+            } catch {
+              return { id: v.variant_id, taskers: [] };
+            }
+          });
+          const results = await Promise.all(tasks);
+          if (alive) {
+            const map = {};
+            results.forEach((r) => { map[r.id] = r.taskers; });
+            setVariantTaskers(map);
+          }
+        }
       } catch (e) {
         if (alive) setError('Không thể tải chi tiết dịch vụ.');
       } finally {
@@ -92,30 +113,30 @@ const ServiceDetails = () => {
             {(() => {
             const idKey = String(service.service_id ?? service.id ?? '').trim();
             const nameSlug = slugify(service.name);
-            const content = (idKey && servicesIntro[idKey])
-                ? servicesIntro[idKey]
-                : (nameSlug && servicesIntro[nameSlug])
-                ? servicesIntro[nameSlug]
-                : servicesIntro.default;
+      const content = (idKey && servicesIntro[idKey])
+        ? servicesIntro[idKey]
+        : (nameSlug && servicesIntro[nameSlug])
+        ? servicesIntro[nameSlug]
+        : servicesIntro.default || {};
 
             return (
                 <>
                 {/* Hero: text left, image right */}
                 <div className="row align-items-center mb-5">
                     <div className="col-md-6 ftco-animate">
-                        <h3 className="mb-2 fw-bold">{content.hero.title}</h3>
-                        {content.hero?.des && <p className="mb-2 text-muted">{content.hero.des}</p>}
-                        {content.hero?.ctaText && (
+            <h3 className="mb-2 fw-bold">{content.hero?.title || service.name}</h3>
+            {content.hero?.des && <p className="mb-2 text-muted">{content.hero?.des}</p>}
+            {content.hero?.ctaText && (
                         <button type="button" className="btn btn-success mt-2">
-                            {content.hero.ctaText}
+              {content.hero?.ctaText}
                         </button>
                         )}
                     </div>
                     <div className="col-md-6 ftco-animate text-center">
-                        {content.hero?.image && (
+            {content.hero?.image && (
                         <img
-                            src={content.hero.image}
-                            alt={content.hero.title}
+              src={content.hero?.image}
+              alt={content.hero?.title || service.name}
                             className="img-fluid img-equal"
                         />
                         )}
@@ -125,28 +146,28 @@ const ServiceDetails = () => {
                     {/* Intro: image left, text right */}
                     <div className="row align-items-center mb-5">
                     <div className="col-md-6 order-2 order-md-1 ftco-animate text-center">
-                        {content.intro?.image && (
+            {content.intro?.image && (
                         <img
-                            src={content.intro.image}
-                            alt={content.intro.title}
+              src={content.intro?.image}
+              alt={content.intro?.title || 'Giới Thiệu'}
                             className="img-fluid img-equal"
                         />
                         )}
                     </div>
                     <div className="col-md-6 order-1 order-md-2 ftco-animate">
-                        <h3 className="mb-3 fw-bold">{content.intro.title}</h3>
-                        {Array.isArray(content.intro.text) &&
-                        content.intro.text.map((t, i) => <p key={i}>{t}</p>)}
+                        <h3 className="mb-3 fw-bold">{content.intro?.title || 'Giới Thiệu'}</h3>
+                        {Array.isArray(content.intro?.text) &&
+                        content.intro?.text.map((t, i) => <p key={i}>{t}</p>)}
                     </div>
                 </div>
 
                 {/* Reasons: text left, image right */}
                 <div className="row align-items-center mb-5">
                 <div className="col-md-6 ftco-animate">
-                    <h3 className="mb-3 fw-bold">{content.reasons.title}</h3>
-                    {Array.isArray(content.reasons.items) && content.reasons.items.length > 0 ? (
+          <h3 className="mb-3 fw-bold">{content.reasons?.title || 'Lý do nên chọn'}</h3>
+          {Array.isArray(content.reasons?.items) && content.reasons.items.length > 0 ? (
                     <ul className="list-unstyled ps-3">
-                        {content.reasons.items.map((r, i) => (
+            {content.reasons?.items.map((r, i) => (
                         <li key={i} className="mb-2">• {r}</li>
                         ))}
                     </ul>
@@ -155,9 +176,9 @@ const ServiceDetails = () => {
                     )}
                 </div>
                 <div className="col-md-6 ftco-animate text-center">
-                    {content.reasons?.image && (
+          {content.reasons?.image && (
                     <img
-                        src={content.reasons.image}
+            src={content.reasons?.image}
                         alt="reason"
                         className="img-fluid img-equal"
                     />
@@ -186,14 +207,13 @@ const ServiceDetails = () => {
                             <div className="icon d-flex align-items-center justify-content-center">
                               <span className="fa flaticon-cleaning"></span>
                             </div>
-                            <h4 className="heading-2">{v.variant_name || 'Gói dịch vụ'}</h4>
+                            <h4 className="heading-2 sd-price-card__title">{v.variant_name || 'Gói dịch vụ'}</h4>
                             <span className="price">
                               <span className="number">{formatCurrency(
                                 v?.specific_price ?? v?.price_min ?? v?.price_max ?? 0
                               )}</span>
                               {v.unit && <span className="ml-1" style={{ fontSize: 14 }}>/ {v.unit}</span>}
                             </span>
-                            <button className="btn sd-order-btn px-4 py-3" type="button">Đặt dịch vụ</button>
                           </div>
                         </div>
                       </div>
@@ -203,6 +223,66 @@ const ServiceDetails = () => {
                   <div className="col-12 text-center text-muted">Chưa có biến thể dịch vụ nào.</div>
                 )}
               </div>
+
+              {/* Taskers by variant */}
+              {Array.isArray(service.variants) && service.variants.length > 0 && (
+                <div className="mt-4">
+                  <h4 className="sd-section-title" style={{fontSize:22}}>Tasker phù hợp</h4>
+                  {service.variants.map((v) => {
+                    const list = variantTaskers[v.variant_id] || [];
+                    return (
+                      <div key={`variant-taskers-${v.variant_id}`} className="mb-4">
+                        <h5 className="mb-2" style={{fontWeight:700}}>{v.variant_name || 'Gói dịch vụ'}</h5>
+                        {list.length > 0 ? (
+                        <div className="row">
+                          {list.map((t) => (
+                            <div key={t.tasker_id} className="col-md-6 col-lg-4 mb-4">
+                              <div className="card h-100 border-0 shadow-sm rounded-3 hover-shadow tasker-card">
+                                <div className="card-body d-flex flex-column">
+                                  {/* Avatar + Name + Rating */}
+                                  <div className="d-flex justify-content-between align-items-center mb-2">
+                                    <div className="d-flex align-items-center">
+                                      <div className="tasker-avatar me-2">
+                                        {t.name?.charAt(0) || "?"}
+                                      </div>
+                                      <div>
+                                        <h6 className="mb-0 fw-bold">{t.name}</h6>
+                                        <small className="text-muted">{t.email}</small>
+                                      </div>
+                                    </div>
+                                    <span className="tasker-rating-badge">
+                                      {t.rating?.toFixed ? t.rating.toFixed(1) : t.rating}/5
+                                    </span>
+                                  </div>
+
+                                  {/* Introduce / lĩnh vực */}
+                                  {t.Introduce && (
+                                    <p className="mt-2 mb-2 tasker-intro" style={{ fontSize: 13 }}>
+                                      <i className="bi bi-briefcase me-1"></i> Lĩnh vực: {t.Introduce}
+                                    </p>
+                                  )}
+
+                                  {/* Review count */}
+                                  <div className="mt-auto pt-2 border-top tasker-meta">
+                                    <i className="bi bi-chat-dots me-1"></i>
+                                    Đánh giá:{" "}
+                                    {t.reviewsCount && t.reviewsCount > 0
+                                      ? t.reviewsCount
+                                      : "Chưa có đánh giá"}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        ) : (
+                          <div className="text-muted">Chưa có tasker phù hợp.</div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </>
           )}
         </div>

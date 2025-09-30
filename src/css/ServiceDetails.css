@@ -28,10 +28,10 @@
 .sd-price-grid { margin-top: 8px; }
 .sd-price-card {
   border: 1px solid rgba(0,0,0,0.06);
-  border-radius: 12px;
-  transition: transform .15s ease, box-shadow .15s ease;
-  padding: 20px 16px 16px;
-  background: #fff;
+  border-radius: 14px;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease, background .18s ease;
+  padding: 22px 18px 18px;
+  background: linear-gradient(180deg, #ffffff 0%, #fcfdfc 100%);
 }
 .sd-price-card .icon {
   position: static !important;
@@ -42,16 +42,17 @@
   border-radius: 50%;
   background: #e8f7ee;
   color: #28a745;
-  box-shadow: 0 2px 6px rgba(0,0,0,.06);
+  box-shadow: 0 2px 6px rgba(0,0,0,.06), inset 0 0 0 6px #f3fbf6;
 }
 .sd-price-card .icon span { font-size: 26px; }
-.sd-price-card .heading-2 { font-weight: 700; font-size: 18px; margin-top: 6px; }
-.sd-price-card .price { display:inline-block; border:2px solid #28a745; border-radius:12px; padding:6px 12px; margin:8px 0 12px; }
-.sd-price-card .price .number { font-size: 22px; font-weight: 800; color: #1f2937; }
+.sd-price-card .heading-2, .sd-price-card__title { font-weight: 800; font-size: 18px; margin-top: 6px; color: #111827; }
+.sd-price-card .price, .sd-price-card__price { display:inline-block; border:2px solid #28a745; border-radius:12px; padding:6px 12px; margin:10px 0 10px; background:#fff; }
+.sd-price-card .price .number { font-size: 24px; font-weight: 800; color: #111827; letter-spacing: .2px; }
 .sd-price-card:hover {
   transform: translateY(-3px);
   box-shadow: 0 8px 20px rgba(0,0,0,.08);
   border-color: #f0c419; 
+  background: #ffffff;
 }
 .sd-price-card.active { box-shadow: 0 8px 24px rgba(40,167,69,.25); border-color: rgba(40,167,69,.35); }
 
@@ -74,3 +75,27 @@
 .sd-order-btn:focus {
   box-shadow: 0 0 0 0.2rem rgba(43,124,255,.25);
 }
+
+/* ========== Tasker cards ========== */
+.hover-shadow { transition: transform .18s ease, box-shadow .18s ease; }
+.hover-shadow:hover { transform: translateY(-3px); box-shadow: 0 10px 24px rgba(0,0,0,.10) !important; }
+
+.tasker-card { border-left: 4px solid #28a745; background: #fff; }
+.tasker-card:hover { border-left-color: #23923e; }
+
+.tasker-avatar {
+  width: 44px; height: 44px;
+  background: linear-gradient(135deg, #2b7cff 0%, #56b4ff 100%);
+  color: #fff; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 18px;
+}
+
+.tasker-rating-badge {
+  background: #28a745 !important; color: #ffffff; border-radius: 10px;
+  padding: 4px 10px; font-weight: 800; font-size: 13px; min-width: 54px; text-align: center;
+}
+
+.tasker-intro { color: #6b7280; }
+.tasker-meta { font-size: 13px; color: #555; }
+

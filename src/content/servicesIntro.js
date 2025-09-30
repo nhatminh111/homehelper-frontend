@@ -4,6 +4,23 @@
 const servicesIntro = {
   // Each entry supports: hero, intro, reasons, process
   // Slug-based keys to match service.name (vn to ascii -> kebab-case)
+  default: {
+    hero: {
+      title: 'Dịch vụ gia đình tiện lợi',
+      image: '/images/bg_1.jpg',
+      des: 'Chúng tôi cung cấp nhiều dịch vụ gia đình với giá minh bạch và đội ngũ chuyên nghiệp.'
+    },
+    intro: {
+      title: 'Giới Thiệu',
+      text: ['Dịch vụ được thiết kế để phù hợp nhu cầu đa dạng của bạn, linh hoạt về thời gian và hình thức.'],
+      image: '/images/image_1.jpg'
+    },
+    reasons: {
+      title: 'Vì sao chọn HomeHelper?',
+      items: ['Đặt lịch nhanh chóng', 'Nhân sự được kiểm duyệt', 'Giá rõ ràng, không phát sinh'],
+      image: '/images/work-6.jpg'
+    }
+  },
   'nau-an': {
     hero: {
       title: 'Dịch vụ nấu ăn gia đình',

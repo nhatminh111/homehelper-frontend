@@ -244,6 +244,18 @@ class BlogService {
     }
   }
 
+  // Lấy taskers theo variant_id
+  async getTaskersByVariant(variantId) {
+    try {
+      // Backend mounts tasker routes at "/api/tasker" (singular), not "/api/taskers"
+      const response = await api.get(`/tasker/by-variant/${variantId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching taskers by variant:', error);
+      throw error;
+    }
+  }
+
   // Lấy posts đã like của user
   async getUserLikedPosts(userId, params = {}) {
     try {
