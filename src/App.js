@@ -47,6 +47,8 @@ import VideoUpload from './pages/VideoUpload';
 import TaskerManagement from './pages/TaskerManagement';
 import AIInteraction from './pages/AIInteraction';
 import SystemManagement from './pages/SystemManagement';
+import QuotesPage from './pages/QuotesPage';
+import VideoManager from './pages/VideoManager';
 // Role landing pages
 import TaskerHome from './pages/tasker/TaskerHome';
 import AdminHome from './pages/admin/AdminHome';
@@ -79,9 +81,19 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="/blog/:id" element={<BlogDetails />} />
+              <Route path="/blog/:postId/quotes" element={
+                <ProtectedRoute>
+                  <QuotesPage />
+                </ProtectedRoute>
+              } />
               <Route path="/contact" element={<Contact />} />
               <Route path="/video" element={<Video />} />
-              <Route path="/videoDetail" element={<VideoDetail />} />
+              <Route path="/video/:videoId" element={<VideoDetail />} />
+              <Route path="/videos" element={
+                  <ProtectedRoute requiredRole="Tasker">
+                    <VideoManager />
+                  </ProtectedRoute>
+                } />
               <Route path="/topUp" element={<TopUp />} />
               <Route path="/payment-result" element={<PaymentResult />} />
               <Route path="/wallet" element={<Wallet />} />
