@@ -51,8 +51,11 @@ import SystemManagement from './pages/SystemManagement';
 // Role landing pages
 import TaskerHome from './pages/tasker/TaskerHome';
 import AdminHome from './pages/admin/AdminHome';
+import CustomerHome from './pages/customer/CustomerHome';
 import ChatPage from './pages/Chat';
 import CCCDExtractor from './pages/CCCDExtractor';
+import BecomeTasker from './pages/BecomeTasker';
+import TaskerApprovals from './pages/admin/TaskerApprovals';
 
 function App() {
   return (
@@ -93,6 +96,7 @@ function App() {
               <Route path="/payment-result" element={<PaymentResult />} />
               <Route path="/wallet" element={<Wallet />} />
               <Route path="/cccd" element={<CCCDExtractor />} />
+              <Route path="/become-tasker" element={<BecomeTasker />} />
               
               {/* Authentication routes */}
               <Route path="/login" element={<Login />} />
@@ -170,9 +174,19 @@ function App() {
                   <TaskerHome />
                 </ProtectedRoute>
               } />
+              <Route path="/customer" element={
+                <ProtectedRoute requiredRole="Customer">
+                  <CustomerHome />
+                </ProtectedRoute>
+              } />
               <Route path="/admin" element={
                 <ProtectedRoute requiredRole="Admin">
                   <AdminHome />
+                </ProtectedRoute>
+              } />
+              <Route path="/tasker-approvals" element={
+                <ProtectedRoute requiredRole="Staff">
+                  <TaskerApprovals />
                 </ProtectedRoute>
               } />
             </Routes>

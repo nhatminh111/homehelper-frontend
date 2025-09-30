@@ -106,8 +106,12 @@ const Login = () => {
 
       console.log("Login successful, stored user:", userData);
 
-      // Redirect về trang chủ
-      navigate("/", { replace: true });
+      // Redirect theo role
+      const role = response.user.role;
+      if (role === 'Customer') navigate('/customer', { replace: true });
+      else if (role === 'Tasker') navigate('/tasker', { replace: true });
+      else if (role === 'Admin') navigate('/admin', { replace: true });
+      else navigate('/', { replace: true });
     } catch (error) {
       console.error("Login error:", error);
       setError(error.message || "Login failed");

@@ -193,44 +193,146 @@ export const authAPI = {
 // CCCD API
 export const cccdAPI = {
   submit: async (payload, token) => {
+    console.log('🚀 CCCD API submit - payload:', payload);
+    
     const form = new FormData();
-    Object.entries(payload).forEach(([k, v]) => {
-      if (v !== undefined && v !== null) form.append(k, v);
-    });
-    const response = await fetch(`${API_BASE_URL}/cccd/submit`, {
+    
+    // Thêm các trường text
+    if (payload.number) form.append('number', payload.number);
+    if (payload.full_name) form.append('full_name', payload.full_name);
+    if (payload.dob) form.append('dob', payload.dob);
+    if (payload.gender) form.append('gender', payload.gender);
+    if (payload.ocr_payload) form.append('ocr_payload', payload.ocr_payload);
+    if (payload.face_cloud_url) form.append('face_cloud_url', payload.face_cloud_url);
+    
+    // Thêm các file
+    if (payload.front) {
+      console.log('📸 Adding front file:', payload.front.name);
+      form.append('front', payload.front);
+    }
+    if (payload.back) {
+      console.log('📸 Adding back file:', payload.back.name);
+      form.append('back', payload.back);
+    }
+    
+    console.log('📋 FormData entries:');
+    for (let [key, value] of form.entries()) {
+      console.log(`  ${key}:`, value instanceof File ? `${value.name} (${value.size} bytes)` : value);
+    }
+    
+    const url = `${API_BASE_URL}/cccd/submit`;
+    console.log('🌐 Request URL:', url);
+    
+    const response = await fetch(url, {
       method: "POST",
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       body: form,
     });
+    
+    console.log('📡 Response status:', response.status);
+    console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
+    
+    const responseText = await response.clone().text();
+    console.log('📡 Response body:', responseText);
+    
     return handleResponse(response);
   },
-  getByUser: async (userId, token) => {
-    const response = await fetch(`${API_BASE_URL}/cccd/user/${userId}`, {
+  
+  getUserCccd: async (token) => {
+    const response = await fetch(`${API_BASE_URL}/cccd/user`, {
       method: "GET",
       headers: createHeaders(token),
     });
     return handleResponse(response);
+  },
+  
+  getLatestCccd: async (token) => {
+    const response = await fetch(`${API_BASE_URL}/cccd/latest`, {
+      method: "GET",
+      headers: createHeaders(token),
+    });
+    return handleResponse(response);
+  },
+
+  // Upload ảnh mặt lên Cloudinary
+  uploadFaceImage: async (faceImageUrl, token) => {
+    const response = await fetch(`${API_BASE_URL}/cccd/upload-face`, {
+      method: 'POST',
+      headers: createHeaders(token),
+      body: JSON.stringify({ faceImageUrl })
+    });
+    return handleResponse(response);
   }
+};
+
+// Convenience helpers for CCCD status/verified
+export const getCCCDStatus = async (token = null) => {
+  const response = await fetch(`${API_BASE_URL}/cccd/status`, {
+    method: 'GET',
+    headers: createHeaders(token)
+  });
+  return handleResponse(response);
+};
+
+export const checkVerifiedCCCD = async (token = null) => {
+  const response = await fetch(`${API_BASE_URL}/cccd/verified`, {
+    method: 'GET',
+    headers: createHeaders(token)
+  });
+  return handleResponse(response);
 };
 
 // Python OCR API (Direct integration)
 export const pythonOCRAPI = {
   // Extract CCCD using Python OCR
   extractCCCD: async (frontImage, backImage = null) => {
+    // Sử dụng API gốc như web interface: upload rồi extract
     const form = new FormData();
-    form.append('front_image', frontImage);
-    if (backImage) {
-      form.append('back_image', backImage);
-    }
-    const response = await fetch('http://localhost:8080/api/cccd/extract', {
+    form.append('file', frontImage);
+    
+    // Bước 1: Upload ảnh
+    const uploadResponse = await fetch('http://localhost:8080/uploader', {
       method: 'POST',
       body: form,
     });
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.error || 'Python OCR processing failed');
+    
+    if (!uploadResponse.ok) {
+      throw new Error('Upload failed');
     }
-    return data;
+    
+    // Bước 2: Extract thông tin
+    const extractResponse = await fetch('http://localhost:8080/extract', {
+      method: 'POST',
+    });
+    
+    const data = await extractResponse.json();
+    if (!extractResponse.ok) {
+      throw new Error(data.message || 'Python OCR processing failed');
+    }
+    
+    // Convert format để phù hợp với frontend
+    const fields = data.data || [];
+    const extracted_data = {
+      number: fields[0] || "",
+      full_name: fields[1] || "",
+      dob: fields[2] || "",
+      gender: fields[3] || "",
+      nationality: fields[4] || "",
+      place_of_origin: fields[5] || "",
+      place_of_residence: fields[6] || "",
+      expiry_date: fields[7] || ""
+    };
+    
+    // Lấy ảnh từ thư mục results (giống web interface gốc)
+    const faceImageUrl = 'http://localhost:8080/static/results/0.jpg';
+    
+    return {
+      success: true,
+      data: extracted_data,
+      face_image: faceImageUrl,
+      raw_ocr_text: fields.join(" | "),
+      source: "python_ocr_original"
+    };
   },
   // Health check for Python OCR
   healthCheck: async () => {
