@@ -1,17 +1,25 @@
 // src/hooks/useWalletBalance.js
 import { useEffect, useState, useCallback } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 
-const API_BASE = (process.env.REACT_APP_API_BASE || '').replace(/\/+$/, '');
-const getToken = () => localStorage.getItem('token') || '';
+// Use the same base as services/api.js
+const API_BASE = (process.env.REACT_APP_API_URL || 'http://localhost:3001/api').replace(/\/+$/, '');
+
+const getStoredToken = () => {
+  try { return localStorage.getItem('token') || ''; } catch { return ''; }
+};
 
 export default function useWalletBalance({ autoRefreshMs = 0 } = {}) {
+  const { token: authToken } = (function() {
+    try { return require('../contexts/AuthContext'); } catch { return {}; }
+  })?.useAuth?.() || { token: null };
   const [balance, setBalance] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   const fetchBalance = useCallback(async () => {
-    const url = `${API_BASE}/api/wallet/balance`;
-    const token = getToken();
+    const url = `${API_BASE}/wallet/balance`;
+    const token = authToken || getStoredToken();
 
     try {
       setError('');
@@ -19,7 +27,8 @@ export default function useWalletBalance({ autoRefreshMs = 0 } = {}) {
       console.log('[WalletBalance] GET', url);
       console.log('[WalletBalance] hasToken =', !!token);
 
-      const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      const headers = { Authorization: `Bearer ${token}` };
+      const r = await fetch(url, { headers });
       const contentType = r.headers.get('content-type') || '';
       const raw = await r.text();
 
