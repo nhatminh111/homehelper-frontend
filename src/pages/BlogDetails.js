@@ -18,6 +18,8 @@ const BlogDetails = () => {
   const [submittingComment, setSubmittingComment] = useState(false);
   const [liked, setLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(0);
+  // Carousel index for images
+  const [slideIndex, setSlideIndex] = useState(0);
 
   useEffect(() => {
     fetchPostDetails();
@@ -106,6 +108,11 @@ const BlogDetails = () => {
     }
   };
 
+  // Reset carousel index when post or its images change
+  useEffect(() => {
+    setSlideIndex(0);
+  }, [post?.post_id, (post && Array.isArray(post.photo_urls) ? post.photo_urls.length : 0)]);
+
   const formatDate = (dateString) => {
     if (!dateString) return '';
     const date = new Date(dateString);
@@ -175,50 +182,34 @@ const BlogDetails = () => {
     );
   }
 
+  // Prepare content parsing helpers
+  const hasTag = /<[^>]+>/.test(post.content || '');
+  const normalizedContent = hasTag ? post.content : (post.content ? `<p>${post.content}</p>` : '');
+  const hasInlineImages = /<img\s/i.test(normalizedContent || '');
+  const photos = Array.isArray(post.photo_urls) ? post.photo_urls : [];
+
+  const goPrev = (len) => {
+    if (len <= 1) return;
+    setSlideIndex((prev) => (prev - 1 + len) % len);
+  };
+  const goNext = (len) => {
+    if (len <= 1) return;
+    setSlideIndex((prev) => (prev + 1) % len);
+  };
+
   return (
     <div className="blog-details">
       <div className="container">
-        {/* Breadcrumb with blurred background */}
-        <div className="breadcrumb-bg-blur">
-          <img src="/images/bg_1.jpg" alt="breadcrumb background" className="breadcrumb-bg-img" />
-          <div className="breadcrumb-bg-overlay">
-            <nav aria-label="breadcrumb" className="blog-breadcrumb">
-              <ol className="breadcrumb">
-                <li className="breadcrumb-item">
-                  <Link to="/">Trang chủ</Link>
-                </li>
-                <li className="breadcrumb-item">
-                  <Link to="/blog">Blog</Link>
-                </li>
-                <li className="breadcrumb-item active" aria-current="page">
-                  {post.title}
-                </li>
-              </ol>
-            </nav>
-          </div>
-        </div>
-
         <div className="row">
           <div className="col-lg-8">
-            {/* Main Content */}
             <article className="blog-post">
-              {/* Preview Image */}
-              <div className="post-preview-image">
-                <img
-                  src={getPreviewImage()}
-                  alt={post.title}
-                  className="preview-image"
-                  loading="lazy"
-                  decoding="async"
-                />
-              </div>
               {/* Header */}
               <header className="post-header">
                 <h1 className="post-title">{post.title}</h1>
                 <div className="post-meta">
                   <div className="author-info">
-                    <img 
-                      src={getAuthorAvatar()} 
+                    <img
+                      src={getAuthorAvatar()}
                       alt={post.author_name}
                       className="author-avatar"
                     />
@@ -241,44 +232,67 @@ const BlogDetails = () => {
                 </div>
               </header>
 
-              <div className="post-content">
-                {(() => {
-                  // Normalize: if content has no HTML tags (older posts), wrap in <p>
-                  const hasTag = /<[^>]+>/.test(post.content || '');
-                  const normalizedContent = hasTag ? post.content : (post.content ? `<p>${post.content}</p>` : '');
-                  let imgIndex = 0; // dùng biến cục bộ
-                  return parse(normalizedContent, {
-                    replace: (domNode) => {
-                      if (domNode.name === "p") {
-                        const img =
-                          post.photo_urls && post.photo_urls[imgIndex] ? (
-                            <img
-                              src={post.photo_urls[imgIndex]}
-                              alt={`img-${imgIndex}`}
-                              className="post-inline-image"
-                              loading="lazy"
-                              decoding="async"
+              {/* Hero thumbnail (first image) */}
+              {photos[0] && (
+                <div className="post-hero">
+                  <img
+                    src={photos[0]}
+                    alt="Ảnh minh họa"
+                    className="hero-image"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </div>
+              )}
+
+              {/* Content */}
+              <div className="post-content">{parse(normalizedContent)}</div>
+
+              {/* Image carousel (only when content has no inline images and there are photos) */}
+              {(() => {
+                const galleryPhotos = photos.slice(1); // exclude hero thumbnail
+                if (hasInlineImages || galleryPhotos.length === 0) return null;
+                return (
+                <section className="image-carousel">
+                  <div className="carousel">
+                    <div className="carousel-viewport">
+                      {galleryPhotos.map((url, idx) => (
+                        <img
+                          key={idx}
+                          src={url}
+                          alt={`Slide ${idx + 1}`}
+                          className={`carousel-img ${idx === slideIndex ? 'active' : ''}`}
+                          loading="lazy"
+                          decoding="async"
+                        />
+                      ))}
+                    </div>
+                    {galleryPhotos.length > 1 && (
+                      <>
+                        <button type="button" className="carousel-btn prev" onClick={() => goPrev(galleryPhotos.length)} aria-label="Ảnh trước">
+                          ‹
+                        </button>
+                        <button type="button" className="carousel-btn next" onClick={() => goNext(galleryPhotos.length)} aria-label="Ảnh sau">
+                          ›
+                        </button>
+                        <div className="carousel-dots">
+                          {galleryPhotos.map((_, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              className={`dot ${idx === slideIndex ? 'active' : ''}`}
+                              onClick={() => setSlideIndex(idx)}
+                              aria-label={`Chuyển đến ảnh ${idx + 1}`}
                             />
-                          ) : null;
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </section>
+                );
+              })()}
 
-                        // Tăng index sau khi dùng
-                        imgIndex++;
-
-                        return (
-                          <div className="section">
-                            {/* Nội dung trước */}
-                            <p>{domToReact(domNode.children)}</p>
-
-                            {/* Ảnh sau */}
-                            {img}
-                          </div>
-                        );
-                      }
-                    },
-                  });
-                })()}
-              </div>
-                                
               {/* Services */}
               {services.length > 0 && (
                 <div className="post-services">
@@ -326,24 +340,23 @@ const BlogDetails = () => {
                 </div>
               )}
 
-
               {/* Actions */}
               <div className="post-actions">
-                <button 
+                <button
                   className={`btn btn-like ${liked ? 'liked' : ''}`}
                   onClick={handleLike}
                 >
                   <i className={`fas fa-heart ${liked ? 'fas' : 'far'}`}></i>
                   {liked ? 'Đã thích' : 'Thích'} ({likesCount})
                 </button>
-                <button 
+                <button
                   className="btn btn-share"
                   onClick={() => {
                     if (navigator.share) {
                       navigator.share({
                         title: post.title,
                         text: post.content,
-                        url: window.location.href
+                        url: window.location.href,
                       });
                     } else {
                       navigator.clipboard.writeText(window.location.href);
@@ -355,11 +368,11 @@ const BlogDetails = () => {
                 </button>
               </div>
             </article>
-                
+
             {/* Comments Section */}
             <section className="comments-section">
               <h3>Bình luận ({comments.length})</h3>
-              
+
               {/* Comment Form */}
               {user ? (
                 <form onSubmit={handleSubmitComment} className="comment-form">
@@ -373,8 +386,8 @@ const BlogDetails = () => {
                       required
                     />
                   </div>
-                  <button 
-                    type="submit" 
+                  <button
+                    type="submit"
                     className="btn btn-primary"
                     disabled={submittingComment}
                   >
@@ -395,15 +408,15 @@ const BlogDetails = () => {
                   comments.map((comment) => (
                     <div key={comment.comment_id} className="comment-item">
                       <div className="comment-avatar">
-                        <img 
-                          src="/images/person_1.jpg" 
+                        <img
+                          src="/images/person_1.jpg"
                           alt={comment.author_name}
                         />
                       </div>
                       <div className="comment-content">
                         <div className="comment-header">
                           <span className="comment-author">
-                            {comment.author_name || "Người dùng ẩn danh"}
+                            {comment.author_name || 'Người dùng ẩn danh'}
                           </span>
                           <span className="comment-date">{formatDate(comment.created_at)}</span>
                         </div>
@@ -415,7 +428,7 @@ const BlogDetails = () => {
               </div>
             </section>
           </div>
-            
+
           {/* Sidebar */}
           <div className="col-lg-4">
             <div className="blog-sidebar">
@@ -423,8 +436,8 @@ const BlogDetails = () => {
               <div className="sidebar-widget">
                 <h4>Về tác giả</h4>
                 <div className="author-widget">
-                  <img 
-                    src="/images/person_1.jpg" 
+                  <img
+                    src="/images/person_1.jpg"
                     alt={post.author_name}
                     className="author-widget-avatar"
                   />
@@ -434,7 +447,7 @@ const BlogDetails = () => {
                   </div>
                 </div>
               </div>
-            
+
               {/* Related Posts */}
               <div className="sidebar-widget">
                 <h4>Bài viết liên quan</h4>
@@ -442,7 +455,7 @@ const BlogDetails = () => {
                   <p>Đang tải bài viết liên quan...</p>
                 </div>
               </div>
-                
+
               {/* Services Summary */}
               {services.length > 0 && (
                 <div className="sidebar-widget">
@@ -451,7 +464,7 @@ const BlogDetails = () => {
                     {services.map((service) => (
                       <div key={service.post_service_id} className="service-summary">
                         <h6>
-                            <span className="service-variant-tag">{service.name}</span>
+                          <span className="service-variant-tag">{service.name}</span>
                         </h6>
                         <span className="service-price">
                           {service.price_min != null && service.price_max != null
