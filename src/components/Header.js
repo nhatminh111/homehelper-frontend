@@ -11,8 +11,7 @@ import {
   faSignOutAlt,
   faSignInAlt,
   faUserPlus,
-  faWallet,
-  faIdCard
+  faWallet
 } from '@fortawesome/free-solid-svg-icons';
 import { useAuth } from '../contexts/AuthContext';
 import useWalletBalance from '../hooks/useWalletBalance';
@@ -120,11 +119,6 @@ const Header = () => {
               <li className={`nav-item ${isActive('/chat')}`}>
                 <Link to="/chat" className="nav-link">Chat</Link>
               </li>
-              <li className={`nav-item ${isActive('/cccd')}`}>
-                <Link to="/cccd" className="nav-link">
-                  <FontAwesomeIcon icon={faIdCard} className="mr-1" /> CCCD
-                </Link>
-              </li>
               
               {/* Auth Menu */}
               {isAuthenticated() ? (
@@ -146,32 +140,49 @@ const Header = () => {
                     {user?.name || 'Account'}
                   </a>
                   <div className={`dropdown-menu ${showUserMenu ? 'show' : ''}`} aria-labelledby="navbarDropdown">
-                    <div className="dropdown-header">
-                      <strong>{user?.name}</strong>
-                      <small className="text-muted d-block">{user?.email}</small>
-                      <span className="badge badge-primary">{user?.role}</span>
+                    <div 
+                      className="px-3 py-2 d-flex flex-column align-items-end w-100 text-right" 
+                      style={{whiteSpace:'normal'}}
+                    >
+                      {/* Hàng 1: tên */}
+                      <strong className="mb-1" style={{fontSize:'1rem'}}>
+                        {user?.name}
+                      </strong>
 
-                      {/* 👉 dòng số dư ví */}
-                      <div 
-                        className="mt-2 p-2 border rounded bg-light d-flex justify-content-between align-items-center"
-                        style={{cursor:'pointer'}}
-                        onClick={refresh}
+                      {/* Hàng 2: email */}
+                      <small className="text-muted mb-1" style={{wordBreak:'break-all'}}>
+                        {user?.email}
+                      </small>
+
+                      {/* Hàng 3: badge */}
+                      <span 
+                        className="badge badge-primary mb-2" 
+                        style={{borderRadius:'12px', padding:'4px 10px'}}
                       >
-                        <span>Số dư ví:</span>
-                        <strong style={{color:'#16a34a'}}>
+                        {user?.role}
+                      </span>
+
+                      {/* Hàng 4: số dư ví */}
+                      <button
+                        type="button"
+                        onClick={refresh}
+                        className="w-100 p-2 bg-white border rounded d-flex justify-content-between align-items-center"
+                        style={{cursor:'pointer'}}
+                      >
+                        <div className="d-flex align-items-center">
+                          <FontAwesomeIcon icon={faWallet} className="mr-2 text-success" />
+                          <span className="text-dark">Số dư ví</span>
+                        </div>
+                        <strong className="text-success">
                           {error ? 'Lỗi' : (loading ? '...' : formatVND(balance))}
                         </strong>
-                      </div>
+                      </button>
                     </div>
                     <div className="dropdown-divider"></div>
                     
                     <Link className="dropdown-item" to="/dashboard">
                       <FontAwesomeIcon icon={faCog} className="mr-2" />
                       Dashboard
-                    </Link>
-                    <Link className="dropdown-item" to="/my-blogs">
-                      <FontAwesomeIcon icon={faCog} className="mr-2" />
-                      My Blog
                     </Link>
                     
                     {isTasker() && (
