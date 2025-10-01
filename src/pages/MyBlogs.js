@@ -16,7 +16,7 @@ const MyBlogs = () => {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [statusFilter, setStatusFilter] = useState('all'); // all | Approved | Pending | Rejected
+  const [statusFilter, setStatusFilter] = useState('all');
   const [deletingId, setDeletingId] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [postToDelete, setPostToDelete] = useState(null);
@@ -28,7 +28,6 @@ const MyBlogs = () => {
     try {
       setLoading(true);
       setError(null);
-      // Pass status: '' to disable default 'Approved' filter on backend when showing all
       const status = statusFilter === 'all' ? '' : statusFilter;
       const res = await blogService.getUserPosts(user.user_id, { page, limit, sortBy: 'post_date', sortOrder: 'DESC', status });
       if (res?.success) {
@@ -46,7 +45,6 @@ const MyBlogs = () => {
 
   useEffect(() => {
     fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.user_id, page, limit, statusFilter]);
 
   const openDeleteModal = (post) => {
@@ -136,7 +134,7 @@ const MyBlogs = () => {
         <div className="row">
           {posts.map((post) => {
             const photos = Array.isArray(post.photo_urls) ? post.photo_urls : [];
-            const imageUrl = photos.length > 0 ? photos[0] : '/images/bg_1.jpg';
+            const imageUrl = photos.length > 0 ? post.photo_urls[0] : '/images/bg_1.jpg';
             const { text: statusText, badge: badgeClass } = getStatusInfo(post.status);
             const dateText = post.post_date ? new Date(post.post_date).toLocaleDateString() : '';
             const preview = (post.content || '').replace(/<[^>]+>/g, '').slice(0, 220);
@@ -180,8 +178,17 @@ const MyBlogs = () => {
                           {preview}
                         </p>
 
-                        <div className="d-flex align-items-center mt-auto myblogs-actions">
-                          <p className="mb-0"><Link to={`/blog/${post.post_id}`} className="btn btn-secondary btn-sm">Xem chi tiết <span className="ion-ios-arrow-round-forward"></span></Link></p>
+                        <div className="d-flex align-items-center mt-auto">
+                          <p className="mb-0">
+                            <Link to={`/blog/${post.post_id}`} className="btn btn-secondary btn-sm">
+                              Xem chi tiết <span className="ion-ios-arrow-round-forward"></span>
+                            </Link>
+                            { !post.related_booking_id && (
+                              <Link to={`/blog/${post.post_id}/quotes`} className="btn btn-outline-primary btn-sm ml-2">
+                                Xem Yêu Cầu
+                              </Link>
+                            )}
+                          </p>
                           <p className="ml-auto mb-0">
                             <span className="mr-3"><span className="icon-heart"><FontAwesomeIcon icon={faHeart} /></span> {post.likes || 0}</span>
                             <span className="mr-3"><span className="icon-chat"><FontAwesomeIcon icon={faComment} /></span> {post.comments_count || 0}</span>
