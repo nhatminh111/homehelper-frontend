@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import "bootstrap-icons/font/bootstrap-icons.css";
 import './App.css';
 
 // Import contexts
@@ -27,6 +28,9 @@ import VideoDetail from './pages/VideoDetail';
 import TopUp from './pages/TopUp';
 import PaymentResult from './pages/PaymentResult';
 import Wallet from './pages/Wallet';
+import Booking from './pages/Booking';
+import JobDescription from './pages/JobDescription';
+import Contract from './pages/Contract';
 
 // Import authentication pages
 import Login from './pages/auth/Login';
@@ -108,6 +112,10 @@ function App() {
               <Route path="/payment-result" element={<PaymentResult />} />
               <Route path="/wallet" element={<Wallet />} />
               <Route path="/cccd" element={<CCCDExtractor />} />
+              <Route path="/booking" element={<Booking />} />
+              <Route path="/job-description" element={<JobDescription />} />
+              <Route path="/contract" element={<Contract />} />
+
               <Route path="/become-tasker" element={<BecomeTasker />} />
               
               {/* Authentication routes */}
@@ -116,6 +124,7 @@ function App() {
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/auth-demo" element={<AuthDemo />} />
+              <Route path="/wallet" element={<Wallet />} />
               
               {/* Protected routes */}
               <Route path="/dashboard" element={
