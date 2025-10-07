@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import "bootstrap-icons/font/bootstrap-icons.css";
 import './App.css';
 
 // Import contexts
@@ -14,6 +15,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Home from './pages/Home';
 import About from './pages/About';
 import Services from './pages/Services';
+import ServiceDetails from './pages/ServiceDetails';
 import Portfolio from './pages/Portfolio';
 import Pricing from './pages/Pricing';
 import Blog from './pages/Blog';
@@ -26,6 +28,9 @@ import VideoDetail from './pages/VideoDetail';
 import TopUp from './pages/TopUp';
 import PaymentResult from './pages/PaymentResult';
 import Wallet from './pages/Wallet';
+import Booking from './pages/Booking';
+import JobDescription from './pages/JobDescription';
+import Contract from './pages/Contract';
 
 // Import authentication pages
 import Login from './pages/auth/Login';
@@ -47,6 +52,8 @@ import VideoUpload from './pages/VideoUpload';
 import TaskerManagement from './pages/TaskerManagement';
 import AIInteraction from './pages/AIInteraction';
 import SystemManagement from './pages/SystemManagement';
+import QuotesPage from './pages/QuotesPage';
+import VideoManager from './pages/VideoManager';
 // Role landing pages
 import TaskerHome from './pages/tasker/TaskerHome';
 import AdminHome from './pages/admin/AdminHome';
@@ -55,7 +62,7 @@ import ChatPage from './pages/Chat';
 import CCCDExtractor from './pages/CCCDExtractor';
 import BecomeTasker from './pages/BecomeTasker';
 import TaskerApprovals from './pages/admin/TaskerApprovals';
-
+import Wishlist from "./pages/Wishlist";
 function App() {
   return (
     <AuthProvider>
@@ -68,10 +75,16 @@ function App() {
               <Route path="/" element={<Home />} />
               <Route path="/about" element={<About />} />
               <Route path="/services" element={<Services />} />
+              <Route path="/services/:id" element={<ServiceDetails />} />
               <Route path="/portfolio" element={<Portfolio />} />
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/blog" element={<Blog />} />
               <Route path="/blog/create" element={
+                <ProtectedRoute>
+                  <BlogCreate />
+                </ProtectedRoute>
+              } />
+              <Route path="/blog/:id/edit" element={
                 <ProtectedRoute>
                   <BlogCreate />
                 </ProtectedRoute>
@@ -82,13 +95,27 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="/blog/:id" element={<BlogDetails />} />
+              <Route path="/blog/:postId/quotes" element={
+                <ProtectedRoute>
+                  <QuotesPage />
+                </ProtectedRoute>
+              } />
               <Route path="/contact" element={<Contact />} />
               <Route path="/video" element={<Video />} />
-              <Route path="/videoDetail" element={<VideoDetail />} />
+              <Route path="/video/:videoId" element={<VideoDetail />} />
+              <Route path="/videos" element={
+                  <ProtectedRoute requiredRole="Tasker">
+                    <VideoManager />
+                  </ProtectedRoute>
+                } />
               <Route path="/topUp" element={<TopUp />} />
               <Route path="/payment-result" element={<PaymentResult />} />
               <Route path="/wallet" element={<Wallet />} />
               <Route path="/cccd" element={<CCCDExtractor />} />
+              <Route path="/booking" element={<Booking />} />
+              <Route path="/job-description" element={<JobDescription />} />
+              <Route path="/contract" element={<Contract />} />
+
               <Route path="/become-tasker" element={<BecomeTasker />} />
               
               {/* Authentication routes */}
@@ -97,6 +124,7 @@ function App() {
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/auth-demo" element={<AuthDemo />} />
+              <Route path="/wallet" element={<Wallet />} />
               
               {/* Protected routes */}
               <Route path="/dashboard" element={
@@ -127,6 +155,14 @@ function App() {
                   <RatingComplaints />
                 </ProtectedRoute>
               } />
+              <Route
+                  path="/wishlists"
+                  element={
+                    <ProtectedRoute>
+                      <Wishlist />
+                    </ProtectedRoute>
+                  }
+                />
               <Route path="/content" element={
                 <ProtectedRoute requiredRole="Admin">
                   <ContentManagement />

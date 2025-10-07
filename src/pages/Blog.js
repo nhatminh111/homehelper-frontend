@@ -131,7 +131,7 @@ const Blog = () => {
 
   return (
     <>
-      {/* Hero Section */}
+      {/* Khu vực tiêu đề */}
       <section className="hero-wrap hero-wrap-2" style={{ backgroundImage: "url('/images/bg_2.jpg')" }} data-stellar-background-ratio="0.5">
         <div className="overlay"></div>
         <div className="container">
@@ -139,24 +139,24 @@ const Blog = () => {
             <div className="col-md-9 ftco-animate pb-5">
               <p className="breadcrumbs mb-2">
                 <span className="mr-2">
-                  <Link to="/">Home <FontAwesomeIcon icon={faChevronRight} /></Link>
+                  <Link to="/">Trang chủ <FontAwesomeIcon icon={faChevronRight} /></Link>
                 </span> 
                 <span>Blog <FontAwesomeIcon icon={faChevronRight} /></span>
               </p>
-              <h1 className="mb-0 bread">Community Posts</h1>
+              <h1 className="mb-0 bread">Bài viết cộng đồng</h1>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Blog Section */}
+      {/* Khu vực Blog */}
       <section className="ftco-section">
         <div className="container">
           <div className="row justify-content-center pb-5 mb-3">
             <div className="col-md-7 heading-section text-center ftco-animate">
-              <span className="subheading">Community</span>
-              <h2>Latest Posts & Discussions</h2>
-              <p>Share your experiences, ask questions, and connect with our community</p>
+              <span className="subheading">Cộng đồng</span>
+              <h2>Bài viết & thảo luận mới nhất</h2>
+              <p>Chia sẻ trải nghiệm, đặt câu hỏi và kết nối với cộng đồng</p>
             </div>
           </div>
           
@@ -170,28 +170,28 @@ const Blog = () => {
                       <div className="stat-item">
                         <FontAwesomeIcon icon={faEye} className="text-primary mb-2" size="2x" />
                         <h4 className="mb-1">{stats.totalPosts || 0}</h4>
-                        <p className="mb-0">Total Posts</p>
+                        <p className="mb-0">Tổng số bài viết</p>
                       </div>
                     </div>
                     <div className="col-md-3">
                       <div className="stat-item">
                         <FontAwesomeIcon icon={faHeart} className="text-danger mb-2" size="2x" />
                         <h4 className="mb-1">{stats.totalLikes || 0}</h4>
-                        <p className="mb-0">Total Likes</p>
+                        <p className="mb-0">Tổng lượt thích</p>
                       </div>
                     </div>
                     <div className="col-md-3">
                       <div className="stat-item">
                         <FontAwesomeIcon icon={faComment} className="text-info mb-2" size="2x" />
                         <h4 className="mb-1">{stats.totalComments || 0}</h4>
-                        <p className="mb-0">Total Comments</p>
+                        <p className="mb-0">Tổng bình luận</p>
                       </div>
                     </div>
                     <div className="col-md-3">
                       <div className="stat-item">
                         <FontAwesomeIcon icon={faFilter} className="text-success mb-2" size="2x" />
                         <h4 className="mb-1">{stats.uniqueServicesRequested || 0}</h4>
-                        <p className="mb-0">Services Requested</p>
+                        <p className="mb-0">Dịch vụ được yêu cầu</p>
                       </div>
                     </div>
                   </div>
@@ -211,7 +211,7 @@ const Blog = () => {
                         <input
                           type="text"
                           className="form-control"
-                          placeholder="Search posts..."
+                          placeholder="Tìm kiếm bài viết..."
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
                         />
@@ -230,12 +230,12 @@ const Blog = () => {
                         onClick={() => setShowFilters(!showFilters)}
                       >
                         <FontAwesomeIcon icon={faFilter} className="mr-1" />
-                        Filters
+                        Bộ lọc
                       </button>
                       {user && (
                         <Link to="/blog/create" className="btn btn-primary">
                           <FontAwesomeIcon icon={faPlus} className="mr-1" />
-                          New Post
+                          Bài viết mới
                         </Link>
                       )}
                     </div>
@@ -248,7 +248,7 @@ const Blog = () => {
                     <div className="col-md-12">
                       <div className="filter-options">
                         <div className="d-flex align-items-center">
-                          <span className="mr-3">Sort by:</span>
+                          <span className="mr-3">Sắp xếp theo:</span>
                           <div className="btn-group" role="group">
                             <button
                               type="button"
@@ -256,7 +256,7 @@ const Blog = () => {
                               onClick={() => handleSortChange('post_date')}
                             >
                               <FontAwesomeIcon icon={faSort} className="mr-1" />
-                              Date {sortBy === 'post_date' && (sortOrder === 'ASC' ? '↑' : '↓')}
+                              Ngày {sortBy === 'post_date' && (sortOrder === 'ASC' ? '↑' : '↓')}
                             </button>
                             <button
                               type="button"
@@ -264,7 +264,7 @@ const Blog = () => {
                               onClick={() => handleSortChange('likes')}
                             >
                               <FontAwesomeIcon icon={faHeart} className="mr-1" />
-                              Likes {sortBy === 'likes' && (sortOrder === 'ASC' ? '↑' : '↓')}
+                              Lượt thích {sortBy === 'likes' && (sortOrder === 'ASC' ? '↑' : '↓')}
                             </button>
                             <button
                               type="button"
@@ -272,7 +272,7 @@ const Blog = () => {
                               onClick={() => handleSortChange('comments_count')}
                             >
                               <FontAwesomeIcon icon={faComment} className="mr-1" />
-                              Comments {sortBy === 'comments_count' && (sortOrder === 'ASC' ? '↑' : '↓')}
+                              Bình luận {sortBy === 'comments_count' && (sortOrder === 'ASC' ? '↑' : '↓')}
                             </button>
                           </div>
                         </div>
@@ -289,9 +289,9 @@ const Blog = () => {
             <div className="row">
               <div className="col-md-12 text-center">
                 <div className="spinner-border text-primary" role="status">
-                  <span className="sr-only">Loading...</span>
+                  <span className="sr-only">Đang tải...</span>
                 </div>
-                <p className="mt-2">Loading posts...</p>
+                <p className="mt-2">Đang tải bài viết...</p>
               </div>
             </div>
           )}
@@ -306,7 +306,7 @@ const Blog = () => {
                     className="btn btn-sm btn-outline-danger ml-2"
                     onClick={() => fetchPosts(currentPage)}
                   >
-                    Try Again
+                    Thử lại
                   </button>
                 </div>
               </div>
@@ -330,14 +330,14 @@ const Blog = () => {
                 <div className="col-md-12 text-center">
                   <div className="no-posts-container py-5">
                     <FontAwesomeIcon icon={faSearch} size="3x" className="text-muted mb-3" />
-                    <h4>No posts found</h4>
+                    <h4>Không tìm thấy bài viết</h4>
                     <p className="text-muted">
-                      {searchQuery ? 'Try adjusting your search terms' : 'Be the first to share a post!'}
+                      {searchQuery ? 'Hãy thử điều chỉnh từ khóa tìm kiếm' : 'Hãy là người đầu tiên chia sẻ bài viết!'}
                     </p>
                     {user && !searchQuery && (
                       <Link to="/blog/create" className="btn btn-primary">
                         <FontAwesomeIcon icon={faPlus} className="mr-1" />
-                        Create First Post
+                        Tạo bài viết đầu tiên
                       </Link>
                     )}
                   </div>
