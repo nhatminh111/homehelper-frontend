@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import "../css/TaskerProfile.css";
 import { useAuth } from "../contexts/AuthContext";
 import { useParams } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -39,17 +40,151 @@ const TaskerProfile = () => {
   const [newFeedback, setNewFeedback] = useState("");
   const [loadingUser, setLoadingUser] = useState(true);
 
-  // Load tasker profile
+  // Demo/static datasets to mirror the provided UI comps
+  const specialties = [
+    "Deep Cleaning",
+    "Kitchen Cleaning",
+    "Bathroom Sanitization",
+    "Window Cleaning",
+  ];
+  const languages = ["English", "Spanish", "French"];
+  const stats = [
+    { label: "Response Time", value: "1hr" },
+    { label: "Years Experience", value: "5+" },
+    { label: "Awards Won", value: "5" },
+  ];
+  const featuredVideos = [
+    {
+      id: 1,
+      title: "Deep Kitchen Cleaning - Complete Process",
+      minutes: "8:32",
+      views: 2340,
+      likes: 98,
+      when: "2 days ago",
+      img: "https://images.unsplash.com/photo-1581579188871-45ea61f2a0c8?auto=format&fit=crop&w=1200&q=60",
+    },
+    {
+      id: 2,
+      title: "Bathroom Sanitization - Hospital Grade",
+      minutes: "6:15",
+      views: 1800,
+      likes: 156,
+      when: "1 week ago",
+      img: "https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=1200&q=60",
+    },
+    {
+      id: 3,
+      title: "Eco-Friendly Cleaning Solutions",
+      minutes: "5:46",
+      views: 3210,
+      likes: 267,
+      when: "2 weeks ago",
+      img: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=1200&q=60",
+    },
+  ];
+  const featuredArticles = [
+    {
+      id: 1,
+      title: "How to Clean a Sofa Without Using Water",
+      category: "Furniture Care",
+      read: "9 min read",
+      views: 1340,
+      date: "Jun 12, 2024",
+      img: "https://images.unsplash.com/photo-1524758631624-e2822e304c36?auto=format&fit=crop&w=1200&q=60",
+    },
+    {
+      id: 2,
+      title: "Bathroom Odor Elimination Guide",
+      category: "Bathroom Care",
+      read: "6 min read",
+      views: 1650,
+      date: "Jun 10, 2024",
+      img: "https://images.unsplash.com/photo-1595433707802-6b2626ef1c86?auto=format&fit=crop&w=1200&q=60",
+    },
+  ];
+  const moreArticles = [
+    {
+      id: 3,
+      title: "Outdoor Cleaning and Maintenance",
+      category: "Outdoor",
+      read: "8 min read",
+      views: 980,
+      date: "Jun 8, 2024",
+      img: "https://images.unsplash.com/photo-1523419409543-2f8a125d5dff?auto=format&fit=crop&w=1200&q=60",
+    },
+    {
+      id: 4,
+      title: "Natural Fridge Deodorizing with Lemon",
+      category: "Kitchen Tips",
+      read: "4 min read",
+      views: 760,
+      date: "Jun 6, 2024",
+      img: "https://images.unsplash.com/photo-1514996937319-344454492b37?auto=format&fit=crop&w=1200&q=60",
+    },
+    {
+      id: 5,
+      title: "Professional Window Cleaning Techniques",
+      category: "Windows",
+      read: "7 min read",
+      views: 1220,
+      date: "Jun 4, 2024",
+      img: "https://images.unsplash.com/photo-1515879218367-8466d910aaa4?auto=format&fit=crop&w=1200&q=60",
+    },
+    {
+      id: 6,
+      title: "Fabric Care and Laundry Sorting",
+      category: "Laundry",
+      read: "6 min read",
+      views: 1040,
+      date: "Jun 2, 2024",
+      img: "https://images.unsplash.com/photo-1495433324511-bf8e92934d90?auto=format&fit=crop&w=1200&q=60",
+    },
+  ];
+  const achievements = [
+    { icon: "🏆", title: "Top Rated Cleaner 2024", subtitle: "Ranked #1 downtown", when: "Jan 2024" },
+    { icon: "⭐", title: "Customer Choice Award", subtitle: "95% satisfaction rate", when: "Dec 2023" },
+    { icon: "🌱", title: "Eco-Friendly Specialist", subtitle: "Certified green methods", when: "Nov 2023" },
+    { icon: "⚡", title: "Quick Response Champion", subtitle: "Avg response under 30m", when: "Oct 2023" },
+    { icon: "💎", title: "5-Star Professional", subtitle: "4.9+ for 6 months", when: "Sep 2023" },
+  ];
+
+  const demoTasker = {
+    name: "Sarah Johnson",
+    avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=256&q=60",
+    rating: 4.9,
+    pricePerHour: 25,
+    location: "Downtown, 2.3 km away",
+    yearsExperience: 5,
+    available: true,
+  };
+
+  // Load tasker profile (skip API if no id → use demo)
   useEffect(() => {
+    if (!id) {
+      setTasker(demoTasker);
+      // seed demo reviews for overview
+      setReviewsData({
+        total: 4,
+        average: 4.9,
+        ratingsCount: { 5: 3, 4: 1 },
+        reviews: [
+          { id: "r1", name: "Emily Chen", rating: 5, text: "Apartment has never been cleaner. Professional and punctual!", date: new Date().toISOString() },
+          { id: "r2", name: "Michael Rodriguez", rating: 5, text: "Eco-friendly products as requested. Very professional.", date: new Date(Date.now()-86400000*7).toISOString() },
+          { id: "r3", name: "Lisa Thompson", rating: 4, text: "Great work, a bit late but excellent quality.", date: new Date(Date.now()-86400000*14).toISOString() },
+          { id: "r4", name: "David Park", rating: 5, text: "Kitchen looks brand new after a party. Highly recommend!", date: new Date(Date.now()-86400000*21).toISOString() },
+        ],
+      });
+      return;
+    }
     fetch(`${API_BASE_URL}/tasker-profile/${id}`)
       .then((res) => res.json())
       .then((data) => setTasker(data))
       .catch((err) => console.error(err));
   }, [id]);
 
-  // Load reviews
+  // Load reviews (only if an id exists)
   useEffect(() => {
-    if (activeTab === "reviews") {
+    if (activeTab === "reviews" && id) {
       fetch(`${API_BASE_URL}/ratings/${id}`)
         .then((res) => res.json())
         .then((data) => setReviewsData(data || { reviews: [] }))
@@ -58,13 +193,12 @@ const TaskerProfile = () => {
   }, [activeTab, id]);
 
   useEffect(() => {
-    if (isAuthenticated()) {
+    if (id && isAuthenticated()) {
       fetch(`${API_BASE_URL}/bookings/${id}/can-rate`, {
         headers: createHeaders(token),
       })
         .then((res) => res.json())
         .then((data) => {
-          console.log("can-rate response:", data);
           setCanRate(data.canRate);
           setBookingId(data.bookingId);
         })
@@ -138,63 +272,61 @@ const TaskerProfile = () => {
   ];
 
   return (
-    <div className="container py-5">
-      {/* Header */}
-      <div className="card p-4 shadow-sm">
-        <div className="row align-items-center gx-3">
-          <div className="col-md-6 ps-md-4">
-            <div className="d-flex align-items-center mb-3">
-              <img
-                src={tasker.avatar || "/images/default-avatar.png"}
-                alt={tasker.name}
-                className="rounded-circle border me-3"
-                style={{ width: "60px", height: "60px", objectFit: "cover" }}
-              />
-              <h3 className="mb-0 fw-bold">{tasker.name || "Tasker Name"}</h3>
-            </div>
-            <div className="d-flex flex-wrap align-items-center mb-2">
-              <strong className="fs-5 text-warning">
-                {tasker.rating || 4.0}
-              </strong>
-              <FontAwesomeIcon icon={faStar} className="text-warning ms-2" />
-            </div>
-            <div className="d-flex flex-wrap gap-2">
-              <button className="btn btn-primary">
-                <FontAwesomeIcon icon={faCalendarCheck} className="me-1" />
-                Book Now - ${tasker.pricePerHour || 25}/hr
-              </button>
-              <button className="btn btn-outline-secondary">
-                <FontAwesomeIcon icon={faComments} className="me-1" />
-                Start Chat
-              </button>
-            </div>
-          </div>
-          <div className="col-md-6 pe-md-4 text-center text-md-end pt-3 pt-md-0">
-            <div className="mb-2 text-muted">
-              <FontAwesomeIcon icon={faMapMarkerAlt} className="me-1" />
-              {tasker.location || "Downtown"}
-            </div>
-            <div className="mb-2 text-muted">
-              <FontAwesomeIcon icon={faTools} className="me-1" />
-              {tasker.yearsExperience || 5} years experience
-            </div>
-            {tasker.available && (
-              <div className="text-success fw-semibold">
-                <FontAwesomeIcon icon={faCheckCircle} className="me-1" />
-                Available Now
+    <div className="tp-page">
+      {/* Hero */}
+      <div className="tp-hero" />
+
+      <div className="container tp-container">
+        {/* Header Card */}
+        <div className="tp-card tp-header">
+          <div className="row align-items-center gx-4">
+            <div className="col-md-6">
+              <div className="d-flex align-items-center">
+                <img
+                  src={tasker.avatar || "/images/default-avatar.png"}
+                  alt={tasker.name}
+                  className="tp-avatar me-3"
+                />
+                <div>
+                  <div className="d-flex align-items-center gap-2 mb-1">
+                    <h3 className="tp-name mb-0">{tasker.name || "Tasker Name"}</h3>
+                    <span className="tp-verified"><FontAwesomeIcon icon={faCheckCircle} /> Verified Professional</span>
+                  </div>
+                  <div className="d-flex align-items-center gap-2 tp-rating">
+                    <span className="tp-rating-score">{tasker.rating || 4.9}</span>
+                    <FontAwesomeIcon icon={faStar} />
+                    <span className="text-muted small">Based on 124 reviews</span>
+                  </div>
+                </div>
               </div>
-            )}
+              <div className="d-flex flex-wrap gap-2 mt-3">
+                <button className="btn btn-primary tp-btn-primary">
+                  <FontAwesomeIcon icon={faCalendarCheck} className="me-1" />
+                  Book Now — ${tasker.pricePerHour || 25}/hr
+                </button>
+                <button className="btn btn-outline-secondary tp-btn-outline">
+                  <FontAwesomeIcon icon={faComments} className="me-1" />
+                  Start Chat
+                </button>
+              </div>
+            </div>
+            <div className="col-md-6 text-md-end mt-3 mt-md-0">
+              <div className="text-muted mb-1"><FontAwesomeIcon icon={faMapMarkerAlt} className="me-1" />{tasker.location || "Downtown, 2.3 km away"}</div>
+              <div className="text-muted mb-1"><FontAwesomeIcon icon={faTools} className="me-1" />{tasker.yearsExperience || 5} years experience</div>
+              {tasker.available && (
+                <div className="text-success fw-semibold"><FontAwesomeIcon icon={faCheckCircle} className="me-1" />Available Now</div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Tabs */}
-      <div className="card p-3 mt-4">
-        <ul className="nav nav-tabs mb-3">
+        {/* Tabs */}
+        <div className="tp-card p-0 mt-4">
+        <ul className="nav nav-pills tp-tabs mb-0 p-2">
           {tabs.map((tab) => (
             <li className="nav-item" key={tab.id}>
               <button
-                className={`nav-link ${activeTab === tab.id ? "active" : ""}`}
+                className={`nav-link tp-tab ${activeTab === tab.id ? "active" : ""}`}
                 onClick={() => setActiveTab(tab.id)}
               >
                 <FontAwesomeIcon icon={tab.icon} className="me-1" />
@@ -204,8 +336,97 @@ const TaskerProfile = () => {
           ))}
         </ul>
 
-        <div>
-          {activeTab === "overview" && <div>No overview content yet.</div>}
+        <div className="p-3 p-md-4">
+          {activeTab === "overview" && (
+            <div>
+              {/* Intro summary strip with badges */}
+              <div className="row g-3 mb-3">
+                <div className="col-md-12">
+                  <div className="d-flex flex-wrap align-items-center gap-2">
+                    <span className="tp-badge">
+                      <FontAwesomeIcon icon={faMapMarkerAlt} className="me-1" />
+                      {tasker.location || "Downtown, 2.3 km away"}
+                    </span>
+                    <span className="tp-badge">{tasker.yearsExperience || 5} years experience</span>
+                    <span className="tp-badge" style={{background:'#e6f7ef',borderColor:'#b7e4cd',color:'#0f766e'}}>
+                      <FontAwesomeIcon icon={faCheckCircle} className="me-1" />
+                      Available Now
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bio */}
+              <p className="text-muted">
+                Professional house cleaner with 5+ years of experience. I specialize in deep cleaning, kitchen
+                sanitization, and eco-friendly cleaning methods. I take pride in delivering exceptional results and
+                building long-term relationships with my clients.
+              </p>
+
+              {/* Specializations & Languages */}
+              <div className="row g-3 mb-4">
+                <div className="col-md-8">
+                  <div className="mb-2 fw-semibold">Specializations</div>
+                  <div className="d-flex flex-wrap gap-2">
+                    {specialties.map((s) => (
+                      <span key={s} className="badge bg-primary-subtle text-primary border">{s}</span>
+                    ))}
+                  </div>
+                </div>
+                <div className="col-md-4">
+                  <div className="mb-2 fw-semibold">Languages</div>
+                  <div className="d-flex flex-wrap gap-2">
+                    {languages.map((l) => (
+                      <span key={l} className="badge bg-secondary-subtle text-secondary border">{l}</span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Stats tiles */}
+              <div className="row g-3 mb-4">
+                {stats.map((st) => (
+                  <div key={st.label} className="col-12 col-md-4">
+                    <div className="tp-tile">
+                      <div className="fs-4 fw-bold">{st.value}</div>
+                      <div className="text-muted">{st.label}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Availability & Reviews snapshot */}
+              <div className="row g-3">
+                <div className="col-md-6">
+                  <div className="tp-card">
+                    <div className="d-flex align-items-center mb-2">
+                      <span className="me-2">⚡</span>
+                      <div className="fw-semibold">Availability & Services</div>
+                    </div>
+                    <div className="d-flex justify-content-between">
+                      <div>
+                        <div className="text-muted">Status</div>
+                        <div className="badge bg-success">Available</div>
+                      </div>
+                      <div className="text-end">
+                        <div className="text-muted">Next Slot</div>
+                        <div className="badge bg-info text-dark">Today 2PM</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-md-6">
+                  <div className="tp-card">
+                    <div className="d-flex align-items-center mb-2">
+                      <span className="me-2">💬</span>
+                      <div className="fw-semibold">Recent Reviews</div>
+                    </div>
+                    <div className="small text-muted">Customers love the eco-friendly methods and attention to detail.</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {activeTab === "reviews" && (
             <div className="row">
@@ -338,8 +559,117 @@ const TaskerProfile = () => {
               </div>
             </div>
           )}
+
+          {activeTab === "videos" && (
+            <div>
+              <div className="d-flex justify-content-between align-items-center mb-3">
+                <div className="fw-bold">Featured Videos</div>
+                <div className="text-muted small">Recent Videos</div>
+              </div>
+              <div className="row g-3">
+                {featuredVideos.map((v) => (
+                  <div key={v.id} className="col-md-4">
+                    <div className="tp-card tp-media-card h-100">
+                      <div className="thumb w-100"><img src={v.img} alt={v.title} /></div>
+                      <div className="card-body">
+                        <div className="d-flex justify-content-between align-items-center mb-2">
+                          <div className="time">{v.minutes}</div>
+                          <div className="text-muted small">{v.when}</div>
+                        </div>
+                        <h6 className="fw-semibold mb-2">{v.title}</h6>
+                        <div className="meta">{v.views} views · {v.likes} like</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === "articles" && (
+            <div>
+              <h5 className="mb-3">Cleaning Tips & Guides</h5>
+              <div className="p-3 rounded border bg-white mb-4">
+                <div className="row g-2 align-items-center">
+                  <div className="col-md-8">
+                    <input className="form-control" placeholder="Search across, tips, or techniques..." />
+                  </div>
+                  <div className="col-md-4 text-md-end">
+                    <div className="d-inline-flex flex-wrap gap-2">
+                      {[
+                        "All Articles",
+                        "Furniture Care",
+                        "Kitchen Tips",
+                        "Bathroom Care",
+                        "Eco-Friendly",
+                      ].map((f) => (
+                        <span key={f} className="badge bg-light text-dark border">{f}</span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="fw-semibold mb-2">Featured Articles</div>
+              <div className="row g-3 mb-4">
+                {featuredArticles.map((a) => (
+                  <div key={a.id} className="col-md-6">
+                    <div className="tp-card tp-media-card h-100">
+                      <div className="thumb w-100" style={{height:220}}><img src={a.img} alt={a.title} /></div>
+                      <div className="card-body">
+                        <div className="d-flex justify-content-between mb-2">
+                          <span className="badge bg-warning-subtle text-warning border">Featured</span>
+                          <span className="badge bg-light text-dark border">{a.category}</span>
+                        </div>
+                        <h6 className="fw-semibold mb-2">{a.title}</h6>
+                        <div className="meta">{a.views} views • {a.read}</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="fw-semibold mb-2">All Articles</div>
+              <div className="row g-3">
+                {moreArticles.map((a) => (
+                  <div key={a.id} className="col-md-3">
+                    <div className="tp-card tp-media-card h-100">
+                      <div className="thumb w-100" style={{height:140}}><img src={a.img} alt={a.title} /></div>
+                      <div className="card-body">
+                        <div className="d-flex justify-content-between mb-1">
+                          <span className="badge bg-light text-dark border">{a.category}</span>
+                          <span className="text-muted small">{a.date}</span>
+                        </div>
+                        <div className="fw-semibold small mb-1">{a.title}</div>
+                        <div className="meta">{a.views} views • {a.read}</div>
+                      </div>
+                      <div className="card-footer bg-white border-0 pt-0 pb-3">
+                        <button className="btn btn-sm btn-primary w-100">Read Full Article</button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === "achievements" && (
+            <div className="row g-3">
+              {achievements.map((a, i) => (
+                <div key={i} className="col-md-4">
+                  <div className="p-4 rounded border bg-white h-100 shadow-sm">
+                    <div className="display-6 mb-2">{a.icon}</div>
+                    <div className="fw-semibold">{a.title}</div>
+                    <div className="text-muted small mb-2">{a.subtitle}</div>
+                    <span className="badge bg-light text-dark border">{a.when}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
+    </div>
     </div>
   );
 };
