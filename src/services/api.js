@@ -448,3 +448,44 @@ export const healthCheck = async () => {
 };
 
 export default api;
+
+export const taskerApplicationsAPI = {
+  list: async (status = 'Pending', token = null) => {
+    const qs = new URLSearchParams();
+    if (status) qs.append('status', status);
+    const res = await fetch(`${API_BASE_URL}/tasker/applications?${qs.toString()}`.replace(/\?$/, ''), {
+      method: 'GET',
+      headers: createHeaders(token)
+    });
+    return handleResponse(res); // expecting { data: [...] }
+  },
+  detail: async (id, token = null) => {
+    const res = await fetch(`${API_BASE_URL}/tasker/applications/${id}`, {
+      method: 'GET',
+      headers: createHeaders(token)
+    });
+    return handleResponse(res); // expecting { data: {...} }
+  },
+  approve: async (id, token = null) => {
+    const res = await fetch(`${API_BASE_URL}/tasker/applications/${id}/approve`, {
+      method: 'POST',
+      headers: createHeaders(token)
+    });
+    return handleResponse(res);
+  },
+  reject: async (id, note = '', token = null) => {
+    const res = await fetch(`${API_BASE_URL}/tasker/applications/${id}/reject`, {
+      method: 'POST',
+      headers: createHeaders(token),
+      body: JSON.stringify({ note })
+    });
+    return handleResponse(res);
+  },
+  recheck: async (id, token = null) => {
+    const res = await fetch(`${API_BASE_URL}/tasker/applications/${id}/recheck-certifications`, {
+      method: 'POST',
+      headers: createHeaders(token)
+    });
+    return handleResponse(res);
+  }
+};

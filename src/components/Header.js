@@ -237,6 +237,12 @@ const Header = () => {
                         Approve Taskers
                       </Link>
                     )}
+                    {(isStaff() || isAdmin()) && (
+                      <Link className="dropdown-item" to="/staff/applications">
+                        <FontAwesomeIcon icon={faCog} className="mr-2" />
+                        Đơn Tasker (mới)
+                      </Link>
+                    )}
 
                     <div className="dropdown-divider"></div>
                     {/* 👉 thêm mục Wallet */}

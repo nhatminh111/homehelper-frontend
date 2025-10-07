@@ -63,6 +63,8 @@ import CCCDExtractor from './pages/CCCDExtractor';
 import BecomeTasker from './pages/BecomeTasker';
 import TaskerApprovals from './pages/admin/TaskerApprovals';
 import Wishlist from "./pages/Wishlist";
+import StaffApplications from './pages/StaffApplications';
+import { Navigate } from 'react-router-dom';
 function App() {
   return (
     <AuthProvider>
@@ -218,6 +220,12 @@ function App() {
                   <TaskerApprovals />
                 </ProtectedRoute>
               } />
+              <Route path="/staff/applications" element={
+                <ProtectedRoute requiredRole="Staff">
+                  <StaffApplications />
+                </ProtectedRoute>
+              } />
+              <Route path="/staff" element={<Navigate to="/staff/applications" replace />} />
             </Routes>
             </main>
             <Footer />
