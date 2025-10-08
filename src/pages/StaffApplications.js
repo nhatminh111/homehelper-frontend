@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import './StaffApplications.css';
 import { useAuth } from '../contexts/AuthContext';
 import { taskerApplicationsAPI, servicesAPI } from '../services/api';
@@ -17,6 +17,43 @@ export default function StaffApplications() {
   const [showDetail, setShowDetail] = useState(false);
   const [variantMap, setVariantMap] = useState({});
   const [zoomSrc, setZoomSrc] = useState(null);
+  const [recheckLoading, setRecheckLoading] = useState(false);
+  const [recheckData, setRecheckData] = useState(null); // shape: { overall, certifications, recheck_at }
+  const [recheckError, setRecheckError] = useState(null);
+  const [portraitMap, setPortraitMap] = useState({}); // {cert_url: true|false}
+  const [videoMeta, setVideoMeta] = useState(null); // {orientation, width, height}
+  // Active certificate index for highlighting & sync with AI results
+  const [activeCert, setActiveCert] = useState(null);
+  const aiRefs = useRef({});
+
+  // Scroll AI block into view when active certificate changes
+  useEffect(()=> {
+    if (activeCert === null || !aiRefs.current) return;
+    const node = aiRefs.current[activeCert];
+    if (node && node.scrollIntoView) {
+      node.scrollIntoView({behavior:'smooth', block:'nearest'});
+    }
+  }, [activeCert]);
+
+  const runRecheck = async (appId) => {
+    setRecheckLoading(true); setRecheckError(null); setRecheckData(null);
+    try {
+      const resp = await taskerApplicationsAPI.recheck(appId, token);
+      // backend returns { success, data:{...} }
+      const core = resp.data ? resp.data : resp; // ensure we always store the inner data object
+      setRecheckData(core);
+    } catch(e){ setRecheckError(e.message); }
+    finally { setRecheckLoading(false); }
+  };
+
+  const fieldLabels = {
+    cert_name: 'Tên chứng chỉ',
+    issued_by: 'Đơn vị cấp',
+    issued_date: 'Ngày cấp',
+    holder_name: 'Tên người trên chứng chỉ',
+    certificate_code: 'Mã chứng chỉ',
+    grade_or_level: 'Xếp loại / Cấp độ'
+  };
 
   // Preload services & variants mapping (one-time)
   useEffect(()=> {
@@ -103,45 +140,100 @@ export default function StaffApplications() {
       {error && <div className="error">{error}</div>}
       {!loading && !apps.length && <div className="empty">Không có đơn</div>}
       {!!apps.length && (
-        <table className="apps-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>User</th>
-              <th>Email</th>
-              <th>Giới thiệu</th>
-              <th>Biến thể</th>
-              <th>Chứng chỉ</th>
-              <th>Video?</th>
-              <th>Ngày tạo</th>
-              <th>Trạng thái</th>
-              <th>Hành động</th>
-            </tr>
-          </thead>
-          <tbody>
-            {apps.map(a => (
-              <tr key={a.application_id} className="clickable" onClick={()=>openDetail(a.application_id)}>
-                <td>{a.application_id}</td>
-                <td>{a.user_name}</td>
-                <td>{a.email}</td>
-                <td className="intro-cell" title={a.introduce}>{(a.introduce||'').slice(0,40)}{(a.introduce||'').length>40?'…':''}</td>
-                <td>{Array.isArray(a.variants)? a.variants.length : 0}</td>
-                <td>{Array.isArray(a.certifications)? a.certifications.length : 0}</td>
-                <td>{a.introduction_video? '✔️':'—'}</td>
-                <td>{a.created_at? new Date(a.created_at).toLocaleString() : ''}</td>
-                <td>{a.status}</td>
-                <td>
+        <div className="apps-grid horizontal-list">
+          {apps.map(a => {
+            const certs = Array.isArray(a.certifications) ? a.certifications : [];
+            const firstImg = certs.find(c => c.cert_file_url && /(jpg|jpeg|png|gif|webp)$/i.test(c.cert_file_url));
+            const firstCert = certs[0];
+            const firstCertName = firstCert ? (firstCert.cert_name || firstCert.parsed_cert_name || '') : '';
+            // Services summary via variants (best-effort mapping)
+            const variantNames = (a.variants||[]).map(v => {
+              if (typeof v === 'object' && v !== null) {
+                return v.variant_name || variantMap[v.variant_id]?.name || ('#'+(v.variant_id||'?'));
+              }
+              // if backend only returns id list
+              return variantMap[v]?.name || ('#'+v);
+            });
+            // Derive distinct main services
+            const serviceNames = Array.from(new Set((a.variants||[]).map(v => {
+              if (typeof v === 'object' && v !== null) {
+                return v.service_name || variantMap[v.variant_id]?.service;
+              }
+              return variantMap[v]?.service;
+            }).filter(Boolean)));
+            const maxChips = 4;
+            const visibleChips = variantNames.slice(0, maxChips);
+            const hiddenCount = variantNames.length - visibleChips.length;
+            const statusCls = (a.status||'').toLowerCase();
+            const initials = (a.user_name||'?').split(/\s+/).map(p=>p[0]).join('').slice(0,2).toUpperCase();
+            return (
+              <div key={a.application_id} className="app-card app-card-horizontal" onClick={()=>openDetail(a.application_id)} title={`Mở chi tiết đơn #${a.application_id}`}>
+                <div className={`status-badge ${statusCls}`}>{a.status}</div>
+                <div className="app-card-left" onClick={(e)=>{e.stopPropagation(); if(firstImg) setZoomSrc(firstImg.cert_file_url); else openDetail(a.application_id);}}>
+                  <div className={`cert-preview-wrap horizontal ${firstImg && portraitMap[firstImg.cert_file_url] ? 'portrait' : 'landscape'}`}>
+                    {firstImg && (
+                      <img
+                        src={firstImg.cert_file_url}
+                        alt="cert"
+                        className="cert-preview"
+                        loading="lazy"
+                        onLoad={(ev)=>{
+                          try {
+                            const img = ev.target;
+                            if (img.naturalHeight > img.naturalWidth) {
+                              setPortraitMap(pm => ({...pm, [firstImg.cert_file_url]: true}));
+                            } else {
+                              setPortraitMap(pm => ({...pm, [firstImg.cert_file_url]: false}));
+                            }
+                          } catch(_){}
+                        }}
+                      />
+                    )}
+                    {!firstImg && <div className="no-cert">Không có ảnh chứng chỉ</div>}
+                    {certs.length>1 && <div className="cert-count-badge">{certs.length}</div>}
+                    {firstCertName && <div className="cert-name-overlay" title={firstCertName}>{firstCertName}</div>}
+                  </div>
+                </div>
+                <div className="app-card-right">
+                  <div className="app-card-header">
+                    <div className="app-avatar">{initials}</div>
+                    <div className="app-main">
+                      <h3 className="app-user">{a.user_name}</h3>
+                      <p className="app-email" title={a.email}>{a.email}</p>
+                    </div>
+                  </div>
+                  <p className="app-intro top-intro">{a.introduce || '(Không có giới thiệu)'}</p>
+                  <div className="app-main-services">
+                    {serviceNames.length ? serviceNames.map((s,i)=>(<span key={i} className="service-chip main" title={s}>{s}</span>)) : <span className="service-chip" style={{opacity:.6}}>Không có dịch vụ</span>}
+                  </div>
+                  <div className="app-services variant-row">
+                    {visibleChips.map((n,i)=>(<span key={i} className="service-chip" title={n}>{n}</span>))}
+                    {hiddenCount>0 && <span className="service-chip more" title={`${hiddenCount} biến thể khác`}>+{hiddenCount}</span>}
+                    {!variantNames.length && <span className="service-chip" style={{opacity:.6}}>Không có biến thể</span>}
+                  </div>
+                  <div className="app-card-footer with-meta">
+                    {/* <div className="footer-left">
+                      <span className="badge-inline">{new Date(a.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
+                    </div> */}
+                    <div className="footer-meta-block">
+                      <div className="app-meta meta-bottom">
+                        <span>{a.introduction_video ? '🎬 Video' : 'No video'}</span>
+                        <span>{certs.length} chứng chỉ</span>
+                        <span>{a.created_at ? new Date(a.created_at).toLocaleDateString() : ''}</span>
+                      </div>
+                    </div>
+                  </div>
                   {a.status === 'Pending' && (
-                    <div className="actions">
-                      <button disabled={!!actionLoading} onClick={(e)=>{e.stopPropagation(); approve(a.application_id);}}>{actionLoading===a.application_id?'…':'Duyệt'}</button>
-                      <button disabled={!!actionLoading} className="danger" onClick={(e)=>{e.stopPropagation(); reject(a.application_id);}}>{actionLoading===a.application_id?'…':'Từ chối'}</button>
+                    <div className="app-actions" onClick={e=>e.stopPropagation()}>
+                      <button className="approve" disabled={!!actionLoading} onClick={()=>approve(a.application_id)}>{actionLoading===a.application_id?'…':'Duyệt'}</button>
+                      <button className="reject" disabled={!!actionLoading} onClick={()=>reject(a.application_id)}>{actionLoading===a.application_id?'…':'Từ chối'}</button>
                     </div>
                   )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
       { showDetail && (
         <div className="sa-modal-overlay" onClick={closeDetail}>
@@ -195,33 +287,172 @@ export default function StaffApplications() {
                 <section>
                   <h4>Chứng chỉ ({detail.application.certifications?.length||0})</h4>
                   {(!detail.application.certifications || !detail.application.certifications.length) && <em>Không có</em>}
-                  <ul className="cert-list">
-                    {detail.application.certifications?.map((c,i)=>{
-                      const isImage = c.cert_file_url && /(\.jpg|\.jpeg|\.png|\.gif|\.webp)$/i.test(c.cert_file_url);
-                      return (
-                        <li key={i}>
-                          <div className="cert-head">
-                            <strong>{c.cert_name || c.parsed_cert_name || 'Chứng chỉ #' + (i+1)}</strong>
-                          </div>
-                          {isImage && (
-                            <div className="cert-thumb-wrap" onClick={()=> setZoomSrc(c.cert_file_url)}>
-                              <img loading="lazy" src={c.cert_file_url} alt={c.cert_name || 'certificate'} className="cert-thumb" />
-                            </div>
-                          )}
-                          {!isImage && c.cert_file_url && <a href={c.cert_file_url} target="_blank" rel="noreferrer">Mở file</a>}
-                          {c.parsed_certificate_code && <div className="cert-meta"><span>Mã:</span> {c.parsed_certificate_code}</div>}
-                          {c.issued_by && <div className="cert-meta"><span>Đơn vị cấp:</span> {c.issued_by}</div>}
-                          {c.issued_date && <div className="cert-meta"><span>Ngày cấp:</span> {c.issued_date}</div>}
-                          {c.ai_detected_service && <div className="cert-meta"><span>AI dịch vụ:</span> {c.ai_detected_service}</div>}
-                        </li>
-                      );
-                    })}
-                  </ul>
+                  <div className="cert-flex-wrap" style={{display:'flex', alignItems:'flex-start', gap:16}}>
+                    <div className="cert-left-col" style={{flex: '1 1 55%', minWidth:0}}>
+                      <ul className="cert-list">
+                        {detail.application.certifications?.map((c,i)=>{
+                          const isImage = c.cert_file_url && /(\.jpg|\.jpeg|\.png|\.gif|\.webp)$/i.test(c.cert_file_url);
+                          return (
+                            <li key={i} className={activeCert===i? 'active-cert' : ''} onMouseEnter={()=>setActiveCert(i)} onFocus={()=>setActiveCert(i)} onClick={()=>setActiveCert(i)}>
+                              <div className="cert-row no-ai-inline" style={{cursor:'pointer'}}>
+                                <div className="cert-left">
+                                  <div className="cert-head">
+                                    <strong><span className="ci-chip">#{i+1}</span> {c.cert_name || c.parsed_cert_name || 'Chứng chỉ #' + (i+1)}</strong>
+                                    {(c.holder_mismatch || (c.validation && c.validation.holder_name_match === false)) && (
+                                      <span className="badge-inline" style={{marginLeft:8, background:'#ffecb3', color:'#b26a00', padding:'2px 6px', borderRadius:4, fontSize:11}}>
+                                        Holder khác tên account
+                                      </span>
+                                    )}
+                                  </div>
+                                  {isImage && (
+                                    <div className="cert-thumb-wrap" onClick={()=> setZoomSrc(c.cert_file_url)}>
+                                      <img loading="lazy" src={c.cert_file_url} alt={c.cert_name || 'certificate'} className="cert-thumb" />
+                                    </div>
+                                  )}
+                                  {!isImage && c.cert_file_url && <a href={c.cert_file_url} target="_blank" rel="noreferrer">Mở file</a>}
+                                  {c.parsed_certificate_code && <div className="cert-meta"><span>Mã:</span> {c.parsed_certificate_code}</div>}
+                                  {c.issued_by && <div className="cert-meta"><span>Đơn vị cấp:</span> {c.issued_by}</div>}
+                                  {c.issued_date && <div className="cert-meta"><span>Ngày cấp:</span> {c.issued_date}</div>}
+                                  {(c.holder_mismatch || (c.validation && c.validation.holder_name_match === false)) && (
+                                    <div className="cert-meta" style={{color:'#b26a00'}}>
+                                      <span>Holder:</span> {(c.holder_name || c.parsed_holder_name || 'N/A')} 
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                      {detail.application.certifications?.length > 0 && (
+                        <div
+                          style={{
+                            marginTop: 12,
+                            display: 'flex',
+                            gap: 8,
+                            alignItems: 'center',
+                            flexWrap: 'wrap'
+                          }}
+                        >
+                          <button
+                            disabled={recheckLoading}
+                            onClick={() => runRecheck(detail.application.application_id)}
+                            style={{
+                              backgroundColor: recheckLoading ? '#d1d5db' : '#2563eb', // xám khi loading, xanh khi sẵn sàng
+                              color: '#fff',
+                              border: 'none',
+                              padding: '8px 16px',
+                              borderRadius: 8,
+                              fontSize: 15,
+                              fontWeight: 500,
+                              cursor: recheckLoading ? 'not-allowed' : 'pointer',
+                              transition: 'all 0.2s ease',
+                              boxShadow: recheckLoading ? 'none' : '0 2px 6px rgba(37,99,235,0.3)',
+                              opacity: recheckLoading ? 0.7 : 1
+                            }}
+                            onMouseEnter={(e) => {
+                              if (!recheckLoading) e.target.style.backgroundColor = '#1d4ed8';
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!recheckLoading) e.target.style.backgroundColor = '#2563eb';
+                            }}
+                          >
+                            {recheckLoading ? 'Đang kiểm tra ...' : 'AI Check'}
+                          </button>
+                        </div>
+                      )}
+                      {recheckData && (
+                        <div className="recheck-summary-inline">
+                          Chính xác: {recheckData.overall?.accuracy !== null && recheckData.overall?.accuracy !== undefined 
+                            ? (recheckData.overall.accuracy * 100).toFixed(1) + '%' 
+                            : 'N/A'}
+                        </div>                      
+                      )}
+                    </div>
+                    {recheckData && !!recheckData.certifications?.length && (
+                      <div className="cert-right-col" style={{flex:'1 1 45%', minWidth:0}}>
+                        <div className="cert-ai-panel-header" style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                          <h5 style={{margin:'0 0 8px'}}>Kết quả AI</h5>
+                        </div>
+                        <div className="cert-ai-result-list" style={{display:'flex', flexDirection:'column', gap:12, maxHeight:400, overflow:'auto', paddingRight:4}}>
+                          {recheckData.certifications.map((rc,i)=>{
+                            const cert = detail.application.certifications?.[rc.index];
+                            return (
+                              <div ref={el => { aiRefs.current[rc.index]=el; }} data-cert-index={rc.index} key={i} className={`cert-diff-block side ${rc.error ? 'has-error':''} ${activeCert===rc.index? 'active-ai':''}`} style={{border:'1px solid #eee', borderRadius:6, padding:8, position:'relative'}} onMouseEnter={()=>setActiveCert(rc.index)}>
+                                <div className="cert-diff-header" style={{display:'flex', alignItems:'center', gap:8, marginBottom:4}}>
+                                  <strong style={{flex:1}}><span className="ci-chip">#{(rc.index||0)+1}</span> {cert?.cert_name || cert?.parsed_cert_name || 'Chứng chỉ #' + (rc.index+1)}</strong>
+                                  {rc.accuracy !== null && rc.accuracy !== undefined && <span className="acc-chip" style={{fontSize:11}}>{(rc.accuracy*100).toFixed(1)}%</span>}
+                                  {rc.error && <span className="error" style={{fontSize:11}}>{rc.error}</span>}
+                                </div>
+                                <div className="cert-diff-table-wrapper">
+                                  <table className="cert-diff-table" style={{width:'100%', borderCollapse:'collapse'}}>
+                                    <thead>
+                                      <tr>
+                                        <th style={{textAlign:'left'}}>Trường</th>
+                                        <th style={{textAlign:'left'}}>Gốc</th>
+                                        <th style={{textAlign:'left'}}>AI</th>
+                                        <th style={{width:16}}></th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {['cert_name','issued_by','issued_date','holder_name','certificate_code','grade_or_level'].map(f => {
+                                        const d = rc.field_diff?.[f];
+                                        if (!d) return null;
+                                        return (
+                                          <tr key={f} className={d.match ? 'match' : 'mismatch'}>
+                                            <td>{fieldLabels[f] || f}</td>
+                                            <td>{d.original || '-'}</td>
+                                            <td>{d.rechecked || '-'}</td>
+                                            <td></td>
+                                          </tr>
+                                        );
+                                      })}
+                                      {rc.holder_user && (
+                                        <tr className={rc.holder_user.match ? 'match':'mismatch'}>
+                                          <td>holder vs user</td>
+                                          <td colSpan={2}>{rc.holder_user.snapshot_holder || rc.holder_user.rechecked_holder || '-'} ⇔ {rc.holder_user.user_name}</td>
+                                          <td></td>
+                                        </tr>
+                                      )}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </section>
                 <section>
                   <h4>Video giới thiệu</h4>
                   {detail.application.introduction_video ? (
-                    <video controls width="100%" src={detail.application.introduction_video.video_url} />
+                    <div className={`intro-video-wrapper ${videoMeta?.orientation || ''}`}>
+                      <div className="intro-video-aspect">
+                        <video
+                          controls
+                          src={detail.application.introduction_video.video_url}
+                          onLoadedMetadata={(e)=> {
+                            try {
+                              const v = e.target;
+                              const w = v.videoWidth; const h = v.videoHeight;
+                              let orientation = 'landscape';
+                              if (h > w) orientation = 'portrait'; else if (Math.abs(w-h) < 40) orientation = 'square';
+                              setVideoMeta({ orientation, width:w, height:h });
+                            } catch(_){}
+                          }}
+                        />
+                      </div>
+                      <div className="intro-video-meta">
+                        <div className="intro-video-title">{detail.application.introduction_video.title || 'Video giới thiệu'}</div>
+                        {(detail.application.introduction_video.description || '').trim() ? (
+                          <div className="intro-video-desc">{detail.application.introduction_video.description}</div>
+                        ) : (
+                          <div className="intro-video-desc empty">(Không có mô tả)</div>
+                        )}
+                      </div>
+                    </div>
                   ) : <em>Không có</em> }
                 </section>
                 {detail.application.status === 'Pending' && (

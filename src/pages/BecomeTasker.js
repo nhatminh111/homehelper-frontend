@@ -26,6 +26,19 @@ const BecomeTasker = () => {
   const [extracting, setExtracting] = useState(null); // { service_id, idx }
   const [introVideo, setIntroVideo] = useState(null); // { video_url, public_id, title, description, uploading }
   const [videoUploading, setVideoUploading] = useState(false);
+  // Current user/account name (for holder comparison)
+  const [accountName, setAccountName] = useState('');
+
+  useEffect(()=>{
+    // Try to get user info from localStorage (assuming auth stores user object JSON under 'user')
+    try {
+      const raw = localStorage.getItem('user');
+      if (raw) {
+        const obj = JSON.parse(raw);
+        if (obj && obj.name) setAccountName(obj.name);
+      }
+    } catch(e){ /* silent */ }
+  }, []);
 
   // Fetch services + variants
   useEffect(() => {
@@ -90,7 +103,7 @@ const BecomeTasker = () => {
   const addBlankCert = (service_id) => {
     setServiceCerts(prev => ({
       ...prev,
-      [service_id]: [...(prev[service_id] || []), { cert_name: '', cert_file_url: '', issued_by: '', issued_date: '', service_id }]
+      [service_id]: [...(prev[service_id] || []), { cert_name: '', cert_file_url: '', issued_by: '', issued_date: '', holder_name: '', holder_authorization_confirmed: false, service_id }]
     }));
   };
 
@@ -216,6 +229,8 @@ const BecomeTasker = () => {
               cert_file_url: row.cert_file_url,
               issued_by: row.parsed_issued_by || row.issued_by || '',
               issued_date: row.parsed_issued_date || row.issued_date || '',
+              holder_name: row.parsed_holder_name || row.parsed_holder_name || '',
+              holder_authorization_confirmed: false,
               service_id,
               ai_confidence: row.ai_confidence,
               ai_status: row.ai_status,
@@ -239,6 +254,8 @@ const BecomeTasker = () => {
               cert_file_url: f.url,
               issued_by: '',
               issued_date: '',
+              holder_name: '',
+              holder_authorization_confirmed: false,
               service_id
             });
           }
@@ -249,6 +266,8 @@ const BecomeTasker = () => {
             cert_file_url: f.url,
             issued_by: '',
             issued_date: '',
+            holder_name: '',
+              holder_authorization_confirmed: false,
             service_id
           });
         }
@@ -306,6 +325,7 @@ const BecomeTasker = () => {
             cert_name: row.parsed_cert_name || row.cert_name || c.cert_name,
             issued_by: row.parsed_issued_by || row.issued_by || c.issued_by,
             issued_date: row.parsed_issued_date || row.issued_date || c.issued_date,
+            holder_name: row.parsed_holder_name || c.holder_name || '',
             ai_confidence: row.ai_confidence,
             ai_status: row.ai_status,
             needs_review: row.needs_review,
@@ -337,6 +357,7 @@ const BecomeTasker = () => {
             cert_name: updated.parsed_cert_name || c.cert_name,
             issued_by: updated.parsed_issued_by || c.issued_by,
             issued_date: updated.parsed_issued_date || c.issued_date,
+            holder_name: updated.parsed_holder_name || c.holder_name || '',
             ai_confidence: updated.ai_confidence,
             ai_status: updated.ai_status,
             needs_review: updated.needs_review,
@@ -378,20 +399,38 @@ const BecomeTasker = () => {
           ai_confidence: c.ai_confidence,
           ai_status: c.ai_status,
           needs_review: c.needs_review,
+          holder_name: c.holder_name || c.parsed_holder_name,
           parsed_cert_name: c.parsed_cert_name,
           parsed_issued_by: c.parsed_issued_by,
           parsed_issued_date: c.parsed_issued_date,
-          parsed_holder_name: c.parsed_holder_name,
+          parsed_holder_name: c.holder_name || c.parsed_holder_name,
           parsed_grade_or_level: c.parsed_grade_or_level,
           parsed_certificate_code: c.parsed_certificate_code,
           extracted_payload: c.extracted_payload,
           ai_detected_service: c.ai_detected_service,
           ai_service_match: c.ai_service_match,
-          ai_service_score: c.ai_service_score
+          ai_service_score: c.ai_service_score,
+          holder_mismatch: (()=>{
+            const inferredHolder = (c.holder_name || c.parsed_holder_name || '').trim();
+            const normalizedAccount = (accountName||'').trim().toLowerCase();
+            if (!inferredHolder || !normalizedAccount) return false;
+            return inferredHolder.toLowerCase() !== normalizedAccount;
+          })(),
+          holder_authorization_confirmed: !!c.holder_authorization_confirmed
         }));
       // Client side validation for required services
       if (requiredServiceIds.length && hasMissingRequired) {
         throw new Error('Vui lòng thêm ít nhất 1 chứng chỉ cho tất cả dịch vụ yêu cầu.');
+      }
+      // Confirmation if any holder mismatch
+      const anyHolderMismatch = certifications.some(c => c.holder_mismatch);
+      const unconfirmedMismatch = certifications.some(c => c.holder_mismatch && !c.holder_authorization_confirmed);
+      if (unconfirmedMismatch) {
+        throw new Error('Bạn phải xác nhận quyền sở hữu/ủy quyền cho các chứng chỉ có holder khác tên tài khoản.');
+      }
+      if (anyHolderMismatch) {
+        const ok = window.confirm('Một hoặc nhiều chứng chỉ có tên holder khác tên tài khoản. Bạn vẫn muốn gửi?');
+        if (!ok) { setLoading(false); return; }
       }
       const body = { introduce, variant_ids: selectedVariants, certifications };
       if (introVideo && introVideo.video_url) {
@@ -557,8 +596,11 @@ const BecomeTasker = () => {
                         const warnHolder = c.validation && c.validation.holder_name_match === false;
                         const aiDetected = c.ai_detected_service;
                         const aiServiceMismatch = c.ai_service_match === false || c.ai_service_mismatch;
+                        const normalizedAccount = (accountName||'').trim().toLowerCase();
+                        const inferredHolder = (c.holder_name || c.parsed_holder_name || '').trim();
+                        const holderMismatch = inferredHolder && normalizedAccount && inferredHolder.toLowerCase() !== normalizedAccount;
                         return (
-                        <div key={idx} className={`position-relative border rounded p-3 mb-3 bg-light-subtle ${warnHolder ? 'border-warning' : ''} ${c.error_type ? 'border-danger' : ''} ${extracting && extracting.service_id === group.service.service_id && extracting.idx === idx ? 'opacity-50' : ''}`}>
+                        <div key={idx} className={`position-relative border rounded p-3 mb-3 bg-light-subtle ${warnHolder || holderMismatch ? 'border-warning' : ''} ${c.error_type ? 'border-danger' : ''} ${extracting && extracting.service_id === group.service.service_id && extracting.idx === idx ? 'opacity-50' : ''}`}>
                           {extracting && extracting.service_id === group.service.service_id && extracting.idx === idx && (
                             <div className="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center" style={{backdropFilter:'blur(2px)', zIndex:20, background:'rgba(255,255,255,0.65)'}}>
                               <div className="spinner-border text-primary mb-2" role="status" style={{width:'2.5rem', height:'2.5rem'}}>
@@ -606,6 +648,8 @@ const BecomeTasker = () => {
                             <div className="col-md-4">
                               <label className="form-label form-label-sm mb-1">Tên đơn vị cấp chứng chỉ</label>
                               <textarea rows={2} className="form-control form-control-sm" style={{resize:'vertical'}} placeholder="Trường / Tổ chức cấp" value={c.issued_by} onChange={(e) => updateServiceCertField(group.service.service_id, idx, 'issued_by', e.target.value)} />
+                              <label className="form-label form-label-sm mb-1 mt-2">Tên trên chứng chỉ (Holder)</label>
+                              <input type="text" className="form-control form-control-sm" placeholder="Tên người được cấp" value={c.holder_name || c.parsed_holder_name || ''} onChange={(e)=> updateServiceCertField(group.service.service_id, idx, 'holder_name', e.target.value)} />
                             </div>
                             <div className="col-md-2">
                               <label className="form-label form-label-sm mb-1">Mã chứng chỉ</label>
@@ -642,6 +686,25 @@ const BecomeTasker = () => {
                           {warnHolder && (
                             <div className="alert alert-warning mt-2 py-1 mb-0 small">
                               Tên trên chứng chỉ khác tên tài khoản. Vui lòng kiểm tra lại (User: {c.validation.holder_compare?.user_name} / Extract: {c.validation.holder_compare?.extracted_holder_name}).
+                            </div>
+                          )}
+                          {!warnHolder && holderMismatch && (
+                            <div className="alert alert-warning mt-2 py-1 mb-0 small">
+                              Holder name khác tên tài khoản: <strong>{inferredHolder}</strong> ≠ <strong>{accountName}</strong>.
+                            </div>
+                          )}
+                          {holderMismatch && (
+                            <div className="form-check mt-2 small">
+                              <input
+                                type="checkbox"
+                                className="form-check-input"
+                                id={`auth-confirm-${group.service.service_id}-${idx}`}
+                                checked={!!c.holder_authorization_confirmed}
+                                onChange={(e)=> updateServiceCertField(group.service.service_id, idx, 'holder_authorization_confirmed', e.target.checked)}
+                              />
+                              <label className="form-check-label" htmlFor={`auth-confirm-${group.service.service_id}-${idx}`}>
+                                Tôi xác nhận tôi là chủ sở hữu hoặc được ủy quyền sử dụng chứng chỉ này.
+                              </label>
                             </div>
                           )}
                           {aiServiceMismatch && !c.error_type && (
