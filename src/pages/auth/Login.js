@@ -146,25 +146,6 @@ const Login = () => {
           </div>
           <h1 className="logo-text">HomeHelper</h1>
         </div>
-
-        {/* User Type Selector */}
-        <div className="user-type-selector">
-          <button
-            className={`type-option ${userType === "user" ? "active" : ""}`}
-            onClick={() => setUserType("user")}
-          >
-            <FontAwesomeIcon icon={faUser} />
-            <span>User</span>
-          </button>
-          <button
-            className={`type-option ${userType === "tasker" ? "active" : ""}`}
-            onClick={() => setUserType("tasker")}
-          >
-            <FontAwesomeIcon icon={faStar} />
-            <span>Tasker</span>
-          </button>
-        </div>
-
         {/* Login Form */}
         <div className="auth-card">
           <h2 className="auth-title">Sign In</h2>

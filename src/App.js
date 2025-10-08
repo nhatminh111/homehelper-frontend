@@ -135,6 +135,7 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="/tasker-search" element={<TaskerSearch />} />
+              <Route path="/tasker-profile" element={<TaskerProfile />} />
               <Route path="/tasker-profile/:id" element={<TaskerProfile />} />
               <Route path="/account" element={
                 <ProtectedRoute>
