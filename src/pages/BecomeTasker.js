@@ -1,13 +1,28 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import serviceService from '../services/serviceService';
 // Use same base URL strategy as api.js
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
-// Helper fetch with auth header
+// Helper fetch with auth header (supports multiple token storage keys)
 const authFetch = async (url, options = {}) => {
-  const token = localStorage.getItem('token');
+  let token = null;
+  try {
+    token = localStorage.getItem('token')
+      || localStorage.getItem('accessToken')
+      || localStorage.getItem('authToken')
+      || localStorage.getItem('jwt');
+    if (!token) {
+      const userRaw = localStorage.getItem('user');
+      if (userRaw) {
+        const user = JSON.parse(userRaw);
+        token = user?.token || user?.accessToken || user?.authToken || null;
+      }
+    }
+  } catch (_) { /* ignore */ }
   const headers = options.headers ? { ...options.headers } : {};
   if (token) headers['Authorization'] = `Bearer ${token}`;
+  // Default JSON accept for API endpoints
+  if (!headers['Accept']) headers['Accept'] = 'application/json';
   return fetch(url, { ...options, headers });
 };
 
@@ -17,7 +32,7 @@ const BecomeTasker = () => {
   const [selectedServiceId, setSelectedServiceId] = useState('');
   // Removed serviceSearch per refinement
   const [selectedVariants, setSelectedVariants] = useState([]); // variant_id list
-  // Certificates per service: { [service_id]: [{ cert_name, cert_file_url, issued_by, issued_date, service_id }] }
+  // Certificates per service: { [service_id]: [{ cert_name, cert_public_id, delivery_type, _signed_url, _signed_expiry, issued_by, issued_date, service_id, needsSigned }] }
   const [serviceCerts, setServiceCerts] = useState({});
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -103,7 +118,7 @@ const BecomeTasker = () => {
   const addBlankCert = (service_id) => {
     setServiceCerts(prev => ({
       ...prev,
-      [service_id]: [...(prev[service_id] || []), { cert_name: '', cert_file_url: '', issued_by: '', issued_date: '', holder_name: '', holder_authorization_confirmed: false, service_id }]
+      [service_id]: [...(prev[service_id] || []), { cert_name: '', issued_by: '', issued_date: '', holder_name: '', holder_authorization_confirmed: false, service_id }]
     }));
   };
 
@@ -120,6 +135,88 @@ const BecomeTasker = () => {
       [service_id]: (prev[service_id] || []).filter((_, i) => i !== idx)
     }));
   };
+
+  // ---- Authenticated certificate signed URL management ----
+  const fetchSignedCertificateUrl = useCallback(async (cert_id) => {
+    if (!cert_id) return null;
+    try {
+      const res = await authFetch(`${API_BASE_URL}/tasker/certifications/${cert_id}/signed-url`);
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.message || 'Failed signed URL');
+      return json.data; // { url, expiresAt }
+    } catch (e) {
+      console.warn('fetchSignedCertificateUrl error', e.message);
+      return null;
+    }
+  }, []);
+
+  // Also allow fetching a signed URL when we only have cert_public_id (new BE route)
+  const fetchSignedCertificateUrlByPublicId = useCallback(async (public_id) => {
+    if (!public_id) return null;
+    try {
+      const url = `${API_BASE_URL}/tasker/certifications/signed-url?public_id=${encodeURIComponent(public_id)}`;
+      const res = await authFetch(url);
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.message || 'Failed signed URL by public_id');
+      return json.data; // { url, expiresAt }
+    } catch (e) {
+      console.warn('fetchSignedCertificateUrlByPublicId error', e.message);
+      return null;
+    }
+  }, []);
+
+  const refreshSignedUrl = useCallback(async (service_id, idx) => {
+    const list = serviceCerts[service_id] || [];
+    const cert = list[idx];
+    if (!cert || cert.delivery_type !== 'authenticated' || (!cert.cert_id && !cert.cert_public_id)) return;
+    // Prefer fetching by cert_id; fallback to public_id
+    const signed = cert.cert_id
+      ? await fetchSignedCertificateUrl(cert.cert_id)
+      : await fetchSignedCertificateUrlByPublicId(cert.cert_public_id);
+    if (signed && signed.url) {
+      let expiresAtMs = undefined;
+      if (typeof signed.expiresAt === 'string') {
+        const parsed = Date.parse(signed.expiresAt);
+        expiresAtMs = isNaN(parsed) ? undefined : parsed;
+      } else if (typeof signed.expiresAt === 'number') {
+        // Some backends return seconds; convert to ms if it looks like seconds
+        expiresAtMs = signed.expiresAt < 1e12 ? signed.expiresAt * 1000 : signed.expiresAt;
+      }
+      setServiceCerts(prev => ({
+        ...prev,
+        [service_id]: (prev[service_id] || []).map((c,i)=> i===idx ? { ...c, _signed_url: signed.url, _signed_expiry: expiresAtMs } : c)
+      }));
+    }
+  }, [serviceCerts, fetchSignedCertificateUrl, fetchSignedCertificateUrlByPublicId]);
+
+  // Periodically refresh about-to-expire URLs (within 30s)
+  useEffect(()=>{
+    const interval = setInterval(()=>{
+      const now = Date.now();
+      Object.entries(serviceCerts).forEach(([sid, list])=>{
+        list.forEach((c, idx)=>{
+          if (c.delivery_type === 'authenticated') {
+            const exp = (typeof c._signed_expiry === 'number') ? c._signed_expiry : (c._signed_expiry ? Date.parse(c._signed_expiry) : undefined);
+            if ((c.cert_id || c.cert_public_id) && exp && exp - now < 30000) {
+              refreshSignedUrl(sid, idx);
+            }
+          }
+        });
+      });
+    }, 15000);
+    return ()=> clearInterval(interval);
+  }, [serviceCerts, refreshSignedUrl]);
+
+  // Initial fetch for any persisted authenticated certs lacking signed URL
+  useEffect(()=>{
+    Object.entries(serviceCerts).forEach(([sid, list])=>{
+      list.forEach((c, idx)=>{
+        if (c.delivery_type === 'authenticated' && (c.cert_id || c.cert_public_id) && !c._signed_url) {
+          refreshSignedUrl(sid, idx);
+        }
+      });
+    });
+  }, [serviceCerts, refreshSignedUrl]);
 
   const handleCertFileUpload = async (service_id, files) => {
     if (!files || !files.length) return;
@@ -147,7 +244,10 @@ const BecomeTasker = () => {
             body: JSON.stringify({
               service_id,
               cert_name: f.original,
-              cert_file_url: f.url,
+              // Do not send direct URL for authenticated uploads
+              ...(f.delivery_type === 'authenticated' ? {} : { cert_file_url: f.url }),
+              cert_public_id: f.public_id,
+              delivery_type: f.delivery_type,
               variant_ids: selectedVariants
             })
           });
@@ -199,7 +299,11 @@ const BecomeTasker = () => {
             console.warn('Duplicate certificate skipped:', createJson.message);
             createdCerts.push({
               cert_name: f.original,
-              cert_file_url: f.url,
+              // Do not store direct URL for authenticated assets
+              ...(f.delivery_type === 'authenticated' ? {} : { cert_file_url: f.url }),
+              cert_public_id: f.public_id || null,
+              delivery_type: f.delivery_type || null,
+              needsSigned: f.delivery_type === 'authenticated' || !!f.public_id,
               service_id,
               error_type: 'duplicate',
               error_message: createJson.message
@@ -210,7 +314,10 @@ const BecomeTasker = () => {
             console.warn('Validation error certificate kept:', createJson.message);
             createdCerts.push({
               cert_name: f.original,
-              cert_file_url: f.url,
+              ...(f.delivery_type === 'authenticated' ? {} : { cert_file_url: f.url }),
+              cert_public_id: f.public_id || null,
+              delivery_type: f.delivery_type || null,
+              needsSigned: f.delivery_type === 'authenticated' || !!f.public_id,
               service_id,
               error_type: 'validation',
               error_message: createJson.message,
@@ -226,7 +333,10 @@ const BecomeTasker = () => {
             createdCerts.push({
               cert_id: row.cert_id,
               cert_name: row.parsed_cert_name || row.cert_name || f.original,
-              cert_file_url: row.cert_file_url,
+              cert_file_url: row.cert_file_url, // may be null when authenticated
+              cert_public_id: row.cert_public_id || f.public_id || null,
+              delivery_type: row.delivery_type || f.delivery_type || null,
+              needsSigned: (row.delivery_type === 'authenticated' || !!row.cert_public_id),
               issued_by: row.parsed_issued_by || row.issued_by || '',
               issued_date: row.parsed_issued_date || row.issued_date || '',
               holder_name: row.parsed_holder_name || row.parsed_holder_name || '',
@@ -251,7 +361,10 @@ const BecomeTasker = () => {
           } else {
             createdCerts.push({
               cert_name: f.original,
-              cert_file_url: f.url,
+              ...(f.delivery_type === 'authenticated' ? {} : { cert_file_url: f.url }),
+              cert_public_id: f.public_id || null,
+              delivery_type: f.delivery_type || null,
+              needsSigned: f.delivery_type === 'authenticated' || !!f.public_id,
               issued_by: '',
               issued_date: '',
               holder_name: '',
@@ -263,7 +376,10 @@ const BecomeTasker = () => {
           console.error('Create cert failed', inner);
           createdCerts.push({
             cert_name: f.original,
-            cert_file_url: f.url,
+            ...(f.delivery_type === 'authenticated' ? {} : { cert_file_url: f.url }),
+            cert_public_id: f.public_id || null,
+            delivery_type: f.delivery_type || null,
+            needsSigned: f.delivery_type === 'authenticated' || !!f.public_id,
             issued_by: '',
             issued_date: '',
             holder_name: '',
@@ -287,11 +403,7 @@ const BecomeTasker = () => {
     try {
       setExtracting({ service_id, idx });
       const cert = (serviceCerts[service_id] || [])[idx];
-      if (!cert || !cert.cert_file_url) {
-        alert('Chứng chỉ chưa có URL file.');
-        setExtracting(null);
-        return;
-      }
+      if (!cert) { alert('Thiếu dữ liệu chứng chỉ.'); setExtracting(null); return; }
       if (!cert.cert_id) {
         const createRes = await authFetch(`${API_BASE_URL}/tasker/certifications`, {
           method: 'POST',
@@ -299,7 +411,9 @@ const BecomeTasker = () => {
           body: JSON.stringify({
             service_id,
             cert_name: cert.cert_name || 'Chứng chỉ',
-            cert_file_url: cert.cert_file_url,
+            // backend will handle signed URL generation when authenticated
+            cert_public_id: cert.cert_public_id,
+            delivery_type: cert.delivery_type,
             issued_by: cert.issued_by || '',
             issued_date: cert.issued_date || '',
             variant_ids: selectedVariants
@@ -358,6 +472,8 @@ const BecomeTasker = () => {
             issued_by: updated.parsed_issued_by || c.issued_by,
             issued_date: updated.parsed_issued_date || c.issued_date,
             holder_name: updated.parsed_holder_name || c.holder_name || '',
+            cert_public_id: updated.cert_public_id || c.cert_public_id,
+            delivery_type: updated.delivery_type || c.delivery_type,
             ai_confidence: updated.ai_confidence,
             ai_status: updated.ai_status,
             needs_review: updated.needs_review,
@@ -388,11 +504,14 @@ const BecomeTasker = () => {
     try {
       const certifications = Object.values(serviceCerts)
         .flat()
-        .filter(c => c.cert_name && c.cert_file_url)
+        // Accept either direct URL (legacy) or authenticated via public_id
+        .filter(c => c.cert_name && (c.cert_public_id || c.cert_file_url))
         .map(c => ({
           cert_id: c.cert_id,
           cert_name: c.cert_name,
-          cert_file_url: c.cert_file_url,
+          cert_file_url: (c.delivery_type === 'authenticated' || c.needsSigned) ? null : c.cert_file_url,
+          cert_public_id: c.cert_public_id,
+          delivery_type: c.delivery_type,
           issued_by: c.issued_by,
           issued_date: c.issued_date,
           service_id: c.service_id,
@@ -623,19 +742,24 @@ const BecomeTasker = () => {
                           <div className="row g-2 mb-2 align-items-start">
                             <div className="col-md-4">
                               <label className="form-label form-label-sm mb-1">Ảnh / File chứng chỉ</label>
-                              {c.cert_file_url ? (
+                              {(c.cert_file_url || (c.delivery_type==='authenticated' && c._signed_url)) ? (
                                 <div className="position-relative border rounded p-1 bg-white">
-                                  {(/\.(pdf)(\?|$)/i).test(c.cert_file_url) ? (
+                                  {(/\.(pdf)(\?|$)/i).test((c.delivery_type==='authenticated' && c._signed_url) ? c._signed_url : c.cert_file_url || '') ? (
                                     <div className="small text-muted text-center" style={{minHeight: '120px'}}>
-                                      <a href={c.cert_file_url} target="_blank" rel="noreferrer">Xem file PDF</a>
+                                      <a href={(c.delivery_type==='authenticated' && c._signed_url) ? c._signed_url : c.cert_file_url} target="_blank" rel="noreferrer">Xem file PDF</a>
                                     </div>
                                   ) : (
                                     <img
-                                      src={c.cert_file_url}
+                                      src={(c.delivery_type==='authenticated' && c._signed_url) ? c._signed_url : c.cert_file_url}
                                       alt="cert"
                                       className="img-fluid d-block mx-auto hover-shadow"
                                       style={{maxHeight:'140px', objectFit:'contain', cursor:'zoom-in'}}
-                                      onClick={() => setZoomImage(c.cert_file_url)}
+                                      onClick={() => setZoomImage((c.delivery_type==='authenticated' && c._signed_url) ? c._signed_url : c.cert_file_url)}
+                                      onError={() => {
+                                        if (c.delivery_type==='authenticated' && (c.cert_id || c.cert_public_id)) {
+                                          refreshSignedUrl(group.service.service_id, idx);
+                                        }
+                                      }}
                                     />
                                   )}
                                 </div>

@@ -3,6 +3,31 @@ import './StaffApplications.css';
 import { useAuth } from '../contexts/AuthContext';
 import { taskerApplicationsAPI, servicesAPI } from '../services/api';
 
+// Use same base URL strategy as other pages
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+
+// Helper fetch with Authorization header
+const authFetch = async (url, token, options = {}) => {
+  const headers = options.headers ? { ...options.headers } : {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  if (!headers['Accept']) headers['Accept'] = 'application/json';
+  return fetch(url, { ...options, headers });
+};
+
+// Fetch a short-lived signed URL by Cloudinary public_id
+const fetchSignedCertificateUrlByPublicId = async (public_id, token) => {
+  if (!public_id) return null;
+  try {
+    const res = await authFetch(`${API_BASE_URL}/tasker/certifications/signed-url?public_id=${encodeURIComponent(public_id)}`, token);
+    const json = await res.json();
+    if (!res.ok || !json.success) throw new Error(json.message || 'Failed to get signed URL');
+    return json.data; // { url, expiresAt }
+  } catch (e) {
+    console.warn('[StaffApplications] signed-url by public_id failed', e.message);
+    return null;
+  }
+};
+
 export default function StaffApplications() {
   const { token, isStaff, user } = useAuth();
   const [apps, setApps] = useState([]);
@@ -21,6 +46,7 @@ export default function StaffApplications() {
   const [recheckData, setRecheckData] = useState(null); // shape: { overall, certifications, recheck_at }
   const [recheckError, setRecheckError] = useState(null);
   const [portraitMap, setPortraitMap] = useState({}); // {cert_url: true|false}
+  const [previewMap, setPreviewMap] = useState({}); // {application_id: { url, expiresAt, key }}
   const [videoMeta, setVideoMeta] = useState(null); // {orientation, width, height}
   // Active certificate index for highlighting & sync with AI results
   const [activeCert, setActiveCert] = useState(null);
@@ -85,6 +111,22 @@ export default function StaffApplications() {
         rows = rows.filter(r => (r.user_name||'').toLowerCase().includes(q) || (r.email||'').toLowerCase().includes(q));
       }
       setApps(rows);
+      // Resolve one preview image per application if authenticated
+      rows.forEach(async (a) => {
+        const certs = Array.isArray(a.certifications) ? a.certifications : [];
+        const candidate = certs.find(c => c.delivery_type === 'authenticated' && c.cert_public_id) ||
+                          certs.find(c => c.cert_file_url);
+        if (!candidate) return;
+        // For authenticated certs, fetch signed URL by public_id
+        if (candidate.delivery_type === 'authenticated' && candidate.cert_public_id) {
+          const signed = await fetchSignedCertificateUrlByPublicId(candidate.cert_public_id, token);
+          if (signed && signed.url) {
+            setPreviewMap(prev => ({ ...prev, [a.application_id]: { url: signed.url, expiresAt: signed.expiresAt, key: candidate.cert_public_id } }));
+          }
+        } else if (candidate.cert_file_url) {
+          setPreviewMap(prev => ({ ...prev, [a.application_id]: { url: candidate.cert_file_url, expiresAt: null, key: candidate.cert_file_url } }));
+        }
+      });
     } catch (e) {
       setError(e.message);
     } finally { setLoading(false); }
@@ -112,7 +154,21 @@ export default function StaffApplications() {
     console.debug('[StaffApplications] openDetail start', id);
     try {
       const data = await taskerApplicationsAPI.detail(id, token);
-      setDetail(data.data || data);
+      const core = data.data || data;
+      // Enrich certifications with signed URLs where needed
+      if (core && core.application && Array.isArray(core.application.certifications)) {
+        const enriched = await Promise.all(core.application.certifications.map(async (c) => {
+          if (c && c.delivery_type === 'authenticated' && c.cert_public_id) {
+            const signed = await fetchSignedCertificateUrlByPublicId(c.cert_public_id, token);
+            if (signed && signed.url) {
+              return { ...c, _signed_url: signed.url, _signed_expiry: signed.expiresAt };
+            }
+          }
+          return c;
+        }));
+        core.application.certifications = enriched;
+      }
+      setDetail(core);
     } catch(e){
       console.warn('[StaffApplications] openDetail error', e);
       setDetailError(e.message);
@@ -143,7 +199,10 @@ export default function StaffApplications() {
         <div className="apps-grid horizontal-list">
           {apps.map(a => {
             const certs = Array.isArray(a.certifications) ? a.certifications : [];
-            const firstImg = certs.find(c => c.cert_file_url && /(jpg|jpeg|png|gif|webp)$/i.test(c.cert_file_url));
+            const preview = previewMap[a.application_id];
+            const firstImg = preview
+              ? { cert_file_url: preview.url, isSigned: true, key: preview.key }
+              : certs.find(c => c.cert_file_url && /(jpg|jpeg|png|gif|webp)$/i.test(c.cert_file_url));
             const firstCert = certs[0];
             const firstCertName = firstCert ? (firstCert.cert_name || firstCert.parsed_cert_name || '') : '';
             // Services summary via variants (best-effort mapping)
@@ -177,15 +236,29 @@ export default function StaffApplications() {
                         alt="cert"
                         className="cert-preview"
                         loading="lazy"
-                        onLoad={(ev)=>{
+                        onLoad={(ev) => {
                           try {
                             const img = ev.target;
                             if (img.naturalHeight > img.naturalWidth) {
-                              setPortraitMap(pm => ({...pm, [firstImg.cert_file_url]: true}));
+                              setPortraitMap(pm => ({ ...pm, [firstImg.cert_file_url]: true }));
                             } else {
-                              setPortraitMap(pm => ({...pm, [firstImg.cert_file_url]: false}));
+                              setPortraitMap(pm => ({ ...pm, [firstImg.cert_file_url]: false }));
                             }
-                          } catch(_){}
+                          } catch (_) {}
+                        }}
+                        onError={async () => {
+                          // Always try to refresh on error; avoid infinite loop by checking URL change
+                          const p = previewMap[a.application_id];
+                          try {
+                            if (p && p.key) {
+                              const signed = await fetchSignedCertificateUrlByPublicId(p.key, token);
+                              if (signed && signed.url && signed.url !== p.url) {
+                                setPreviewMap(prev => ({ ...prev, [a.application_id]: { url: signed.url, expiresAt: signed.expiresAt, key: p.key } }));
+                              }
+                            }
+                          } catch (e) {
+                            console.warn('[StaffApplications] refresh preview error', e && e.message);
+                          }
                         }}
                       />
                     )}
@@ -291,7 +364,8 @@ export default function StaffApplications() {
                     <div className="cert-left-col" style={{flex: '1 1 55%', minWidth:0}}>
                       <ul className="cert-list">
                         {detail.application.certifications?.map((c,i)=>{
-                          const isImage = c.cert_file_url && /(\.jpg|\.jpeg|\.png|\.gif|\.webp)$/i.test(c.cert_file_url);
+                          const resolvedUrl = (c.delivery_type === 'authenticated' && c._signed_url) ? c._signed_url : c.cert_file_url;
+                          const isImage = (c.delivery_type === 'authenticated' && !!resolvedUrl) || (resolvedUrl && /(\.jpg|\.jpeg|\.png|\.gif|\.webp)$/i.test(resolvedUrl));
                           return (
                             <li key={i} className={activeCert===i? 'active-cert' : ''} onMouseEnter={()=>setActiveCert(i)} onFocus={()=>setActiveCert(i)} onClick={()=>setActiveCert(i)}>
                               <div className="cert-row no-ai-inline" style={{cursor:'pointer'}}>
@@ -305,11 +379,31 @@ export default function StaffApplications() {
                                     )}
                                   </div>
                                   {isImage && (
-                                    <div className="cert-thumb-wrap" onClick={()=> setZoomSrc(c.cert_file_url)}>
-                                      <img loading="lazy" src={c.cert_file_url} alt={c.cert_name || 'certificate'} className="cert-thumb" />
+                                    <div className="cert-thumb-wrap" onClick={()=> setZoomSrc(resolvedUrl)}>
+                                      <img
+                                        loading="lazy"
+                                        src={resolvedUrl}
+                                        alt={c.cert_name || 'certificate'}
+                                        className="cert-thumb"
+                                        onError={async ()=>{
+                                          if (c.delivery_type === 'authenticated' && c.cert_public_id) {
+                                            const signed = await fetchSignedCertificateUrlByPublicId(c.cert_public_id, token);
+                                            if (signed && signed.url) {
+                                              // Update detail state with refreshed URL
+                                              setDetail(d => {
+                                                if (!d) return d;
+                                                const clone = { ...d, application: { ...d.application } };
+                                                clone.application.certifications = [...(clone.application.certifications||[])];
+                                                clone.application.certifications[i] = { ...clone.application.certifications[i], _signed_url: signed.url, _signed_expiry: signed.expiresAt };
+                                                return clone;
+                                              });
+                                            }
+                                          }
+                                        }}
+                                      />
                                     </div>
                                   )}
-                                  {!isImage && c.cert_file_url && <a href={c.cert_file_url} target="_blank" rel="noreferrer">Mở file</a>}
+                                  {!isImage && resolvedUrl && <a href={resolvedUrl} target="_blank" rel="noreferrer">Mở file</a>}
                                   {c.parsed_certificate_code && <div className="cert-meta"><span>Mã:</span> {c.parsed_certificate_code}</div>}
                                   {c.issued_by && <div className="cert-meta"><span>Đơn vị cấp:</span> {c.issued_by}</div>}
                                   {c.issued_date && <div className="cert-meta"><span>Ngày cấp:</span> {c.issued_date}</div>}
