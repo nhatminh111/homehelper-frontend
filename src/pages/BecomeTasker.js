@@ -26,6 +26,62 @@ const authFetch = async (url, options = {}) => {
   return fetch(url, { ...options, headers });
 };
 
+// Helper to read auth token (same sources as authFetch) and decode JWT payload to get user id
+const getAuthToken = () => {
+  try {
+    let t = localStorage.getItem('token')
+      || localStorage.getItem('accessToken')
+      || localStorage.getItem('authToken')
+      || localStorage.getItem('jwt');
+    if (!t) {
+      const raw = localStorage.getItem('user');
+      if (raw) {
+        const u = JSON.parse(raw);
+        t = u?.token || u?.accessToken || u?.authToken || null;
+      }
+    }
+    return t;
+  } catch { return null; }
+};
+
+const decodeJwt = (token) => {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const json = JSON.parse(decodeURIComponent(escape(window.atob(payload))));
+    return json;
+  } catch { return null; }
+};
+
+// --- Name comparison helpers for holder vs account name ---
+const normalizeName = (s) => {
+  try {
+    return (s || '')
+      .toString()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // remove diacritics
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim()
+      .replace(/\s+/g, ' ');
+  } catch { return (s || '').toString().toLowerCase().trim(); }
+};
+const tokenizeName = (s) => normalizeName(s).split(' ').filter(Boolean);
+const compareNames = (a, b) => {
+  const na = normalizeName(a);
+  const nb = normalizeName(b);
+  if (!na || !nb) return { match: false, score: 0, reason: 'empty' };
+  if (na === nb) return { match: true, score: 1, reason: 'exact' };
+  if (na.includes(nb) || nb.includes(na)) return { match: true, score: 0.9, reason: 'substring' };
+  const ta = new Set(tokenizeName(a));
+  const tb = new Set(tokenizeName(b));
+  const inter = [...ta].filter(t => tb.has(t)).length;
+  const union = new Set([...ta, ...tb]).size;
+  const score = union ? inter / union : 0;
+  return { match: score >= 0.6, score, reason: 'jaccard' };
+};
+
 const BecomeTasker = () => {
   const [introduce, setIntroduce] = useState('');
   const [services, setServices] = useState([]); // full list with variants
@@ -39,10 +95,14 @@ const BecomeTasker = () => {
   const [submitState, setSubmitState] = useState({ done: false, error: null });
   const [zoomImage, setZoomImage] = useState(null);
   const [extracting, setExtracting] = useState(null); // { service_id, idx }
-  const [introVideo, setIntroVideo] = useState(null); // { video_url, public_id, title, description, uploading }
+  const [introVideo, setIntroVideo] = useState(null); // { video_url, public_id, title, description }
   const [videoUploading, setVideoUploading] = useState(false);
   // Current user/account name (for holder comparison)
   const [accountName, setAccountName] = useState('');
+  // Hide form if user already is a Tasker
+  const [isTaskerAccount, setIsTaskerAccount] = useState(null); // null: unknown, true/false: known
+  const [currentUserId, setCurrentUserId] = useState(null);
+  const [tokenUserId, setTokenUserId] = useState(null);
 
   useEffect(()=>{
     // Try to get user info from localStorage (assuming auth stores user object JSON under 'user')
@@ -51,9 +111,57 @@ const BecomeTasker = () => {
       if (raw) {
         const obj = JSON.parse(raw);
         if (obj && obj.name) setAccountName(obj.name);
+        const uid = obj?.user_id || obj?.userId || obj?.id;
+        if (uid) setCurrentUserId(uid);
       }
     } catch(e){ /* silent */ }
   }, []);
+
+  // Check Tasker/app status: hide form if user is already Tasker OR has application Pending/Approved
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        // Prefer user identity from JWT to avoid mismatches with localStorage user object
+        const token = getAuthToken();
+        const decoded = token ? decodeJwt(token) : null;
+        const idFromToken = decoded?.userId || decoded?.user_id || decoded?.id || null;
+        if (idFromToken && idFromToken !== currentUserId) {
+          setCurrentUserId(idFromToken);
+        }
+        setTokenUserId(idFromToken || null);
+        const effectiveUserId = idFromToken || currentUserId;
+        if (!effectiveUserId) { setIsTaskerAccount(false); return; }
+        // 1) Check if already Tasker (only hide when response is OK and payload indicates found) – use effectiveUserId from token when available
+        let alreadyTasker = false;
+        try {
+          const resTasker = await fetch(`${API_BASE_URL}/tasker/${effectiveUserId}`);
+          if (resTasker.ok) {
+            const jt = await resTasker.json().catch(()=>null);
+            if (jt && (jt.success === true) && jt.data) {
+              alreadyTasker = true;
+            }
+          }
+        } catch(_) { /* ignore and continue to my-status */ }
+        if (!cancelled && alreadyTasker) { setIsTaskerAccount(true); return; }
+        // 2) Else check latest application status
+        const resMy = await authFetch(`${API_BASE_URL}/tasker/application/my-status`);
+        const jsonMy = await resMy.json().catch(()=>null);
+        if (!cancelled) {
+          const st = jsonMy?.data?.status;
+          // Hide form when status is Pending or Approved; show when Rejected or no application
+          const hide = st === 'Pending' || st === 'Approved';
+          setIsTaskerAccount(!!hide);
+          if (process.env.NODE_ENV !== 'production') {
+            console.log('[BecomeTasker] tokenUserId=', idFromToken, 'currentUserId=', currentUserId, 'my-status=', jsonMy);
+          }
+        }
+      } catch (_) {
+        if (!cancelled) setIsTaskerAccount(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [currentUserId]);
 
   // Fetch services + variants
   useEffect(() => {
@@ -113,14 +221,9 @@ const BecomeTasker = () => {
   }, [groupedSelected]);
 
   const hasMissingRequired = requiredServiceIds.some(sid => !serviceCerts[sid] || serviceCerts[sid].length === 0);
+  const videoInvalid = !introVideo || !introVideo.video_url || !introVideo.public_id || !(introVideo.title && introVideo.title.trim()) || !(introVideo.description && introVideo.description.trim());
 
-  // Certificate manipulation
-  const addBlankCert = (service_id) => {
-    setServiceCerts(prev => ({
-      ...prev,
-      [service_id]: [...(prev[service_id] || []), { cert_name: '', issued_by: '', issued_date: '', holder_name: '', holder_authorization_confirmed: false, service_id }]
-    }));
-  };
+  // Certificate manipulation (manual add removed; only file upload permitted)
 
   const updateServiceCertField = (service_id, idx, field, value) => {
     setServiceCerts(prev => ({
@@ -531,9 +634,9 @@ const BecomeTasker = () => {
           ai_service_score: c.ai_service_score,
           holder_mismatch: (()=>{
             const inferredHolder = (c.holder_name || c.parsed_holder_name || '').trim();
-            const normalizedAccount = (accountName||'').trim().toLowerCase();
-            if (!inferredHolder || !normalizedAccount) return false;
-            return inferredHolder.toLowerCase() !== normalizedAccount;
+            if (!inferredHolder || !accountName) return false;
+            const cmp = compareNames(inferredHolder, accountName);
+            return !cmp.match;
           })(),
           holder_authorization_confirmed: !!c.holder_authorization_confirmed
         }));
@@ -568,6 +671,8 @@ const BecomeTasker = () => {
       const json = await res.json();
       if (!res.ok) throw new Error(json.message || 'Upgrade failed');
       setSubmitState({ done: true, error: null });
+      // Hide the form immediately without refresh
+      setIsTaskerAccount(true);
     } catch (err) {
       setSubmitState({ done: false, error: err.message });
     } finally {
@@ -577,6 +682,29 @@ const BecomeTasker = () => {
 
   return (
     <>
+      {isTaskerAccount === null ? null : isTaskerAccount ? (
+        <div className="container py-4">
+          <div className="row justify-content-center">
+            <div className="col-lg-10">
+              <div className="bg-white rounded shadow-sm p-4">
+                <h3 className="mb-3">{submitState.done ? 'Gửi đơn thành công' : 'Bạn không thể nộp thêm đơn'}</h3>
+                {submitState.done ? (
+                  <div className="alert alert-success mb-2">
+                    Đơn đăng ký của bạn đã được gửi và đang ở trạng thái <strong>Chờ xử lí</strong>. Bạn sẽ nhận thông báo sau khi Staff xử lý.
+                  </div>
+                ) : (
+                  <div className="alert alert-info mb-2">
+                    Mỗi tài khoản chỉ được nộp 1 đơn. Đơn mới sẽ chỉ được phép khi đơn trước đó hoàn tất.
+                  </div>
+                )}
+                <div className="d-flex gap-2">
+                  <a className="btn btn-outline-primary btn-sm" href="/">Về trang chủ</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
       <div className="container py-4">
         <div className="row justify-content-center">
           <div className="col-lg-10">
@@ -589,12 +717,12 @@ const BecomeTasker = () => {
 
               <form onSubmit={submit}>
                 <div className="form-group mb-3">
-                  <label className="fw-semibold">Giới thiệu bản thân</label>
+                  <label className="fw-semibold">Giới thiệu bản thân <span className="text-danger">*</span></label>
                   <textarea className="form-control" rows={3} value={introduce} onChange={(e) => setIntroduce(e.target.value)} required />
                 </div>
 
                 <div className="mb-4">
-                  <h5 className="d-flex align-items-center gap-2">Dịch vụ & Variants</h5>
+                  <h5 className="d-flex align-items-center gap-2">Dịch vụ <span className="text-danger">*</span></h5>
                   {services.length === 0 && <div className="text-muted small">Đang tải dịch vụ...</div>}
                   {services.length > 0 && (
                     <>
@@ -701,7 +829,6 @@ const BecomeTasker = () => {
                           {group.service.requires_certificate && <span className="badge bg-danger ms-1">Bắt buộc chứng chỉ</span>}
                         </div>
                         <div className="d-flex gap-2">
-                          <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => addBlankCert(group.service.service_id)}>+ Thêm thủ công</button>
                           <label className="btn btn-sm btn-outline-primary mb-0">
                             {uploading ? 'Đang tải...' : 'Upload file'}
                             <input type="file" multiple hidden onChange={(e) => { handleCertFileUpload(group.service.service_id, e.target.files); e.target.value=''; }} />
@@ -709,15 +836,15 @@ const BecomeTasker = () => {
                         </div>
                       </div>
                       {(serviceCerts[group.service.service_id] || []).length === 0 && (
-                        <div className="text-muted small mb-2">Chưa có chứng chỉ</div>
+                        <div className="text-muted small mb-2">Chưa có chứng chỉ. Vui lòng upload file chứng chỉ.</div>
                       )}
                       {(serviceCerts[group.service.service_id] || []).map((c, idx) => {
                         const warnHolder = c.validation && c.validation.holder_name_match === false;
                         const aiDetected = c.ai_detected_service;
                         const aiServiceMismatch = c.ai_service_match === false || c.ai_service_mismatch;
-                        const normalizedAccount = (accountName||'').trim().toLowerCase();
                         const inferredHolder = (c.holder_name || c.parsed_holder_name || '').trim();
-                        const holderMismatch = inferredHolder && normalizedAccount && inferredHolder.toLowerCase() !== normalizedAccount;
+                        const nameCmp = compareNames(inferredHolder, accountName);
+                        const holderMismatch = !!(inferredHolder && accountName && !nameCmp.match);
                         return (
                         <div key={idx} className={`position-relative border rounded p-3 mb-3 bg-light-subtle ${warnHolder || holderMismatch ? 'border-warning' : ''} ${c.error_type ? 'border-danger' : ''} ${extracting && extracting.service_id === group.service.service_id && extracting.idx === idx ? 'opacity-50' : ''}`}>
                           {extracting && extracting.service_id === group.service.service_id && extracting.idx === idx && (
@@ -734,14 +861,14 @@ const BecomeTasker = () => {
                           )}
 
                           <div className="mb-2">
-                            <label className="form-label form-label-sm mb-1">Tên bằng cấp / chứng chỉ</label>
+                            <label className="form-label form-label-sm mb-1">Tên bằng cấp / chứng chỉ <span className="text-danger">*</span></label>
                             <textarea rows={3} className="form-control form-control-sm" style={{resize:'vertical'}} placeholder="VD: Chứng chỉ đào tạo – Chăm sóc người cao tuổi (Elderly Care)" value={c.cert_name} onChange={(e) => updateServiceCertField(group.service.service_id, idx, 'cert_name', e.target.value)} />
                           </div>
                           
                           {/* Combined row: Image | Issuer | Code | Date */}
                           <div className="row g-2 mb-2 align-items-start">
                             <div className="col-md-4">
-                              <label className="form-label form-label-sm mb-1">Ảnh / File chứng chỉ</label>
+                              <label className="form-label form-label-sm mb-1">Ảnh chứng chỉ</label>
                               {(c.cert_file_url || (c.delivery_type==='authenticated' && c._signed_url)) ? (
                                 <div className="position-relative border rounded p-1 bg-white">
                                   {(/\.(pdf)(\?|$)/i).test((c.delivery_type==='authenticated' && c._signed_url) ? c._signed_url : c.cert_file_url || '') ? (
@@ -770,17 +897,17 @@ const BecomeTasker = () => {
                               )}
                             </div>
                             <div className="col-md-4">
-                              <label className="form-label form-label-sm mb-1">Tên đơn vị cấp chứng chỉ</label>
+                              <label className="form-label form-label-sm mb-1">Tên đơn vị cấp chứng chỉ <span className="text-danger">*</span></label>
                               <textarea rows={2} className="form-control form-control-sm" style={{resize:'vertical'}} placeholder="Trường / Tổ chức cấp" value={c.issued_by} onChange={(e) => updateServiceCertField(group.service.service_id, idx, 'issued_by', e.target.value)} />
-                              <label className="form-label form-label-sm mb-1 mt-2">Tên trên chứng chỉ (Holder)</label>
+                              <label className="form-label form-label-sm mb-1 mt-2">Tên trên chứng chỉ (Holder) <span className="text-danger">*</span></label>
                               <input type="text" className="form-control form-control-sm" placeholder="Tên người được cấp" value={c.holder_name || c.parsed_holder_name || ''} onChange={(e)=> updateServiceCertField(group.service.service_id, idx, 'holder_name', e.target.value)} />
                             </div>
                             <div className="col-md-2">
-                              <label className="form-label form-label-sm mb-1">Mã chứng chỉ</label>
+                              <label className="form-label form-label-sm mb-1">Mã chứng chỉ <span className="text-danger">*</span></label>
                               <input type="text" className="form-control form-control-sm" placeholder="Mã" value={c.parsed_certificate_code || ''} onChange={(e) => updateServiceCertField(group.service.service_id, idx, 'parsed_certificate_code', e.target.value)} />
                             </div>
                             <div className="col-md-2">
-                              <label className="form-label form-label-sm mb-1">Ngày cấp</label>
+                              <label className="form-label form-label-sm mb-1">Ngày cấp <span className="text-danger">*</span></label>
                               <input type="date" className="form-control form-control-sm" value={c.issued_date} onChange={(e) => updateServiceCertField(group.service.service_id, idx, 'issued_date', e.target.value)} />
                             </div>
                           </div>
@@ -809,12 +936,12 @@ const BecomeTasker = () => {
                           )} */}
                           {warnHolder && (
                             <div className="alert alert-warning mt-2 py-1 mb-0 small">
-                              Tên trên chứng chỉ khác tên tài khoản. Vui lòng kiểm tra lại (User: {c.validation.holder_compare?.user_name} / Extract: {c.validation.holder_compare?.extracted_holder_name}).
+                              Tên trên chứng chỉ khác tên tài khoản. Vui lòng kiểm tra lại .
                             </div>
                           )}
                           {!warnHolder && holderMismatch && (
                             <div className="alert alert-warning mt-2 py-1 mb-0 small">
-                              Holder name khác tên tài khoản: <strong>{inferredHolder}</strong> ≠ <strong>{accountName}</strong>.
+                              Tên trên chứng chỉ khác tên tài khoản: <strong>{inferredHolder}</strong> ≠ <strong>{accountName}</strong>.
                             </div>
                           )}
                           {holderMismatch && (
@@ -851,7 +978,7 @@ const BecomeTasker = () => {
                 </div>
 
                 <div className="mb-4">
-                  <h5>Video giới thiệu (tuỳ chọn)</h5>
+                  <h5>Video giới thiệu <span className="text-danger">*</span></h5>
                   {!introVideo && (
                     <div className="border rounded p-3 text-center bg-light">
                       <p className="small text-muted mb-2">Tải lên 1 video giới thiệu kỹ năng làm việc của bạn.</p>
@@ -894,15 +1021,24 @@ const BecomeTasker = () => {
                         </div>
                         <div className="col-md-6">
                           <div className="mb-2">
-                            <label className="form-label form-label-sm mb-1">Tiêu đề video</label>
-                            <input type="text" className="form-control form-control-sm" value={introVideo.title} onChange={(e)=> setIntroVideo(v => ({...v, title: e.target.value}))} />
+                            <label className="form-label form-label-sm mb-1">Tiêu đề video <span className="text-danger">*</span></label>
+                            <input type="text" className={`form-control form-control-sm ${introVideo.title && introVideo.title.trim() ? '' : 'is-invalid'}`} placeholder="VD: Giới thiệu kỹ năng và kinh nghiệm" value={introVideo.title} onChange={(e)=> setIntroVideo(v => ({...v, title: e.target.value}))} />
+                            {(!introVideo.title || !introVideo.title.trim()) && (
+                              <div className="invalid-feedback">Vui lòng nhập tiêu đề video.</div>
+                            )}
                           </div>
                           <div className="mb-2">
-                            <label className="form-label form-label-sm mb-1">Mô tả</label>
-                            <textarea rows={3} className="form-control form-control-sm" placeholder="Mô tả ngắn về kinh nghiệm, phong cách làm việc..." value={introVideo.description} onChange={(e)=> setIntroVideo(v => ({...v, description: e.target.value}))} />
+                            <label className="form-label form-label-sm mb-1">Mô tả <span className="text-danger">*</span></label>
+                            <textarea rows={3} className={`form-control form-control-sm ${introVideo.description && introVideo.description.trim() ? '' : 'is-invalid'}`} placeholder="Mô tả ngắn về kinh nghiệm, phong cách làm việc..." value={introVideo.description} onChange={(e)=> setIntroVideo(v => ({...v, description: e.target.value}))} />
+                            {(!introVideo.description || !introVideo.description.trim()) && (
+                              <div className="invalid-feedback">Vui lòng nhập mô tả video.</div>
+                            )}
                           </div>
                         </div>
                       </div>
+                      {videoInvalid && (
+                        <div className="alert alert-warning mt-2 py-1 mb-0 small">Vui lòng điền đầy đủ tiêu đề và mô tả cho video.</div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -911,7 +1047,7 @@ const BecomeTasker = () => {
                   <div className="alert alert-warning py-2">Còn thiếu chứng chỉ ở một số dịch vụ bắt buộc.</div>
                 )}
 
-                <button disabled={loading || uploading} type="submit" className="btn btn-primary">
+                <button disabled={loading || uploading || videoUploading || videoInvalid || (requiredServiceIds.length && hasMissingRequired)} type="submit" className="btn btn-primary">
                   {loading ? 'Đang gửi...' : uploading ? 'Đang upload...' : 'Gửi đăng ký'}
                 </button>
               </form>
@@ -919,6 +1055,7 @@ const BecomeTasker = () => {
           </div>
         </div>
       </div>
+        )}
       {zoomImage && (
         <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-dark bg-opacity-75" style={{zIndex:1050}} onClick={() => setZoomImage(null)}>
           <div className="position-relative p-2 bg-white rounded shadow" onClick={e => e.stopPropagation()} style={{maxWidth:'90%', maxHeight:'90%'}}>

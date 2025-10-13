@@ -343,6 +343,8 @@
   padding: 2rem;
   border-top: 1px solid #eee;
   background: #f8f9fa;
+  position: relative;
+  padding-bottom: 4.5rem; /* space for CTA button */
 }
 
 .post-services h3 {
@@ -355,6 +357,28 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 1.5rem;
+}
+
+/* Quote CTA bottom-right inside services section */
+.services-quote-cta {
+  position: absolute;
+  right: 1.5rem;
+  bottom: 1.5rem;
+}
+
+.services-quote-cta .btn.btn-primary {
+  box-shadow: 0 6px 20px rgba(0, 123, 255, 0.25);
+  border-radius: 999px;
+  padding: 0.6rem 1.1rem;
+}
+
+@media (max-width: 576px) {
+  .services-quote-cta {
+    position: static;
+    margin-top: 1rem;
+    display: flex;
+    justify-content: flex-end;
+  }
 }
 
 
@@ -732,7 +756,6 @@
   font-weight: 500;
   box-shadow: 0 2px 8px rgba(30,41,59,0.06);
   border: 1px solid #e5e7eb;
-  margin-bottom: 8px;
   margin-top: 4px;
 }
 
