@@ -20,7 +20,8 @@ const ChatWindow = ({
   onTyping,
   onLoadMore,
   
-  isConnected
+  isConnected,
+  afterMessagesInline
 }) => {
   const [isNearBottom, setIsNearBottom] = useState(true);
   const messagesContainerRef = useRef(null);
@@ -148,6 +149,9 @@ const ChatWindow = ({
           onDeleteMessage={onDeleteMessage}
         />
 
+        {/* Inline system message after latest message (e.g., negotiation confirmed) */}
+        {afterMessagesInline}
+
         {/* Typing Indicator */}
         {typingUsers.length > 0 && (
           <TypingIndicator
@@ -163,7 +167,7 @@ const ChatWindow = ({
 
 
       {/* Message Input */}
-      <div className="message-input-container">
+      <div className="message-input-container d-flex align-items-center gap-2">
         <MessageInput
           onSendMessage={handleSendMessage}
           onSendFile={handleSendFile}

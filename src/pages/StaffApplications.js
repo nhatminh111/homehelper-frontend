@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import './StaffApplications.css';
+import '../css/StaffApplications.css';
 import { useAuth } from '../contexts/AuthContext';
 import { taskerApplicationsAPI, servicesAPI } from '../services/api';
 
