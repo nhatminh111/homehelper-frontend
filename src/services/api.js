@@ -107,6 +107,20 @@ const api = {
     const data = await handleResponse(res);
     return { data };
   },
+  async patch(url, body, options = {}) {
+    const fullUrl = buildUrl(url, options.params);
+    const token = options.token ?? getStoredToken();
+    const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
+    const baseHeaders = createHeaders(token, isFormData);
+    const headers = { ...baseHeaders, ...(options.headers || {}) };
+    const res = await fetch(fullUrl, {
+      method: "PATCH",
+      headers,
+      body: isFormData ? body : JSON.stringify(body ?? {}),
+    });
+    const data = await handleResponse(res);
+    return { data };
+  },
   getStoredToken, // Thêm getStoredToken vào object api
 };
 export { getStoredToken };
