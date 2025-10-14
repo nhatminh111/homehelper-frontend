@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import QuoteService from '../services/quoteService';
+import NegotiatePriceButton from '../components/negotiation/NegotiatePriceButton';
 
 const QuotesPage = () => {
   const { postId } = useParams();
@@ -350,9 +351,13 @@ const QuotesPage = () => {
                       </button>
                     </>
                   )}
-                  <button style={{ ...styles.button, ...styles.warningButton }}>
-                    💬 Liên hệ
-                  </button>
+                  <NegotiatePriceButton
+                    peerId={quote.tasker_id || quote.taskerUserId}
+                    quoteId={quote.quote_id}
+                    label="Thương lượng giá"
+                    className="btn btn-warning"
+                    size="md"
+                  />
                 </div>
               </div>
             </div>

@@ -98,7 +98,7 @@ const Services = () => {
                 <span className="mr-2">
                   <Link to="/">Home <FontAwesomeIcon icon={faChevronRight} /></Link>
                 </span> 
-                <span>Services <FontAwesomeIcon icon={faChevronRight} /></span>
+                <span>Dịch vụ <FontAwesomeIcon icon={faChevronRight} /></span>
               </p>
               <h1 className="mb-0 bread">Dịch vụ</h1>
             </div>
@@ -111,8 +111,8 @@ const Services = () => {
         <div className="container">
           <div className="row justify-content-center pb-5 mb-3">
             <div className="col-md-7 heading-section text-center ftco-animate">
-              <span className="subheading">Services</span>
-              <h2>How We Works</h2>
+              <span className="subheading">Dịch Vụ</span>
+              <h2>Nhanh chóng – Hiệu quả – Chuyên nghiệp</h2>
             </div>
           </div>
           {svcLoading && <div className="text-center">Đang tải dịch vụ...</div>}

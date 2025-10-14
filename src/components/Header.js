@@ -124,7 +124,7 @@ const Header = () => {
                 <Link to="/services" className="nav-link">Dịch vụ</Link>
               </li>
               <li className={`nav-item ${isActive('/portfolio')}`}>
-                <Link to="/portfolio" className="nav-link">Dự án</Link>
+                <Link to="/video" className="nav-link">Videos</Link>
               </li>
               <li className={`nav-item ${isActive("/blog")}`}>
                 <Link to="/blog" className="nav-link">
@@ -139,10 +139,14 @@ const Header = () => {
                   Chat
                 </Link>
               </li>
-              <li className={`nav-item ${isActive("/cccd")}`}>
+              {/* <li className={`nav-item ${isActive("/cccd")}`}>
                 <Link to="/cccd" className="nav-link">
                   <FontAwesomeIcon icon={faIdCard} className="mr-1" /> CCCD
                 </Link>
+              </li> */}
+
+              <li className={`nav-item ${isActive('/become-tasker')}`}>
+                <Link to="/become-tasker" className="nav-link">Become a Tasker</Link>
               </li>
 
               {/* Auth Menu */}
@@ -231,6 +235,12 @@ const Header = () => {
                       <Link className="dropdown-item" to="/tasker-approvals">
                         <FontAwesomeIcon icon={faCog} className="mr-2" />
                         Approve Taskers
+                      </Link>
+                    )}
+                    {(isStaff() || isAdmin()) && (
+                      <Link className="dropdown-item" to="/staff/applications">
+                        <FontAwesomeIcon icon={faCog} className="mr-2" />
+                        Đơn Tasker (mới)
                       </Link>
                     )}
 
