@@ -75,24 +75,24 @@ const Chat = () => {
     () => quoteMatchesConversation(quoteDetails, currentConversation),
     [quoteDetails, currentConversation]
   );
-  // Build pseudo quote-like details for session mode (direct chat only)
+  // Build pseudo quote-like details for session mode (allow any 1-1 conversation; fill roles when possible)
   const buildSessionDetails = (sid) => {
-    if (!sid || !currentConversation || String(currentConversation.type) !== 'direct') return null;
+    if (!sid || !currentConversation) return null;
     const myId = user?.user_id || user?.userId;
-    if (!Array.isArray(currentConversation.participants) || !myId) return null;
-    const other = currentConversation.participants.find(p => String(p.user_id ?? p.userId) !== String(myId));
-    const otherId = other?.user_id ?? other?.userId;
-    if (!otherId) return null;
+    if (!myId) return null;
+    const participants = Array.isArray(currentConversation.participants) ? currentConversation.participants : [];
+    const other = participants.find(p => String(p?.user_id ?? p?.userId) !== String(myId));
+    const otherId = other?.user_id ?? other?.userId ?? null;
     const openerIsMe = negotiationParam === '1';
-    const customer_id = openerIsMe ? myId : otherId;
-    const tasker_id = openerIsMe ? otherId : myId;
+    const customer_id = openerIsMe ? myId : otherId; // when opener is me, I'm customer
+    const tasker_id = openerIsMe ? otherId : myId;    // other side is tasker
     return {
       quote_id: `session:${sid}`,
-      customer_id,
-      tasker_id,
+      customer_id: customer_id ?? null,
+      tasker_id: tasker_id ?? null,
       proposed_price: null,
       status: null,
-      variant_name: `Thương lượng tự do (#${sid})`,
+      variant_name: `Thương lượng giá cả (#${sid})`,
       unit: null,
       price_min: null,
       price_max: null,
@@ -103,13 +103,25 @@ const Chat = () => {
   useEffect(() => {
     if (!sessionId) return;
     const details = buildSessionDetails(sessionId);
-    if (details) {
-      if (!quoteDetails || String(quoteDetails.quote_id) !== String(details.quote_id)) {
-        setQuoteDetails(details);
+    if (!details) return;
+    setQuoteDetails(prev => {
+      if (!prev || String(prev.quote_id) !== String(details.quote_id)) {
         setNegPrice('');
+        return details;
       }
-    }
-  }, [sessionId, currentConversation?.conversation_id, user?.user_id, user?.userId]);
+      // Backfill roles if previously unknown and now available
+      const needsCustomer = prev.customer_id == null && details.customer_id != null;
+      const needsTasker = prev.tasker_id == null && details.tasker_id != null;
+      if (needsCustomer || needsTasker) {
+        return {
+          ...prev,
+          customer_id: needsCustomer ? details.customer_id : prev.customer_id,
+          tasker_id: needsTasker ? details.tasker_id : prev.tasker_id,
+        };
+      }
+      return prev;
+    });
+  }, [sessionId, currentConversation?.conversation_id, currentConversation?.participants, currentConversation?.participants?.length, user?.user_id, user?.userId, negotiationParam]);
   useEffect(() => {
     const convId = initialConversationId && !Number.isNaN(parseInt(initialConversationId, 10))
       ? parseInt(initialConversationId, 10)
@@ -285,53 +297,85 @@ const Chat = () => {
     const tryDeriveQuoteFromMessages = async () => {
       // If session is active, do not override
       if (sessionId) return;
-      // If URL already specifies a quote id, keep it
-      if (quoteIdParam) return;
       // If we already have a pending quote in context, don't override from messages (prevents flicker/override)
       if (quoteDetails?.quote_id && String(quoteDetails?.status || '') === 'Chờ xử lý') return;
       if (!messages || messages.length === 0) return;
-      // Prefer last ACK then last REQ (support sessionId as well)
+
+      // 1) Prefer SESSION negotiations: find the latest [NEG_REQ]{sessionId|session}
+      let lastReqSession = { id: null, idx: -1 };
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const m = messages[i];
+        const c = m?.content;
+        if (!c || typeof c !== 'string') continue;
+        if (c.startsWith('[NEG_REQ]')) {
+          try {
+            const payload = JSON.parse(c.substring(9));
+            const sid = payload.sessionId ?? payload.session;
+            if (sid != null) { lastReqSession = { id: sid, idx: i }; break; }
+          } catch(_) {}
+        }
+      }
+      if (lastReqSession.id != null) {
+        // Check if there is a later ACK or REJ for this same session -> then it's not pending
+        let closed = false;
+        for (let i = lastReqSession.idx + 1; i < messages.length; i++) {
+          const m = messages[i];
+          const c = m?.content;
+          if (!c || typeof c !== 'string') continue;
+          if (c.startsWith('[NEG_ACK]') || c.startsWith('[NEG_REJ]')) {
+            try {
+              const payload = JSON.parse(c.substring(9));
+              const sid = payload.sessionId ?? payload.session;
+              if (sid != null && String(sid) === String(lastReqSession.id)) { closed = true; break; }
+            } catch(_) {}
+          }
+        }
+        if (!closed) {
+          // Pending SESSION negotiation exists -> force switch to session context even if quoteId is in URL
+          const sid = String(lastReqSession.id);
+          setSessionId(sid);
+          const details = buildSessionDetails(sid);
+          if (details) {
+            setQuoteDetails(details);
+            setNegPrice('');
+            const params = new URLSearchParams(searchParams);
+            if (currentConversation?.conversation_id) params.set('conversationId', String(currentConversation.conversation_id));
+            params.set('session', sid);
+            // Drop conflicting quote context so loadQuote() won't clear our session
+            if (params.get('quoteId')) params.delete('quoteId');
+            // Tasker doesn't need negotiation=1 to see the bar; pending will show it
+            if (params.get('negotiation') === '1') params.delete('negotiation');
+            navigate(`/chat?${params.toString()}`, { replace: true });
+          }
+          return;
+        }
+      }
+      // If URL already specifies a quote id and no session pending, keep it
+      if (quoteIdParam) return;
+
+      // 2) Otherwise derive QUOTE from messages (prefer last ACK then REQ) as before
       let derivedQuoteId = null;
-      let derivedSessionId = null;
-      let derivedKind = null; // 'ACK' | 'REQ'
       for (let i = messages.length - 1; i >= 0; i--) {
         const m = messages[i];
         if (!m?.content || typeof m.content !== 'string') continue;
         if (m.content.startsWith('[NEG_ACK]')) {
           try {
             const payload = JSON.parse(m.content.substring(9));
-            if (payload.sessionId) { derivedSessionId = payload.sessionId; derivedKind = 'ACK'; break; }
-            derivedQuoteId = payload.quoteId; derivedKind = 'ACK'; break;
+            if (payload.quoteId != null) { derivedQuoteId = payload.quoteId; break; }
           } catch(_) {}
         }
       }
-      if (!derivedQuoteId && !derivedSessionId) {
+      if (!derivedQuoteId) {
         for (let i = messages.length - 1; i >= 0; i--) {
           const m = messages[i];
           if (!m?.content || typeof m.content !== 'string') continue;
           if (m.content.startsWith('[NEG_REQ]')) {
             try {
               const payload = JSON.parse(m.content.substring(9));
-              if (payload.sessionId) { derivedSessionId = payload.sessionId; derivedKind = 'REQ'; break; }
-              derivedQuoteId = payload.quoteId; derivedKind = 'REQ'; break;
+              if (payload.quoteId != null) { derivedQuoteId = payload.quoteId; break; }
             } catch(_) {}
           }
         }
-      }
-      if (derivedSessionId) {
-        // Initialize session mode based on messages
-        const sid = String(derivedSessionId);
-        setSessionId(sid);
-        const details = buildSessionDetails(sid);
-        if (details) {
-          setQuoteDetails(details);
-          setNegPrice('');
-          const params = new URLSearchParams(searchParams);
-          if (currentConversation?.conversation_id) params.set('conversationId', String(currentConversation.conversation_id));
-          params.set('session', sid);
-          navigate(`/chat?${params.toString()}`, { replace: true });
-        }
-        return;
       }
       if (!derivedQuoteId) return;
       if (quoteDetails?.quote_id && String(quoteDetails.quote_id) === String(derivedQuoteId)) {
@@ -405,6 +449,8 @@ const Chat = () => {
   // Align quoteDetails to the active pending quote if current quote is different or not pending
   useEffect(() => {
     const alignToActivePending = async () => {
+      // In session mode, do not override with quotes
+      if (sessionId) return;
       if (!activePendingQuoteId) return;
       const currId = quoteDetails?.quote_id ? String(quoteDetails.quote_id) : null;
       const isCurrPending = String(quoteDetails?.status || '') === 'Chờ xử lý';
@@ -443,19 +489,22 @@ const Chat = () => {
       if (c.startsWith('[NEG_REQ]')) {
         try {
           const payload = JSON.parse(c.substring(9));
-          const match = sessionId ? String(payload.sessionId) === String(sessionId) : String(payload.quoteId) === String(quoteDetails.quote_id);
+          const sid = payload.sessionId ?? payload.session;
+          const match = sessionId ? String(sid) === String(sessionId) : String(payload.quoteId) === String(quoteDetails.quote_id);
           if (match) { lastReq = payload; lastReqIdx = i; lastReqMsg = m; }
         } catch(_) {}
       } else if (c.startsWith('[NEG_ACK]')) {
         try {
           const payload = JSON.parse(c.substring(9));
-          const match = sessionId ? String(payload.sessionId) === String(sessionId) : String(payload.quoteId) === String(quoteDetails.quote_id);
+          const sid = payload.sessionId ?? payload.session;
+          const match = sessionId ? String(sid) === String(sessionId) : String(payload.quoteId) === String(quoteDetails.quote_id);
           if (match) { lastAck = payload; lastAckIdx = i; lastAckMsg = m; }
         } catch(_) {}
       } else if (c.startsWith('[NEG_REJ]')) {
         try {
           const payload = JSON.parse(c.substring(9));
-          const match = sessionId ? String(payload.sessionId) === String(sessionId) : String(payload.quoteId) === String(quoteDetails.quote_id);
+          const sid = payload.sessionId ?? payload.session;
+          const match = sessionId ? String(sid) === String(sessionId) : String(payload.quoteId) === String(quoteDetails.quote_id);
           if (match) { lastRej = payload; lastRejIdx = i; lastRejMsg = m; }
         } catch(_) {}
       }
@@ -478,16 +527,20 @@ const Chat = () => {
     let desired = negotiationOpen;
     const hasPendingViaQuote = isNegotiationContextValid && String(quoteDetails?.status || '') === 'Chờ xử lý';
     const wantsToReopenFromQuotes = negotiationParam === '1' && isCustomer;
-    const wantsTaskerOpenFromQuotes = negotiationParam === '1' && isTasker;
+    // Only allow Tasker to force-open from Quotes in quote mode (not session)
+    const wantsTaskerOpenFromQuotes = negotiationParam === '1' && isTasker && !sessionId;
     if (!isNegotiationContextValid) {
-      // Allow pre-open from Quotes while conversation/participants context is still resolving
-      desired = negotiationParam === '1' && (isCustomer || isTasker) && !!quoteDetails;
+      // Allow pre-open in session mode for Customer while conversation/participants context is still resolving
+      desired = negotiationParam === '1' && isCustomer && !!quoteDetails;
     } else if (negotiationState.pending) {
       // Any pending request should show the bar for both sides
       desired = true;
     } else if (negotiationState.rej) {
       // Hide on REJ (no newer REQ)
       desired = false;
+    } else if (sessionId && negotiationParam === '1' && isCustomer) {
+      // In session mode, only auto-open for the Customer who initiated via URL until an ACK/REJ happens
+      desired = true;
     } else if (wantsToReopenFromQuotes) {
       // Explicitly opened from Quotes by Customer, allow composing a new request even if previous ACK exists
       desired = true;
@@ -552,7 +605,7 @@ const Chat = () => {
     try {
       setNegSubmitting(true);
       const price = Number(negPrice);
-      if (sessionId || isCustomer) {
+  if (sessionId || isCustomer) {
         // Customer requests final price -> send negotiation request message; wait for tasker approval
         if (sessionId) {
           await sendTextMessage(`[NEG_REQ]${JSON.stringify({ sessionId: sessionId, price })}`);
@@ -560,16 +613,20 @@ const Chat = () => {
           await sendTextMessage(`[NEG_REQ]${JSON.stringify({ quoteId: quoteDetails.quote_id, price })}`);
         }
         setNegError(null);
-        // Align URL to this quoteId for both sides by ensuring quoteId stays set
-        // Strip negotiation flag from URL after sending REQ to prevent stale reopen and let ACK auto-hide later
+        // Keep bar visible immediately after sending (esp. in session mode, before pending is observed)
+        setNegotiationOpen(true);
+        // Align URL to this context; keep negotiation=1 for session until ACK/REJ
         const params = new URLSearchParams(searchParams);
-        if (sessionId) params.set('session', String(sessionId));
-        else {
+        if (sessionId) {
+          params.set('session', String(sessionId));
+          // do not remove negotiation=1 here for session flow
+        } else {
           params.set('quoteId', String(quoteDetails.quote_id));
           // Ensure no leftover session when switching to quote REQ
           if (params.get('session')) params.delete('session');
+          // For quote flow, remove negotiation flag after sending
+          if (params.get('negotiation') === '1') params.delete('negotiation');
         }
-        if (params.get('negotiation') === '1') params.delete('negotiation');
         if (currentConversation?.conversation_id) params.set('conversationId', String(currentConversation.conversation_id));
         navigate(`/chat?${params.toString()}`, { replace: true });
       }
@@ -876,7 +933,7 @@ const Chat = () => {
               {/* Inline system message handled via ChatWindow.afterMessagesInline */}
               {/* Negotiation Bar */}
               {(((negotiationOpen && quoteDetails) || (quoteDetails && negotiationState.rej && !negotiationState.pending && !negotiationState.ack))
-                || (quoteDetails && negotiationParam === '1' && (isCustomer || isTasker))) && (
+                || (quoteDetails && !sessionId && negotiationParam === '1' && (isCustomer || isTasker))) && (
                 <div className="p-2 border-bottom bg-light d-flex flex-wrap align-items-center gap-2">
                   <div className="me-2">
                     <div className="small text-muted">
@@ -950,7 +1007,7 @@ const Chat = () => {
                       <span className="small text-muted">Chờ khách hàng đề xuất...</span>
                     )}
                     {/* Tasker open from Quotes but not pending: keep a neutral hint so bar is visible */}
-                    {negotiationParam === '1' && isTasker && !negotiationState.pending && (
+                    {negotiationParam === '1' && isTasker && !sessionId && !negotiationState.pending && (
                       <span className="small text-muted">Đã mở từ báo giá. Chờ khách hàng đề xuất.</span>
                     )}
                   </div>

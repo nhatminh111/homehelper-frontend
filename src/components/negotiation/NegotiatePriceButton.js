@@ -5,6 +5,7 @@ import ConversationService from '../../services/conversationService';
 export default function NegotiatePriceButton({
   peerId,
   quoteId,
+  sessionId = null,
   bookingId = null,
   toChatPath = '/chat',
   label = 'Thương lượng giá',
@@ -19,7 +20,8 @@ export default function NegotiatePriceButton({
     if (loading) return;
     setLoading(true);
     const params = new URLSearchParams();
-    if (quoteId) params.set('quoteId', String(quoteId));
+  if (quoteId) params.set('quoteId', String(quoteId));
+  if (!quoteId && sessionId) params.set('session', String(sessionId));
     if (bookingId) params.set('bookingId', String(bookingId));
     params.set('negotiation', '1');
     if (openFinalizeOnOpen && bookingId) params.set('openFinalize', '1');
