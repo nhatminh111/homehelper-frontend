@@ -3,7 +3,7 @@ import { Container, Row, Col, Card, Badge, Form, Button, Accordion, ProgressBar,
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 import { servicesAPI } from "../services/api";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, useParams } from "react-router-dom";
 
 function formatVND(input) {
     const n = Number(input);
@@ -26,6 +26,25 @@ export default function Booking() {
     const [step, setStep] = useState(0);
     const totalSteps = 4;
     const [touched, setTouched] = useState(false);
+
+    const { taskerId } = useParams();
+    const [tasker, setTasker] = useState(null);
+
+    useEffect(() => {
+        async function fetchTaskerData() {
+            try {
+                const res = await fetch(`http://localhost:3001/api/tasker/${taskerId}/services`);
+                const data = await res.json(); // ✅ Khai báo biến data
+                setTasker(data.tasker);        // ✅ data.tasker
+                setServices(data.variants || []); // ✅ data.variants
+                console.log("Tasker fetched:", data);
+            } catch (err) {
+                console.error("Lỗi khi load Tasker:", err);
+            }
+        }
+
+        if (taskerId) fetchTaskerData();
+    }, [taskerId]);
 
     const location = useLocation();
     const bookingData = location.state;
@@ -202,8 +221,6 @@ export default function Booking() {
         });
     };
 
-
-
     const goNext = () => {
         setTouched(true);
         if (step < totalSteps - 1) {
@@ -266,6 +283,7 @@ export default function Booking() {
     function renderStep1Summary() {
         if (!selection || !chosenVariants.length) return null;
         const unit = chosenVariants[0]?.unit;
+        const serviceId = chosenVariants[0]?.service_id;
 
         if (unit === "Giờ") {
             return (
@@ -332,30 +350,53 @@ export default function Booking() {
         }
 
         if (unit === "Tuần") {
-            return (
-                <>
-                    <div>• <strong>Thời lượng: Tuần</strong></div>
-                    <div>
-                        • <strong>Thời gian:</strong>{" "}
-                        {selection.dates?.length
-                            ? `${new Date(selection.dates[0]).toLocaleDateString("vi-VN", {
-                                day: "2-digit",
-                                month: "2-digit",
-                                year: "numeric",
-                            })} - ${new Date(selection.dates[selection.dates.length - 1]).toLocaleDateString("vi-VN", {
-                                day: "2-digit",
-                                month: "2-digit",
-                                year: "numeric",
-                            })}`
-                            : "—"}
-                    </div>
-                    {selection.workHours === "Bán thời gian" ? (
-                        <div>• <strong>Giờ:</strong> 07:00 - 21:00</div>
-                    ) : selection.workHours === "Toàn thời gian" ? null : (
-                        <div>• <strong>Giờ:</strong> —</div>
-                    )}
-                </>
-            );
+            if (serviceId === 4 || serviceId === 8) {
+                return (
+                    <>
+                        <div>• <strong>Thời lượng: Tuần</strong></div>
+                        <div>
+                            • <strong>Thời gian:</strong>{" "}
+                            {selection.dates?.length
+                                ? `${new Date(selection.dates[0]).toLocaleDateString("vi-VN", {
+                                    day: "2-digit",
+                                    month: "2-digit",
+                                    year: "numeric",
+                                })} - ${new Date(selection.dates[selection.dates.length - 1]).toLocaleDateString("vi-VN", {
+                                    day: "2-digit",
+                                    month: "2-digit",
+                                    year: "numeric",
+                                })}`
+                                : "—"}
+                        </div>
+                        {selection.workHours === "Bán thời gian" ? (
+                            <div>• <strong>Giờ:</strong> 07:00 - 21:00</div>
+                        ) : selection.workHours === "Toàn thời gian" ? null : (
+                            <div>• <strong>Giờ:</strong> —</div>
+                        )}
+                    </>
+                );
+            } else if (serviceId === 3) {
+                return (
+                    <>
+                        <div>• <strong>Thời lượng: Tuần</strong></div>
+                        <div>
+                            • <strong>Thời gian:</strong>{" "}
+                            {selection.dates?.length
+                                ? `${new Date(selection.dates[0]).toLocaleDateString("vi-VN", {
+                                    day: "2-digit",
+                                    month: "2-digit",
+                                    year: "numeric",
+                                })} - ${new Date(selection.dates[selection.dates.length - 1]).toLocaleDateString("vi-VN", {
+                                    day: "2-digit",
+                                    month: "2-digit",
+                                    year: "numeric",
+                                })}`
+                                : "—"}
+                        </div>
+                    </>
+                )
+            }
+
         }
 
         if (unit === "Tháng") {
@@ -466,26 +507,26 @@ export default function Booking() {
                         className="shadow-sm border-0 mb-4 provider-card"
                         style={{ borderRadius: 16, marginTop: "20px", transition: "transform 0.2s, box-shadow 0.2s" }}
                     >
-                        <Card.Body className="d-flex align-items-center gap-3">
-                            <img
-                                src="https://i.pravatar.cc/80?img=12"
-                                alt="avatar"
-                                width={56}
-                                height={56}
-                                className="rounded-circle object-fit-cover"
-                            />
-                            <div className="flex-grow-1">
-                                <div className="d-flex align-items-center gap-2">
-                                    <h5 className="mb-0">Sarah Johnson</h5>
-                                    <Badge bg="primary" className="rounded-pill">
-                                        Verified
-                                    </Badge>
+                        {tasker && (
+                            <Card.Body className="d-flex align-items-center gap-3">
+                                <img
+                                    src={tasker.avatar_url || "https://i.pravatar.cc/80"}
+                                    alt="avatar"
+                                    width={56}
+                                    height={56}
+                                    className="rounded-circle object-fit-cover"
+                                />
+                                <div className="flex-grow-1">
+                                    <div className="d-flex align-items-center gap-2">
+                                        <h5 className="mb-0">{tasker.name}</h5>
+                                        <Badge bg="primary" className="rounded-pill">Verified</Badge>
+                                    </div>
+                                    <div className="text-muted small mt-1">
+                                        ⭐ {tasker.rating} ({tasker.reviews} reviews)
+                                    </div>
                                 </div>
-                                <div className="text-muted small mt-1">
-                                    ⭐ 4.9 (124 reviews)
-                                </div>
-                            </div>
-                        </Card.Body>
+                            </Card.Body>
+                        )}
                     </Card>
 
                     {/* Wizard Card (Toàn bộ chuyển sang tiếng Việt) */}
@@ -568,6 +609,7 @@ export default function Booking() {
                                     {/* Lấy unit từ DB */}
                                     {(() => {
                                         const currentUnit = chosenVariants[0]?.unit || "";
+                                        const serviceId = chosenVariants[0]?.service_id || "";
 
                                         // ===== Giờ =====
                                         if (currentUnit === "Giờ") {
@@ -689,150 +731,153 @@ export default function Booking() {
                                                 return `${year}-${month}-${day}`;
                                             };
 
-                                            return (
-                                                <Row className="mb-4">
-                                                    {/* Ngày bắt đầu */}
-                                                    <Col md={4} className="mb-3">
-                                                        <Form.Group>
-                                                            <Form.Label className="fw-bold text-dark">Ngày bắt đầu</Form.Label>
-                                                            <InputGroup className="fw-semibold">
-                                                                <Form.Control
-                                                                    readOnly
-                                                                    value={
-                                                                        selection.date
-                                                                            ? new Date(selection.date).toLocaleDateString("vi-VN", {
-                                                                                day: "2-digit",
-                                                                                month: "2-digit",
-                                                                                year: "numeric",
-                                                                            })
-                                                                            : "Chưa chọn"
-                                                                    }
-                                                                    onClick={() => setShowCalendar(!showCalendar)}
-                                                                />
-                                                                <InputGroup.Text
-                                                                    style={{ cursor: "pointer" }}
-                                                                    onClick={() => setShowCalendar(!showCalendar)}
-                                                                >
-                                                                    📅
-                                                                </InputGroup.Text>
-                                                            </InputGroup>
-
-                                                            {showCalendar && (
-                                                                <div className="mt-2">
-                                                                    <DayPicker
-                                                                        mode="multiple"
-                                                                        selected={
-                                                                            selection.dates
-                                                                                ? selection.dates.map((d) => new Date(d))
-                                                                                : []
+                                            if (serviceId === 4 || serviceId === 8) {
+                                                return (
+                                                    <Row className="mb-4">
+                                                        {/* Ngày bắt đầu */}
+                                                        <Col md={4} className="mb-3">
+                                                            <Form.Group>
+                                                                <Form.Label className="fw-bold text-dark">Ngày bắt đầu</Form.Label>
+                                                                <InputGroup className="fw-semibold">
+                                                                    <Form.Control
+                                                                        readOnly
+                                                                        value={
+                                                                            selection.date
+                                                                                ? new Date(selection.date).toLocaleDateString("vi-VN", {
+                                                                                    day: "2-digit",
+                                                                                    month: "2-digit",
+                                                                                    year: "numeric",
+                                                                                })
+                                                                                : "Chưa chọn"
                                                                         }
-                                                                        onSelect={(day) => {
-                                                                            if (!day) return;
-
-                                                                            // Generate 7 ngày liên tiếp
-                                                                            const days = Array.from({ length: 7 }, (_, i) => {
-                                                                                const date = new Date(day);
-                                                                                date.setDate(date.getDate() + i);
-                                                                                return formatDate(date); // string
-                                                                            });
-
-                                                                            setSelection({
-                                                                                ...selection,
-                                                                                date: formatDate(day), // ngày bắt đầu
-                                                                                dates: days,
-                                                                            });
-                                                                        }}
-                                                                        modifiersClassNames={{
-                                                                            selected: "custom-selected-day",
-                                                                        }}
-                                                                        disabled={{ before: new Date() }}
+                                                                        onClick={() => setShowCalendar(!showCalendar)}
                                                                     />
+                                                                    <InputGroup.Text
+                                                                        style={{ cursor: "pointer" }}
+                                                                        onClick={() => setShowCalendar(!showCalendar)}
+                                                                    >
+                                                                        📅
+                                                                    </InputGroup.Text>
+                                                                </InputGroup>
+
+                                                                {showCalendar && (
+                                                                    <div className="mt-2">
+                                                                        <DayPicker
+                                                                            mode="multiple"
+                                                                            selected={
+                                                                                selection.dates
+                                                                                    ? selection.dates.map((d) => new Date(d))
+                                                                                    : []
+                                                                            }
+                                                                            onSelect={(day) => {
+                                                                                if (!day) return;
+
+                                                                                // Generate 7 ngày liên tiếp
+                                                                                const days = Array.from({ length: 7 }, (_, i) => {
+                                                                                    const date = new Date(day);
+                                                                                    date.setDate(date.getDate() + i);
+                                                                                    return formatDate(date); // string
+                                                                                });
+
+                                                                                setSelection({
+                                                                                    ...selection,
+                                                                                    date: formatDate(day), // ngày bắt đầu
+                                                                                    dates: days,
+                                                                                });
+                                                                            }}
+                                                                            modifiersClassNames={{
+                                                                                selected: "custom-selected-day",
+                                                                            }}
+                                                                            disabled={{ before: new Date() }}
+                                                                        />
+                                                                    </div>
+                                                                )}
+                                                            </Form.Group>
+                                                        </Col>
+
+                                                        {/* Giờ bắt đầu */}
+                                                        {selection.workHours === "Toàn thời gian" ? null : (
+                                                            <>
+                                                                <Col md={{ span: 3, offset: 1 }} className="mb-3">
+                                                                    <Form.Group>
+                                                                        <Form.Label className="fw-bold text-dark">Thời gian bắt đầu</Form.Label>
+                                                                        <Form.Control
+                                                                            type="time"
+                                                                            className="fw-semibold text-dark"
+                                                                            value="07:00"
+                                                                            disabled
+                                                                        />
+                                                                    </Form.Group>
+                                                                </Col>
+
+                                                                {/* Thời gian kết thúc (cố định) */}
+                                                                <Col md={{ span: 3, offset: 1 }} className="mb-3">
+                                                                    <Form.Group>
+                                                                        <Form.Label className="fw-bold text-dark">Thời gian kết thúc</Form.Label>
+                                                                        <Form.Control
+                                                                            type="time"
+                                                                            className="fw-semibold text-dark"
+                                                                            value="21:00"
+                                                                            disabled
+                                                                        />
+                                                                    </Form.Group>
+                                                                </Col>
+                                                            </>
+                                                        )}
+
+                                                        <Card className="border-0 shadow-sm p-3 mb-3 booking-options-card" style={{ borderRadius: 12 }}>
+                                                            <Card.Body>
+                                                                <div className="service-info-header d-flex align-items-center gap-2 mb-3">
+                                                                    <span className="service-info-icon">🔄</span>
+                                                                    <h6 className="service-info-text mb-0">Thông tin dịch vụ</h6>
                                                                 </div>
-                                                            )}
-                                                        </Form.Group>
-                                                    </Col>
 
-                                                    {/* Giờ bắt đầu */}
-                                                    {selection.workHours === "Toàn thời gian" ? null : (
-                                                        <>
-                                                            <Col md={{ span: 3, offset: 1 }} className="mb-3">
-                                                                <Form.Group>
-                                                                    <Form.Label className="fw-bold text-dark">Thời gian bắt đầu</Form.Label>
-                                                                    <Form.Control
-                                                                        type="time"
-                                                                        className="fw-semibold text-dark"
-                                                                        value="07:00"
-                                                                        disabled
-                                                                    />
-                                                                </Form.Group>
-                                                            </Col>
-
-                                                            {/* Thời gian kết thúc (cố định) */}
-                                                            <Col md={{ span: 3, offset: 1 }} className="mb-3">
-                                                                <Form.Group>
-                                                                    <Form.Label className="fw-bold text-dark">Thời gian kết thúc</Form.Label>
-                                                                    <Form.Control
-                                                                        type="time"
-                                                                        className="fw-semibold text-dark"
-                                                                        value="21:00"
-                                                                        disabled
-                                                                    />
-                                                                </Form.Group>
-                                                            </Col>
-                                                        </>
-                                                    )}
-
-                                                    <Card className="border-0 shadow-sm p-3 mb-3 booking-options-card" style={{ borderRadius: 12 }}>
-                                                        <Card.Body>
-                                                            <div className="service-info-header d-flex align-items-center gap-2 mb-3">
-                                                                <span className="service-info-icon">🔄</span>
-                                                                <h6 className="service-info-text mb-0">Thông tin dịch vụ</h6>
-                                                            </div>
-
-                                                            <div className="mb-4">
-                                                                <Form.Label>Tần suất</Form.Label>
-                                                                <div className="d-flex gap-3">
-                                                                    <Button
-                                                                        variant={currentUnit === "Tuần" ? "teal" : "outline-light"}
-                                                                        className="flex-fill freq-btn"
-                                                                        disabled
-                                                                    >
-                                                                        Theo tuần
-                                                                    </Button>
-                                                                    <Button
-                                                                        variant={currentUnit === "Tháng" ? "teal" : "outline-light"}
-                                                                        className="flex-fill freq-btn"
-                                                                        disabled
-                                                                    >
-                                                                        Theo tháng
-                                                                    </Button>
+                                                                <div className="mb-4">
+                                                                    <Form.Label>Tần suất</Form.Label>
+                                                                    <div className="d-flex gap-3">
+                                                                        <Button
+                                                                            variant={currentUnit === "Tuần" ? "teal" : "outline-light"}
+                                                                            className="flex-fill freq-btn"
+                                                                            disabled
+                                                                        >
+                                                                            Theo tuần
+                                                                        </Button>
+                                                                        <Button
+                                                                            variant={currentUnit === "Tháng" ? "teal" : "outline-light"}
+                                                                            className="flex-fill freq-btn"
+                                                                            disabled
+                                                                        >
+                                                                            Theo tháng
+                                                                        </Button>
+                                                                    </div>
                                                                 </div>
-                                                            </div>
 
-                                                            <div className="mb-4">
-                                                                <Form.Label>Tùy chọn ca làm cho người giúp việc:</Form.Label>
-                                                                <div className="d-flex gap-3">
-                                                                    <Button
-                                                                        variant={selection.workHours === "Bán thời gian" ? "teal" : "outline-light"}
-                                                                        className="flex-fill"
-                                                                        onClick={() => setSelection({ ...selection, workHours: "Bán thời gian" })}
-                                                                    >
-                                                                        Làm bán thời gian <br /> <small>(7h-21h)</small>
-                                                                    </Button>
-                                                                    <Button
-                                                                        variant={selection.workHours === "Toàn thời gian" ? "teal" : "outline-light"}
-                                                                        className="flex-fill"
-                                                                        onClick={() => setSelection({ ...selection, workHours: "Toàn thời gian" })}
-                                                                    >
-                                                                        Làm toàn thời gian<br /> <small>(Qua đêm + 500k)</small>
-                                                                    </Button>
+                                                                <div className="mb-4">
+                                                                    <Form.Label>Tùy chọn ca làm cho người giúp việc:</Form.Label>
+                                                                    <div className="d-flex gap-3">
+                                                                        <Button
+                                                                            variant={selection.workHours === "Bán thời gian" ? "teal" : "outline-light"}
+                                                                            className="flex-fill"
+                                                                            onClick={() => setSelection({ ...selection, workHours: "Bán thời gian" })}
+                                                                        >
+                                                                            Làm bán thời gian <br /> <small>(7h-21h)</small>
+                                                                        </Button>
+                                                                        <Button
+                                                                            variant={selection.workHours === "Toàn thời gian" ? "teal" : "outline-light"}
+                                                                            className="flex-fill"
+                                                                            onClick={() => setSelection({ ...selection, workHours: "Toàn thời gian" })}
+                                                                        >
+                                                                            Làm toàn thời gian<br /> <small>(Qua đêm + 500k)</small>
+                                                                        </Button>
+                                                                    </div>
                                                                 </div>
-                                                            </div>
-                                                        </Card.Body>
-                                                    </Card>
-                                                </Row>
-                                            );
+                                                            </Card.Body>
+                                                        </Card>
+                                                    </Row>
+                                                );
+                                            }
                                         }
+
 
 
                                         if (currentUnit === "Tháng") {
@@ -1299,66 +1344,20 @@ export default function Booking() {
                                         </Card.Body>
                                     </Card>
 
-                                    <h5 className="fw-bold mb-2">Dịch vụ đã chọn</h5>
                                     {/* Dịch vụ đã chọn */}
+                                    <h5 className="fw-bold mb-2">Dịch vụ đã chọn</h5>
                                     <Card className="mb-3 border-0 shadow-sm summary-section">
                                         <Card.Body>
-                                            {chosenVariants.map((v) => {
-                                                const basePrice =
-                                                    v?.specific_price != null
-                                                        ? v.specific_price
-                                                        : v?.price_min != null
-                                                            ? v.price_min
-                                                            : 0;
-
-                                                const unit = v.unit;
-                                                let multiplier = 1;
-
-                                                if (unit === "Giờ" && selection.startTime && selection.endTime) {
-                                                    const start = new Date(`1970-01-01T${selection.startTime}:00`);
-                                                    const end = new Date(`1970-01-01T${selection.endTime}:00`);
-                                                    multiplier = (end - start) / (1000 * 60 * 60);
-                                                } else if (unit === "Ngày") {
-                                                    multiplier = selection.dates?.length || 1;
-                                                } else if (unit === "Tuần") {
-                                                    multiplier = 1;
-                                                } else if (unit === "Tháng") {
-                                                    multiplier = 1;
-                                                } else if (["m2", "Mét vuông", "Chiếc"].includes(unit)) {
-                                                    multiplier = selection.quantity || 1;
-                                                }
-
-                                                const subtotal = basePrice * multiplier;
-
-                                                return (
-                                                    <div
-                                                        key={v.variant_id}
-                                                        className="d-flex justify-content-between mb-3"
-                                                    >
-                                                        <div>
-                                                            <div className="fw-semibold">{v.variant_name}</div>
-                                                            <small className="text-muted">
-                                                                {`${formatVND(basePrice)} × ${multiplier}`}
-                                                            </small>
-                                                        </div>
-                                                        <div className="fw-bold text-primary">
-                                                            {formatVND(subtotal)}
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-
-                                            {/* Nếu là Tuần hoặc Tháng + Toàn thời gian thì thêm phụ phí */}
-                                            {(currentUnit === "Tuần" || currentUnit === "Tháng") &&
-                                                selection.workHours === "Toàn thời gian" && (
-                                                    <div className="d-flex justify-content-between">
-                                                        <div>
-                                                            <div className="fw-semibold">+ Phụ phí làm toàn thời gian</div>
-                                                            <small className="text-muted">{formatVND(500)}</small>
-                                                        </div>
-                                                        <div className="fw-bold text-primary">{formatVND(500)}</div>
-                                                    </div>
-                                                )}
+                                            {chosenVariants.map((v) => (
+                                                <div key={v.variant_id} className="mb-2">
+                                                    <div className="fw-semibold">{v.variant_name}</div>
+                                                    <small className="text-muted">
+                                                        {v.parent_service_name
+                                                            ? `Thuộc dịch vụ: ${v.parent_service_name}`
+                                                            : ""}
+                                                    </small>
+                                                </div>
+                                            ))}
                                         </Card.Body>
                                     </Card>
 
@@ -1402,21 +1401,11 @@ export default function Booking() {
                                     <Card className="mb-4 border-0 shadow-sm summary-section">
                                         <Card.Body>
                                             <div>{renderStep1Summary()}</div>
-                                            <div className="mt">
-                                                • <strong className="text-primary">Total sessions: </strong>
-                                                <span className="text-danger fw-semibold">
-                                                    15% discount for recurring!
-                                                </span>
-                                            </div>
+                                            <strong>
+                                                • Đây là bản xem lại thông tin dịch vụ trước khi xác nhận.
+                                            </strong>
                                         </Card.Body>
                                     </Card>
-
-
-                                    {/* Tổng cộng */}
-                                    <div className="d-flex justify-content-between align-items-center mb-1">
-                                        <span className="fw-bold fs-3">Tổng cộng</span>
-                                        <span className="fw-bold text-primary fs-3">{formatVND(totalPrice)}</span>
-                                    </div>
 
                                 </div>
                             )}
@@ -1453,12 +1442,12 @@ export default function Booking() {
                                                         step,
                                                         selection: {
                                                             ...selection,
-                                                            unit: chosenVariants[0]?.unit || ""   
+                                                            unit: chosenVariants[0]?.unit || ""
                                                         },
                                                         chosenVariants,
-                                                        allVariants,  
+                                                        allVariants,
                                                         total: totalPrice,
-                                                        cleaner: "Sarah Johnson", 
+                                                        cleaner: "Sarah Johnson",
                                                     },
                                                 })
                                             }

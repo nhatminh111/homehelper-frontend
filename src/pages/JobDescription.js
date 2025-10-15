@@ -1,7 +1,7 @@
-import { Container, Row, Col, Card, Button, Nav, Form } from "react-bootstrap";
 import { useState } from "react";
 import CompletionStatus from "../components/CompletionStatus"
 import { useLocation, useNavigate } from "react-router-dom";
+import { Container, Row, Col, Card, Button, Nav, Form, InputGroup } from "react-bootstrap";
 
 export default function JobDescription() {
   const [activeTab, setActiveTab] = useState("description");
@@ -26,6 +26,53 @@ export default function JobDescription() {
   const [photos, setPhotos] = useState([]);
 
   const isComplete = jobTitle.trim() !== "" && description.trim() !== "" && photos.length > 0;
+
+  const [expectedPrice, setExpectedPrice] = useState("");
+
+  const handleCreateBooking = async () => {
+    try {
+      const payload = {
+        customer_id: bookingData.customer_id,
+        tasker_id: bookingData.tasker_id,
+        service_id: bookingData.service_id,
+        variant_id: chosenVariants?.[0]?.variant_id,
+        start_time: selection.startISO,
+        end_time: selection.endISO || null,
+        location: bookingData.location || "",
+        expected_price: Number(expectedPrice || 0),
+        job_description: description,
+        photos
+      };
+
+      const res = await fetch("http://localhost:3001/api/bookings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message || "Create booking failed");
+
+      // Điều hướng tới trang Tasker xem chi tiết booking
+      navigate("/tasker/bookings/preview", {
+        state: {
+          ...bookingData,         // dữ liệu gốc từ Booking
+          jobTitle,               // tiêu đề
+          description,            // mô tả
+          photos,                 // ảnh upload
+          expectedPrice,          // giá mong muốn
+          total: bookingData.total || 0,
+          selection,
+          chosenVariants,
+          cleaner: bookingData.cleaner,
+          status: "Pending"
+        }
+      });
+    } catch (err) {
+      console.error("Create booking error:", err);
+      alert("Không gửi được mô tả. Vui lòng thử lại.");
+    }
+  };
 
   return (
     <>
@@ -280,9 +327,16 @@ export default function JobDescription() {
                         </div>
                       </Col>
                       <Col md={6} className="d-flex flex-column justify-content-center">
-                        <div className="text-muted small">Tổng cộng</div>
+                        <div className="text-muted small">Giá dao động</div>
                         <div className="fw-bold text-primary">
-                          {new Intl.NumberFormat("vi-VN").format(total * 1000)}đ
+                          {chosenVariants.length > 0
+                            ? chosenVariants.map((v) => {
+                              const min = v.price_min || 0;
+                              const max = v.price_max || 0;
+                              const unit = v.unit || "";
+                              return `${(min * 1000).toLocaleString("vi-VN")}đ – ${(max * 1000).toLocaleString("vi-VN")}đ/${unit}`;
+                            }).join(", ")
+                            : "—"}
                         </div>
                       </Col>
                     </Row>
@@ -306,6 +360,7 @@ export default function JobDescription() {
                       <i className="bi bi-image me-2"></i>Ảnh ({photos.length})
                     </Nav.Link>
                   </Nav.Item>
+
                 </Nav>
 
                 {/* Nội dung Tab */}
@@ -338,6 +393,52 @@ export default function JobDescription() {
                           value={description}
                           onChange={(e) => setDescription(e.target.value)}
                         />
+                      </Form.Group>
+
+                      {/* Giá mong muốn */}
+
+                      <Form.Group className="mb-3 d-flex flex-column align-items-start">
+                        <Form.Label className="fw-semibold">Giá mong muốn (VNĐ)</Form.Label>
+                        <InputGroup
+                          style={{
+                            width: "180px",
+                            borderRadius: "12px",
+                            overflow: "hidden",
+                            boxShadow: "0 2px 6px rgba(0, 0, 0, 0.08)",
+                          }}
+                        >
+                          <Form.Control
+                            type="text"
+                            placeholder="0"
+                            value={expectedPrice}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/\D/g, ""); // chỉ giữ số
+                              setExpectedPrice(val);
+                            }}
+                            style={{
+                              textAlign: "center",
+                              border: "1px solid #e0e6ed",
+                              borderLeft: "none",
+                              borderRight: "none",
+                              fontWeight: 600,
+                              fontSize: "1rem",
+                              color: "#212529",
+                            }}
+                          />
+
+                          <InputGroup.Text
+                            style={{
+                              backgroundColor: "#f1f5f9",
+                              border: "1px solid #e0e6ed",
+                              borderLeft: "none",
+                              fontWeight: 600,
+                              fontSize: "0.95rem",
+                              color: "#374151",
+                            }}
+                          >
+                            .000đ
+                          </InputGroup.Text>
+                        </InputGroup>
                       </Form.Group>
                     </Card.Body>
                   </Card>
@@ -473,7 +574,7 @@ export default function JobDescription() {
                 </Card>
 
                 {/* Trạng thái hoàn thành */}
-                <CompletionStatus jobTitle={jobTitle} description={description} photos={photos} />
+                <CompletionStatus jobTitle={jobTitle} description={description} photos={photos} expectedPrice={expectedPrice} />
 
                 {/* Hành động */}
                 <Card className="custom-card mt-auto flex-fill">
@@ -481,39 +582,11 @@ export default function JobDescription() {
                     <Button
                       variant="outline-primary"
                       className="w-100 mb-2 custom-btn"
-                      disabled
+                      onClick={handleCreateBooking}
+                      disabled={!jobTitle || !description || !expectedPrice}
                     >
-                      <i className="bi bi-eye me-2"></i>Xem trước mô tả
+                      <i className="bi bi-send-check me-2"></i>Gửi yêu cầu cho người giúp việc
                     </Button>
-
-                    {isComplete && (
-                      <Button
-                        variant="primary"
-                        className="w-100 custom-btn"
-                        onClick={() => {
-                          console.log("Đơn vị hiện tại:", selection.unit);
-                          const targetPage =
-                            selection.unit === "Tuần" || selection.unit === "Tháng"
-                              ? "/contract"
-                              : "/payment";
-
-                          navigate(targetPage, {
-                            state: {
-                              ...bookingData,
-                              step: (bookingData.step || 3) + 1,
-                              jobTitle,
-                              description,
-                              photos,
-                            },
-                          });
-                        }}
-                      >
-                        <i className="bi bi-check-circle me-2"></i>
-                        {selection.unit === "Tuần" || selection.unit === "Tháng"
-                          ? "Tiếp theo: Ký hợp đồng"
-                          : "Tiếp theo: Thanh toán"}
-                      </Button>
-                    )}
 
                     <small className="text-muted d-block mt-2">
                       Mô tả của bạn sẽ được gửi cho người dọn dẹp
