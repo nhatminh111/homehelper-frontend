@@ -42,6 +42,7 @@ const TaskerProfile = () => {
   const [newFeedback, setNewFeedback] = useState("");
   const [loadingUser, setLoadingUser] = useState(true);
   const [inWishlist, setInWishlist] = useState(false);
+  const [skipFetch, setSkipFetch] = useState(false);
 
   // Demo/static datasets to mirror the provided UI comps
   const specialties = [
@@ -63,15 +64,6 @@ const TaskerProfile = () => {
       minutes: "8:32",
       views: 2340,
       likes: 98,
-      when: "2 days ago",
-      img: "https://images.unsplash.com/photo-1581579188871-45ea61f2a0c8?auto=format&fit=crop&w=1200&q=60",
-    },
-    {
-      id: 2,
-      title: "Bathroom Sanitization - Hospital Grade",
-      minutes: "6:15",
-      views: 1800,
-      likes: 156,
       when: "1 week ago",
       img: "https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=1200&q=60",
     },
@@ -144,16 +136,42 @@ const TaskerProfile = () => {
     },
   ];
   const achievements = [
-    { icon: "🏆", title: "Top Rated Cleaner 2024", subtitle: "Ranked #1 downtown", when: "Jan 2024" },
-    { icon: "⭐", title: "Customer Choice Award", subtitle: "95% satisfaction rate", when: "Dec 2023" },
-    { icon: "🌱", title: "Eco-Friendly Specialist", subtitle: "Certified green methods", when: "Nov 2023" },
-    { icon: "⚡", title: "Quick Response Champion", subtitle: "Avg response under 30m", when: "Oct 2023" },
-    { icon: "💎", title: "5-Star Professional", subtitle: "4.9+ for 6 months", when: "Sep 2023" },
+    {
+      icon: "🏆",
+      title: "Top Rated Cleaner 2024",
+      subtitle: "Ranked #1 downtown",
+      when: "Jan 2024",
+    },
+    {
+      icon: "⭐",
+      title: "Customer Choice Award",
+      subtitle: "95% satisfaction rate",
+      when: "Dec 2023",
+    },
+    {
+      icon: "🌱",
+      title: "Eco-Friendly Specialist",
+      subtitle: "Certified green methods",
+      when: "Nov 2023",
+    },
+    {
+      icon: "⚡",
+      title: "Quick Response Champion",
+      subtitle: "Avg response under 30m",
+      when: "Oct 2023",
+    },
+    {
+      icon: "💎",
+      title: "5-Star Professional",
+      subtitle: "4.9+ for 6 months",
+      when: "Sep 2023",
+    },
   ];
 
   const demoTasker = {
     name: "Sarah Johnson",
-    avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=256&q=60",
+    avatar:
+      "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=256&q=60",
     rating: 4.9,
     pricePerHour: 25,
     location: "Downtown, 2.3 km away",
@@ -171,10 +189,34 @@ const TaskerProfile = () => {
         average: 4.9,
         ratingsCount: { 5: 3, 4: 1 },
         reviews: [
-          { id: "r1", name: "Emily Chen", rating: 5, text: "Apartment has never been cleaner. Professional and punctual!", date: new Date().toISOString() },
-          { id: "r2", name: "Michael Rodriguez", rating: 5, text: "Eco-friendly products as requested. Very professional.", date: new Date(Date.now()-86400000*7).toISOString() },
-          { id: "r3", name: "Lisa Thompson", rating: 4, text: "Great work, a bit late but excellent quality.", date: new Date(Date.now()-86400000*14).toISOString() },
-          { id: "r4", name: "David Park", rating: 5, text: "Kitchen looks brand new after a party. Highly recommend!", date: new Date(Date.now()-86400000*21).toISOString() },
+          {
+            id: "r1",
+            name: "Emily Chen",
+            rating: 5,
+            text: "Apartment has never been cleaner. Professional and punctual!",
+            date: new Date().toISOString(),
+          },
+          {
+            id: "r2",
+            name: "Michael Rodriguez",
+            rating: 5,
+            text: "Eco-friendly products as requested. Very professional.",
+            date: new Date(Date.now() - 86400000 * 7).toISOString(),
+          },
+          {
+            id: "r3",
+            name: "Lisa Thompson",
+            rating: 4,
+            text: "Great work, a bit late but excellent quality.",
+            date: new Date(Date.now() - 86400000 * 14).toISOString(),
+          },
+          {
+            id: "r4",
+            name: "David Park",
+            rating: 5,
+            text: "Kitchen looks brand new after a party. Highly recommend!",
+            date: new Date(Date.now() - 86400000 * 21).toISOString(),
+          },
         ],
       });
       return;
@@ -187,13 +229,17 @@ const TaskerProfile = () => {
 
   // Load reviews (only if an id exists)
   useEffect(() => {
+    if (skipFetch) return;
     if (activeTab === "reviews" && id) {
       fetch(`${API_BASE_URL}/ratings/${id}`)
         .then((res) => res.json())
         .then((data) => setReviewsData(data || { reviews: [] }))
         .catch((err) => console.error(err));
     }
-  }, [activeTab, id]);
+  }, [activeTab, id, skipFetch]);
+
+  // reset flag mỗi khi đổi tab
+  useEffect(() => setSkipFetch(false), [activeTab]);
 
   useEffect(() => {
     if (id && isAuthenticated()) {
@@ -221,7 +267,8 @@ const TaskerProfile = () => {
       })
       .catch(() => setInWishlist(false));
   }, [user, id, token]);
-   const removeTasker = async (taskerId) => {
+
+  const removeTasker = async (taskerId) => {
     if (!window.confirm("Bạn có chắc muốn xóa tasker này khỏi wishlist?"))
       return;
     try {
@@ -237,13 +284,12 @@ const TaskerProfile = () => {
       console.error(err);
     }
   };
-
   const submitReview = async () => {
-    if (!newFeedback.trim()) return alert("Please enter your feedback");
-    if (!bookingId) return alert("Cannot submit review: bookingId missing");
+    if (!newFeedback.trim()) return alert("Vui lòng nhập nội dung đánh giá.");
+    if (!bookingId) return alert("Thiếu thông tin booking.");
 
     try {
-      const response = await fetch(`${API_BASE_URL}/ratings`, {
+      const res = await fetch(`${API_BASE_URL}/ratings`, {
         method: "POST",
         headers: createHeaders(token),
         body: JSON.stringify({
@@ -254,41 +300,37 @@ const TaskerProfile = () => {
         }),
       });
 
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Có lỗi xảy ra");
+      const data = await res.json();
+      console.log("📦 Response from API:", data);
 
-      // Dữ liệu review trả về từ backend
-      const newReview = {
-        id: data.rating_id || Math.random(),
-        name: user.name || "Bạn",
-        rating: data.rating || newRating,
-        text: data.comment || newFeedback,
-        date: data.created_at || new Date().toISOString(), // đúng tên cột từ backend
-      };
+      const status = data.status ?? data.rating?.status;
 
-      // Cập nhật state
-      setReviewsData((prev) => ({
-        ...prev,
-        reviews: [newReview, ...(prev?.reviews || [])],
-        total: (prev?.total || 0) + 1,
-        average:
-          ((prev?.average || 0) * (prev?.total || 0) + newReview.rating) /
-          ((prev?.total || 0) + 1),
-        ratingsCount: {
-          ...prev.ratingsCount,
-          [newReview.rating]: (prev.ratingsCount?.[newReview.rating] || 0) + 1,
-        },
-      }));
+      if (status === 1 || status === 0) {
+        alert(
+          data.message ||
+            (status === 1
+              ? "Đánh giá đã được đăng thành công."
+              : "Đánh giá của bạn đang chờ duyệt.")
+        );
 
-      // Reset form
-      setNewRating(5);
-      setNewFeedback("");
-      setCanRate(false); // tránh đánh giá lại cùng booking
+        // 🟢 Sau khi submit thành công -> Fetch lại toàn bộ danh sách review từ server
+        await fetch(`${API_BASE_URL}/ratings/${id}`)
+          .then((res) => res.json())
+          .then((updatedData) => setReviewsData(updatedData || { reviews: [] }))
+          .catch((err) =>
+            console.error("❌ Lỗi khi tải lại danh sách review:", err)
+          );
 
-      alert("Review submitted!");
+        // Reset form
+        setCanRate(false);
+        setNewRating(5);
+        setNewFeedback("");
+      } else {
+        alert(data.message || "Không xác định trạng thái đánh giá.");
+      }
     } catch (error) {
-      console.error("Error submitting review:", error);
-      alert(error.message);
+      console.error("❌ Error submitting review:", error);
+      alert("Lỗi kết nối hoặc máy chủ. Vui lòng thử lại.");
     }
   };
 
@@ -345,13 +387,22 @@ const TaskerProfile = () => {
                 />
                 <div>
                   <div className="d-flex align-items-center gap-2 mb-1">
-                    <h3 className="tp-name mb-0">{tasker.name || "Tasker Name"}</h3>
-                    <span className="tp-verified"><FontAwesomeIcon icon={faCheckCircle} /> Verified Professional</span>
+                    <h3 className="tp-name mb-0">
+                      {tasker.name || "Tasker Name"}
+                    </h3>
+                    <span className="tp-verified">
+                      <FontAwesomeIcon icon={faCheckCircle} /> Verified
+                      Professional
+                    </span>
                   </div>
                   <div className="d-flex align-items-center gap-2 tp-rating">
-                    <span className="tp-rating-score">{tasker.rating || 4.9}</span>
+                    <span className="tp-rating-score">
+                      {tasker.rating || 4.9}
+                    </span>
                     <FontAwesomeIcon icon={faStar} />
-                    <span className="text-muted small">Based on 124 reviews</span>
+                    <span className="text-muted small">
+                      Based on 124 reviews
+                    </span>
                   </div>
                 </div>
               </div>
@@ -367,10 +418,19 @@ const TaskerProfile = () => {
               </div>
             </div>
             <div className="col-md-6 text-md-end mt-3 mt-md-0">
-              <div className="text-muted mb-1"><FontAwesomeIcon icon={faMapMarkerAlt} className="me-1" />{tasker.location || "Downtown, 2.3 km away"}</div>
-              <div className="text-muted mb-1"><FontAwesomeIcon icon={faTools} className="me-1" />{tasker.yearsExperience || 5} years experience</div>
+              <div className="text-muted mb-1">
+                <FontAwesomeIcon icon={faMapMarkerAlt} className="me-1" />
+                {tasker.location || "Downtown, 2.3 km away"}
+              </div>
+              <div className="text-muted mb-1">
+                <FontAwesomeIcon icon={faTools} className="me-1" />
+                {tasker.yearsExperience || 5} years experience
+              </div>
               {tasker.available && (
-                <div className="text-success fw-semibold"><FontAwesomeIcon icon={faCheckCircle} className="me-1" />Available Now</div>
+                <div className="text-success fw-semibold">
+                  <FontAwesomeIcon icon={faCheckCircle} className="me-1" />
+                  Available Now
+                </div>
               )}
             </div>
           </div>
@@ -378,389 +438,472 @@ const TaskerProfile = () => {
 
         {/* Tabs */}
         <div className="tp-card p-0 mt-4">
-        <ul className="nav nav-pills tp-tabs mb-0 p-2">
-          {tabs.map((tab) => (
-            <li className="nav-item" key={tab.id}>
-              <button
-                className={`nav-link tp-tab ${activeTab === tab.id ? "active" : ""}`}
-                onClick={() => setActiveTab(tab.id)}
-              >
-                <FontAwesomeIcon icon={tab.icon} className="me-1" />
-                {tab.label}
-              </button>
-            </li>
-          ))}
-        </ul>
+          <ul className="nav nav-pills tp-tabs mb-0 p-2">
+            {tabs.map((tab) => (
+              <li className="nav-item" key={tab.id}>
+                <button
+                  className={`nav-link tp-tab ${
+                    activeTab === tab.id ? "active" : ""
+                  }`}
+                  onClick={() => setActiveTab(tab.id)}
+                >
+                  <FontAwesomeIcon icon={tab.icon} className="me-1" />
+                  {tab.label}
+                </button>
+              </li>
+            ))}
+          </ul>
 
-        <div className="p-3 p-md-4">
-          {activeTab === "overview" && (
-            <div>
-              {/* Intro summary strip with badges */}
-              <div className="row g-3 mb-3">
-                <div className="col-md-12">
-                  <div className="d-flex flex-wrap align-items-center gap-2">
-                    <span className="tp-badge">
-                      <FontAwesomeIcon icon={faMapMarkerAlt} className="me-1" />
-                      {tasker.location || "Downtown, 2.3 km away"}
-                    </span>
-                    <span className="tp-badge">{tasker.yearsExperience || 5} years experience</span>
-                    <span className="tp-badge" style={{background:'#e6f7ef',borderColor:'#b7e4cd',color:'#0f766e'}}>
-                      <FontAwesomeIcon icon={faCheckCircle} className="me-1" />
-                      Available Now
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Bio */}
-              <p className="text-muted">
-                Professional house cleaner with 5+ years of experience. I specialize in deep cleaning, kitchen
-                sanitization, and eco-friendly cleaning methods. I take pride in delivering exceptional results and
-                building long-term relationships with my clients.
-              </p>
-
-              {/* Specializations & Languages */}
-              <div className="row g-3 mb-4">
-                <div className="col-md-8">
-                  <div className="mb-2 fw-semibold">Specializations</div>
-                  <div className="d-flex flex-wrap gap-2">
-                    {specialties.map((s) => (
-                      <span key={s} className="badge bg-primary-subtle text-primary border">{s}</span>
-                    ))}
-                  </div>
-                </div>
-                <div className="col-md-4">
-                  <div className="mb-2 fw-semibold">Languages</div>
-                  <div className="d-flex flex-wrap gap-2">
-                    {languages.map((l) => (
-                      <span key={l} className="badge bg-secondary-subtle text-secondary border">{l}</span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Stats tiles */}
-              <div className="row g-3 mb-4">
-                {stats.map((st) => (
-                  <div key={st.label} className="col-12 col-md-4">
-                    <div className="tp-tile">
-                      <div className="fs-4 fw-bold">{st.value}</div>
-                      <div className="text-muted">{st.label}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Availability & Reviews snapshot */}
-              <div className="row g-3">
-                <div className="col-md-6">
-                  <div className="tp-card">
-                    <div className="d-flex align-items-center mb-2">
-                      <span className="me-2">⚡</span>
-                      <div className="fw-semibold">Availability & Services</div>
-                    </div>
-                    <div className="d-flex justify-content-between">
-                      <div>
-                        <div className="text-muted">Status</div>
-                        <div className="badge bg-success">Available</div>
-                      </div>
-                      <div className="text-end">
-                        <div className="text-muted">Next Slot</div>
-                        <div className="badge bg-info text-dark">Today 2PM</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="col-md-6">
-                  <div className="tp-card">
-                    <div className="d-flex align-items-center mb-2">
-                      <span className="me-2">💬</span>
-                      <div className="fw-semibold">Recent Reviews</div>
-                    </div>
-                    <div className="small text-muted">Customers love the eco-friendly methods and attention to detail.</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === "reviews" && (
-            <div className="row">
-              {/* Rating Overview */}
-              <div className="col-md-4 text-center">
-                <h1 className="display-4 fw-bold text-primary">
-                  {reviewsData.average?.toFixed(1) || "0.0"}
-                </h1>
-                <div className="mb-2">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <FontAwesomeIcon
-                      key={star}
-                      icon={faStar}
-                      className={
-                        star <= Math.round(reviewsData.average || 0)
-                          ? "text-warning"
-                          : "text-muted"
-                      }
-                    />
-                  ))}
-                </div>
-                <p className="text-muted">{reviewsData.total} reviews</p>
-
-                {[5, 4, 3, 2, 1].map((star) => {
-                  const count = reviewsData.ratingsCount?.[star] || 0;
-                  const percent = reviewsData.total
-                    ? Math.round((count / reviewsData.total) * 100)
-                    : 0;
-
-                  return (
-                    <div key={star} className="d-flex align-items-center mb-2">
-                      <span style={{ width: 30 }}>{star}★</span>
-                      <div
-                        className="progress flex-grow-1 mx-2"
-                        style={{ height: 10 }}
+          <div className="p-3 p-md-4">
+            {activeTab === "overview" && (
+              <div>
+                {/* Intro summary strip with badges */}
+                <div className="row g-3 mb-3">
+                  <div className="col-md-12">
+                    <div className="d-flex flex-wrap align-items-center gap-2">
+                      <span className="tp-badge">
+                        <FontAwesomeIcon
+                          icon={faMapMarkerAlt}
+                          className="me-1"
+                        />
+                        {tasker.location || "Downtown, 2.3 km away"}
+                      </span>
+                      <span className="tp-badge">
+                        {tasker.yearsExperience || 5} years experience
+                      </span>
+                      <span
+                        className="tp-badge"
+                        style={{
+                          background: "#e6f7ef",
+                          borderColor: "#b7e4cd",
+                          color: "#0f766e",
+                        }}
                       >
-                        <div
-                          className="progress-bar bg-warning"
-                          role="progressbar"
-                          style={{ width: `${percent}%` }}
-                        ></div>
-                      </div>
-                      <span>{count}</span>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Reviews + Form */}
-              <div className="col-md-8">
-                {reviewsData?.reviews?.length > 0 ? (
-                  reviewsData.reviews
-                    .filter((review) => review)
-                    .map((review) => (
-                      <div
-                        key={review.id || Math.random()}
-                        className="card shadow-sm mb-3 p-3"
-                      >
-                        <div className="d-flex align-items-start">
-                          {/* Avatar */}
-                          <img
-                            src={review.avatar || "/images/default-avatar.png"}
-                            alt={review.name}
-                            className="rounded-circle me-3"
-                            style={{
-                              width: "50px",
-                              height: "50px",
-                              objectFit: "cover",
-                            }}
-                          />
-
-                          <div className="flex-grow-1">
-                            {/* Header */}
-                            <div className="d-flex align-items-center mb-1">
-                              <strong className="me-2">
-                                {review?.name || "Ẩn danh"}
-                              </strong>
-                              <span className="badge bg-primary me-2">
-                                Verified
-                              </span>
-                              <div>
-                                {[1, 2, 3, 4, 5].map((star) => (
-                                  <FontAwesomeIcon
-                                    key={star}
-                                    icon={faStar}
-                                    className={
-                                      star <= (review?.rating || 0)
-                                        ? "text-warning"
-                                        : "text-muted"
-                                    }
-                                  />
-                                ))}
-                              </div>
-                            </div>
-
-                            {/* Date */}
-                            <small className="text-muted d-block mb-2">
-                              {review.date ? review.date.split("T")[0] : ""}
-                            </small>
-
-                            {/* Comment */}
-                            <p className="mb-2">
-                              {review?.text || "Không có nhận xét."}
-                            </p>
-
-                            {/* Helpful button */}
-                            <button className="btn btn-sm btn-outline-secondary">
-                              👍 Helpful ({review.helpful || 0})
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                ) : (
-                  <p>No reviews yet.</p>
-                )}
-
-                {/* Review Form */}
-                {!authLoading && isAuthenticated() && canRate && (
-                  <div className="mt-4 p-3 border rounded">
-                    <h5>Leave a Review</h5>
-                    <div className="mb-2">
-                      <label className="form-label">Rating:</label>
-                      <div>
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <FontAwesomeIcon
-                            key={star}
-                            icon={faStar}
-                            onClick={() => setNewRating(star)}
-                            className={`me-1 cursor-pointer ${
-                              star <= newRating ? "text-warning" : "text-muted"
-                            }`}
-                            style={{ cursor: "pointer", fontSize: "1.5rem" }}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                    <div className="mb-2">
-                      <label className="form-label">Feedback:</label>
-                      <textarea
-                        className="form-control"
-                        rows="3"
-                        value={newFeedback}
-                        onChange={(e) => setNewFeedback(e.target.value)}
-                      />
-                    </div>
-                    <button className="btn btn-primary" onClick={submitReview}>
-                      Submit
-                    </button>
-                  </div>
-                )}
-
-                {!authLoading && isAuthenticated() && !canRate && (
-                  <p className="text-muted mt-2">
-                    Bạn chỉ có thể đánh giá sau khi hoàn thành booking với
-                    tasker này.
-                  </p>
-                )}
-
-                {!authLoading && !isAuthenticated() && (
-                  <p className="text-muted mt-2">
-                    Vui lòng đăng nhập để đánh giá.
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {activeTab === "videos" && (
-            <div>
-              <div className="d-flex justify-content-between align-items-center mb-3">
-                <div className="fw-bold">Featured Videos</div>
-                <div className="text-muted small">Recent Videos</div>
-              </div>
-              <div className="row g-3">
-                {featuredVideos.map((v) => (
-                  <div key={v.id} className="col-md-4">
-                    <div className="tp-card tp-media-card h-100">
-                      <div className="thumb w-100"><img src={v.img} alt={v.title} /></div>
-                      <div className="card-body">
-                        <div className="d-flex justify-content-between align-items-center mb-2">
-                          <div className="time">{v.minutes}</div>
-                          <div className="text-muted small">{v.when}</div>
-                        </div>
-                        <h6 className="fw-semibold mb-2">{v.title}</h6>
-                        <div className="meta">{v.views} views · {v.likes} like</div>
-                      </div>
+                        <FontAwesomeIcon
+                          icon={faCheckCircle}
+                          className="me-1"
+                        />
+                        Available Now
+                      </span>
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
+                </div>
 
-          {activeTab === "articles" && (
-            <div>
-              <h5 className="mb-3">Cleaning Tips & Guides</h5>
-              <div className="p-3 rounded border bg-white mb-4">
-                <div className="row g-2 align-items-center">
+                {/* Bio */}
+                <p className="text-muted">
+                  Professional house cleaner with 5+ years of experience. I
+                  specialize in deep cleaning, kitchen sanitization, and
+                  eco-friendly cleaning methods. I take pride in delivering
+                  exceptional results and building long-term relationships with
+                  my clients.
+                </p>
+
+                {/* Specializations & Languages */}
+                <div className="row g-3 mb-4">
                   <div className="col-md-8">
-                    <input className="form-control" placeholder="Search across, tips, or techniques..." />
+                    <div className="mb-2 fw-semibold">Specializations</div>
+                    <div className="d-flex flex-wrap gap-2">
+                      {specialties.map((s) => (
+                        <span
+                          key={s}
+                          className="badge bg-primary-subtle text-primary border"
+                        >
+                          {s}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                  <div className="col-md-4 text-md-end">
-                    <div className="d-inline-flex flex-wrap gap-2">
-                      {[
-                        "All Articles",
-                        "Furniture Care",
-                        "Kitchen Tips",
-                        "Bathroom Care",
-                        "Eco-Friendly",
-                      ].map((f) => (
-                        <span key={f} className="badge bg-light text-dark border">{f}</span>
+                  <div className="col-md-4">
+                    <div className="mb-2 fw-semibold">Languages</div>
+                    <div className="d-flex flex-wrap gap-2">
+                      {languages.map((l) => (
+                        <span
+                          key={l}
+                          className="badge bg-secondary-subtle text-secondary border"
+                        >
+                          {l}
+                        </span>
                       ))}
                     </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="fw-semibold mb-2">Featured Articles</div>
-              <div className="row g-3 mb-4">
-                {featuredArticles.map((a) => (
-                  <div key={a.id} className="col-md-6">
-                    <div className="tp-card tp-media-card h-100">
-                      <div className="thumb w-100" style={{height:220}}><img src={a.img} alt={a.title} /></div>
-                      <div className="card-body">
-                        <div className="d-flex justify-content-between mb-2">
-                          <span className="badge bg-warning-subtle text-warning border">Featured</span>
-                          <span className="badge bg-light text-dark border">{a.category}</span>
+                {/* Stats tiles */}
+                <div className="row g-3 mb-4">
+                  {stats.map((st) => (
+                    <div key={st.label} className="col-12 col-md-4">
+                      <div className="tp-tile">
+                        <div className="fs-4 fw-bold">{st.value}</div>
+                        <div className="text-muted">{st.label}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Availability & Reviews snapshot */}
+                <div className="row g-3">
+                  <div className="col-md-6">
+                    <div className="tp-card">
+                      <div className="d-flex align-items-center mb-2">
+                        <span className="me-2">⚡</span>
+                        <div className="fw-semibold">
+                          Availability & Services
                         </div>
-                        <h6 className="fw-semibold mb-2">{a.title}</h6>
-                        <div className="meta">{a.views} views • {a.read}</div>
+                      </div>
+                      <div className="d-flex justify-content-between">
+                        <div>
+                          <div className="text-muted">Status</div>
+                          <div className="badge bg-success">Available</div>
+                        </div>
+                        <div className="text-end">
+                          <div className="text-muted">Next Slot</div>
+                          <div className="badge bg-info text-dark">
+                            Today 2PM
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
-
-              <div className="fw-semibold mb-2">All Articles</div>
-              <div className="row g-3">
-                {moreArticles.map((a) => (
-                  <div key={a.id} className="col-md-3">
-                    <div className="tp-card tp-media-card h-100">
-                      <div className="thumb w-100" style={{height:140}}><img src={a.img} alt={a.title} /></div>
-                      <div className="card-body">
-                        <div className="d-flex justify-content-between mb-1">
-                          <span className="badge bg-light text-dark border">{a.category}</span>
-                          <span className="text-muted small">{a.date}</span>
-                        </div>
-                        <div className="fw-semibold small mb-1">{a.title}</div>
-                        <div className="meta">{a.views} views • {a.read}</div>
+                  <div className="col-md-6">
+                    <div className="tp-card">
+                      <div className="d-flex align-items-center mb-2">
+                        <span className="me-2">💬</span>
+                        <div className="fw-semibold">Recent Reviews</div>
                       </div>
-                      <div className="card-footer bg-white border-0 pt-0 pb-3">
-                        <button className="btn btn-sm btn-primary w-100">Read Full Article</button>
+                      <div className="small text-muted">
+                        Customers love the eco-friendly methods and attention to
+                        detail.
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {activeTab === "achievements" && (
-            <div className="row g-3">
-              {achievements.map((a, i) => (
-                <div key={i} className="col-md-4">
-                  <div className="p-4 rounded border bg-white h-100 shadow-sm">
-                    <div className="display-6 mb-2">{a.icon}</div>
-                    <div className="fw-semibold">{a.title}</div>
-                    <div className="text-muted small mb-2">{a.subtitle}</div>
-                    <span className="badge bg-light text-dark border">{a.when}</span>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
+              </div>
+            )}
+
+            {activeTab === "reviews" && (
+              <div className="row">
+                {/* Rating Overview */}
+                <div className="col-md-4 text-center">
+                  <h1 className="display-4 fw-bold text-primary">
+                    {reviewsData.average?.toFixed(1) || "0.0"}
+                  </h1>
+                  <div className="mb-2">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <FontAwesomeIcon
+                        key={star}
+                        icon={faStar}
+                        className={
+                          star <= Math.round(reviewsData.average || 0)
+                            ? "text-warning"
+                            : "text-muted"
+                        }
+                      />
+                    ))}
+                  </div>
+                  <p className="text-muted">{reviewsData.total} reviews</p>
+
+                  {[5, 4, 3, 2, 1].map((star) => {
+                    const count = reviewsData.ratingsCount?.[star] || 0;
+                    const percent = reviewsData.total
+                      ? Math.round((count / reviewsData.total) * 100)
+                      : 0;
+
+                    return (
+                      <div
+                        key={star}
+                        className="d-flex align-items-center mb-2"
+                      >
+                        <span style={{ width: 30 }}>{star}★</span>
+                        <div
+                          className="progress flex-grow-1 mx-2"
+                          style={{ height: 10 }}
+                        >
+                          <div
+                            className="progress-bar bg-warning"
+                            role="progressbar"
+                            style={{ width: `${percent}%` }}
+                          ></div>
+                        </div>
+                        <span>{count}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Reviews + Form */}
+                <div className="col-md-8">
+                  {reviewsData?.reviews?.length > 0 ? (
+                    reviewsData.reviews
+                      .filter((review) => review) // loại null/undefined
+                      .map((review) => (
+                        <div
+                          key={review.id || Math.random()}
+                          className="card shadow-sm mb-3 p-3"
+                        >
+                          <div className="d-flex align-items-start">
+                            {/* Avatar */}
+                            <img
+                              src={
+                                review.avatar || "/images/default-avatar.png"
+                              }
+                              alt={review.name}
+                              className="rounded-circle me-3"
+                              style={{
+                                width: "50px",
+                                height: "50px",
+                                objectFit: "cover",
+                              }}
+                            />
+
+                            <div className="flex-grow-1">
+                              {/* Header */}
+                              <div className="d-flex align-items-center mb-1">
+                                <strong className="me-2">
+                                  {review?.name || "Ẩn danh"}
+                                </strong>
+                                <span className="badge bg-primary me-2">
+                                  Verified
+                                </span>
+                                {review.status === 0 && (
+                                  <span className="badge bg-secondary ms-2">
+                                    Pending
+                                  </span>
+                                )}
+                                <div>
+                                  {[1, 2, 3, 4, 5].map((star) => (
+                                    <FontAwesomeIcon
+                                      key={star}
+                                      icon={faStar}
+                                      className={
+                                        star <= (review?.rating || 0)
+                                          ? "text-warning"
+                                          : "text-muted"
+                                      }
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* Date */}
+                              <small className="text-muted d-block mb-2">
+                                {review.date ? review.date.split("T")[0] : ""}
+                              </small>
+
+                              {/* Comment */}
+                              <p className="mb-2">
+                                {review?.text || "Không có nhận xét."}
+                              </p>
+
+                              {/* Helpful button */}
+                              <button className="btn btn-sm btn-outline-secondary">
+                                👍 Helpful ({review.helpful || 0})
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                  ) : (
+                    <p>No reviews yet.</p>
+                  )}
+
+                  {/* Review Form */}
+                  {!authLoading && isAuthenticated() && canRate && (
+                    <div className="mt-4 p-3 border rounded">
+                      <h5>Leave a Review</h5>
+                      <div className="mb-2">
+                        <label className="form-label">Rating:</label>
+                        <div>
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <FontAwesomeIcon
+                              key={star}
+                              icon={faStar}
+                              onClick={() => setNewRating(star)}
+                              className={`me-1 cursor-pointer ${
+                                star <= newRating
+                                  ? "text-warning"
+                                  : "text-muted"
+                              }`}
+                              style={{ cursor: "pointer", fontSize: "1.5rem" }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      <div className="mb-2">
+                        <label className="form-label">Feedback:</label>
+                        <textarea
+                          className="form-control"
+                          rows="3"
+                          value={newFeedback}
+                          onChange={(e) => setNewFeedback(e.target.value)}
+                        />
+                      </div>
+                      <button
+                        className="btn btn-primary"
+                        onClick={submitReview}
+                      >
+                        Submit
+                      </button>
+                    </div>
+                  )}
+
+                  {!authLoading && isAuthenticated() && !canRate && (
+                    <p className="text-muted mt-2">
+                      Bạn chỉ có thể đánh giá sau khi hoàn thành booking với
+                      tasker này.
+                    </p>
+                  )}
+
+                  {!authLoading && !isAuthenticated() && (
+                    <p className="text-muted mt-2">
+                      Vui lòng đăng nhập để đánh giá.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {activeTab === "videos" && (
+              <div>
+                <div className="d-flex justify-content-between align-items-center mb-3">
+                  <div className="fw-bold">Featured Videos</div>
+                  <div className="text-muted small">Recent Videos</div>
+                </div>
+                <div className="row g-3">
+                  {featuredVideos.map((v) => (
+                    <div key={v.id} className="col-md-4">
+                      <div className="tp-card tp-media-card h-100">
+                        <div className="thumb w-100">
+                          <img src={v.img} alt={v.title} />
+                        </div>
+                        <div className="card-body">
+                          <div className="d-flex justify-content-between align-items-center mb-2">
+                            <div className="time">{v.minutes}</div>
+                            <div className="text-muted small">{v.when}</div>
+                          </div>
+                          <h6 className="fw-semibold mb-2">{v.title}</h6>
+                          <div className="meta">
+                            {v.views} views · {v.likes} like
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {activeTab === "articles" && (
+              <div>
+                <h5 className="mb-3">Cleaning Tips & Guides</h5>
+                <div className="p-3 rounded border bg-white mb-4">
+                  <div className="row g-2 align-items-center">
+                    <div className="col-md-8">
+                      <input
+                        className="form-control"
+                        placeholder="Search across, tips, or techniques..."
+                      />
+                    </div>
+                    <div className="col-md-4 text-md-end">
+                      <div className="d-inline-flex flex-wrap gap-2">
+                        {[
+                          "All Articles",
+                          "Furniture Care",
+                          "Kitchen Tips",
+                          "Bathroom Care",
+                          "Eco-Friendly",
+                        ].map((f) => (
+                          <span
+                            key={f}
+                            className="badge bg-light text-dark border"
+                          >
+                            {f}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="fw-semibold mb-2">Featured Articles</div>
+                <div className="row g-3 mb-4">
+                  {featuredArticles.map((a) => (
+                    <div key={a.id} className="col-md-6">
+                      <div className="tp-card tp-media-card h-100">
+                        <div className="thumb w-100" style={{ height: 220 }}>
+                          <img src={a.img} alt={a.title} />
+                        </div>
+                        <div className="card-body">
+                          <div className="d-flex justify-content-between mb-2">
+                            <span className="badge bg-warning-subtle text-warning border">
+                              Featured
+                            </span>
+                            <span className="badge bg-light text-dark border">
+                              {a.category}
+                            </span>
+                          </div>
+                          <h6 className="fw-semibold mb-2">{a.title}</h6>
+                          <div className="meta">
+                            {a.views} views • {a.read}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="fw-semibold mb-2">All Articles</div>
+                <div className="row g-3">
+                  {moreArticles.map((a) => (
+                    <div key={a.id} className="col-md-3">
+                      <div className="tp-card tp-media-card h-100">
+                        <div className="thumb w-100" style={{ height: 140 }}>
+                          <img src={a.img} alt={a.title} />
+                        </div>
+                        <div className="card-body">
+                          <div className="d-flex justify-content-between mb-1">
+                            <span className="badge bg-light text-dark border">
+                              {a.category}
+                            </span>
+                            <span className="text-muted small">{a.date}</span>
+                          </div>
+                          <div className="fw-semibold small mb-1">
+                            {a.title}
+                          </div>
+                          <div className="meta">
+                            {a.views} views • {a.read}
+                          </div>
+                        </div>
+                        <div className="card-footer bg-white border-0 pt-0 pb-3">
+                          <button className="btn btn-sm btn-primary w-100">
+                            Read Full Article
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {activeTab === "achievements" && (
+              <div className="row g-3">
+                {achievements.map((a, i) => (
+                  <div key={i} className="col-md-4">
+                    <div className="p-4 rounded border bg-white h-100 shadow-sm">
+                      <div className="display-6 mb-2">{a.icon}</div>
+                      <div className="fw-semibold">{a.title}</div>
+                      <div className="text-muted small mb-2">{a.subtitle}</div>
+                      <span className="badge bg-light text-dark border">
+                        {a.when}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
     </div>
   );
 };
