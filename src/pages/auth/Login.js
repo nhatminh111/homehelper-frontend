@@ -22,9 +22,10 @@ import "./Auth.css";
 const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, loginWithGoogle, error, setError, isAuthenticated } = useAuth();
-  
-  const [userType, setUserType] = useState('user'); // 'user' or 'tasker'
+  const { login, loginWithGoogle, error, setError, isAuthenticated } =
+    useAuth();
+
+  const [userType, setUserType] = useState("user"); // 'user' or 'tasker'
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -53,26 +54,26 @@ const Login = () => {
           if (credential) {
             loginWithGoogle(credential).catch((e) => {
               console.error(e);
-              setError(e.message || 'Đăng nhập Google thất bại');
+              setError(e.message || "Đăng nhập Google thất bại");
             });
           }
         },
-        ux_mode: 'popup',
+        ux_mode: "popup",
         auto_select: false,
-        use_fedcm_for_prompt: false
+        use_fedcm_for_prompt: false,
       });
 
-      const container = document.getElementById('google-btn');
+      const container = document.getElementById("google-btn");
       if (container) {
         window.google.accounts.id.renderButton(container, {
-          theme: 'outline',
-          size: 'large',
-          text: 'continue_with',
-          shape: 'rectangular'
+          theme: "outline",
+          size: "large",
+          text: "continue_with",
+          shape: "rectangular",
         });
       }
     } catch (e) {
-      console.error('Google init error:', e);
+      console.error("Google init error:", e);
     }
   }, [loginWithGoogle, setError]);
 
@@ -103,15 +104,16 @@ const Login = () => {
         token: response.token, // bắt buộc token để gọi API bảo mật
       };
       localStorage.setItem("user", JSON.stringify(userData));
+      localStorage.setItem("role", response.user.role);
 
       console.log("Login successful, stored user:", userData);
 
       // Redirect theo role
       const role = response.user.role;
-      if (role === 'Customer') navigate('/customer', { replace: true });
-      else if (role === 'Tasker') navigate('/tasker', { replace: true });
-      else if (role === 'Admin') navigate('/admin', { replace: true });
-      else navigate('/', { replace: true });
+      if (role === "Customer") navigate("/customer", { replace: true });
+      else if (role === "Tasker") navigate("/tasker", { replace: true });
+      else if (role === "Admin") navigate("/admin", { replace: true });
+      else navigate("/", { replace: true });
     } catch (error) {
       console.error("Login error:", error);
       setError(error.message || "Login failed");
@@ -146,25 +148,6 @@ const Login = () => {
           </div>
           <h1 className="logo-text">HomeHelper</h1>
         </div>
-
-        {/* User Type Selector */}
-        <div className="user-type-selector">
-          <button
-            className={`type-option ${userType === "user" ? "active" : ""}`}
-            onClick={() => setUserType("user")}
-          >
-            <FontAwesomeIcon icon={faUser} />
-            <span>User</span>
-          </button>
-          <button
-            className={`type-option ${userType === "tasker" ? "active" : ""}`}
-            onClick={() => setUserType("tasker")}
-          >
-            <FontAwesomeIcon icon={faStar} />
-            <span>Tasker</span>
-          </button>
-        </div>
-
         {/* Login Form */}
         <div className="auth-card">
           <h2 className="auth-title">Sign In</h2>

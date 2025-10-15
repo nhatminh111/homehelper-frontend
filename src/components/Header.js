@@ -122,15 +122,42 @@ const Header = () => {
             id="ftco-nav"
           >
             <ul className="navbar-nav ml-auto">
-              {mainLinks.map((link, i) => (
-                <li key={i} className={`nav-item ${isActive(link.path)}`}>
-                  <Link to={link.path} className="nav-link">
-                    <FontAwesomeIcon icon={link.icon} className="mr-1" />
-                    {link.name}
-                  </Link>
-                </li>
-              ))}
+              <li className={`nav-item ${isActive('/')}`}>
+                <Link to="/" className="nav-link">Trang chủ</Link>
+              </li>
+              <li className={`nav-item ${isActive('/about')}`}>
+                <Link to="/about" className="nav-link">Giới thiệu</Link>
+              </li>
+              <li className={`nav-item ${isActive('/services')}`}>
+                <Link to="/services" className="nav-link">Dịch vụ</Link>
+              </li>
+              <li className={`nav-item ${isActive('/portfolio')}`}>
+                <Link to="/video" className="nav-link">Videos</Link>
+              </li>
+              <li className={`nav-item ${isActive("/blog")}`}>
+                <Link to="/blog" className="nav-link">
+                  Blog
+                </Link>
+              </li>
+              <li className={`nav-item ${isActive('/contact')}`}>
+                <Link to="/contact" className="nav-link">Liên hệ</Link>
+              </li>
+              <li className={`nav-item ${isActive("/chat")}`}>
+                <Link to="/chat" className="nav-link">
+                  Chat
+                </Link>
+              </li>
+              {/* <li className={`nav-item ${isActive("/cccd")}`}>
+                <Link to="/cccd" className="nav-link">
+                  <FontAwesomeIcon icon={faIdCard} className="mr-1" /> CCCD
+                </Link>
+              </li> */}
 
+              <li className={`nav-item ${isActive('/become-tasker')}`}>
+                <Link to="/become-tasker" className="nav-link">Become a Tasker</Link>
+              </li>
+
+              {/* Auth Menu */}
               {isAuthenticated() ? (
                 <li
                   className={`nav-item dropdown ${
@@ -204,19 +231,24 @@ const Header = () => {
                         </Link>
                       )}
 
-                      {isAdmin() && (
-                        <Link className="dropdown-item" to="/admin">
-                          <FontAwesomeIcon icon={faCog} className="mr-2" />
-                          Khu vực quản trị
-                        </Link>
-                      )}
-
-                      {(isStaff() || isAdmin()) && (
-                        <Link className="dropdown-item" to="/tasker-approvals">
-                          <FontAwesomeIcon icon={faHandshake} className="mr-2" />
-                          Approve Taskers
-                        </Link>
-                      )}
+                    {isAdmin() && (
+                      <Link className="dropdown-item" to="/admin">
+                        <FontAwesomeIcon icon={faCog} className="mr-2" />
+                        Khu vực quản trị
+                      </Link>
+                    )}
+                    {(isStaff() || isAdmin()) && (
+                      <Link className="dropdown-item" to="/tasker-approvals">
+                        <FontAwesomeIcon icon={faCog} className="mr-2" />
+                        Approve Taskers
+                      </Link>
+                    )}
+                    {(isStaff() || isAdmin()) && (
+                      <Link className="dropdown-item" to="/staff/applications">
+                        <FontAwesomeIcon icon={faCog} className="mr-2" />
+                        Đơn Tasker (mới)
+                      </Link>
+                    )}
 
                       <div className="dropdown-divider"></div>
 

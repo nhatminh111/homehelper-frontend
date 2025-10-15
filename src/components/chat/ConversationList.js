@@ -116,8 +116,21 @@ const ConversationList = ({
     if (last) {
       const sender = last.sender;
       const prefix = conversation.type === 'direct' ? '' : `${sender?.name || 'Ai đó'}: `;
-      const content = last.content || last.text || last.message || '';
+      let content = last.content || last.text || last.message || '';
       const type = last.message_type || last.type;
+
+      // Hide protocol messages
+      if (typeof content === 'string') {
+        if (content.startsWith('[NEG_REQ]')) {
+          return `${prefix}Đề nghị chốt giá`;
+        }
+        if (content.startsWith('[NEG_ACK]')) {
+          return `${prefix}Đã chấp nhận chốt giá`;
+        }
+        if (content.startsWith('[NEG_REJ]')) {
+          return `${prefix}Đã từ chối chốt giá`;
+        }
+      }
 
       if (type === 'image') return `${prefix}📷 Hình ảnh`;
       if (type === 'file') return `${prefix}📎 Tệp đính kèm`;
@@ -125,7 +138,18 @@ const ConversationList = ({
     }
 
     // Fallbacks if backend provides flattened fields
-    const flatContent = conversation.last_message_content || conversation.last_message_text || conversation.last_message_preview || '';
+    let flatContent = conversation.last_message_content || conversation.last_message_text || conversation.last_message_preview || '';
+    if (typeof flatContent === 'string') {
+      if (flatContent.startsWith('[NEG_REQ]')) {
+        return conversation.type === 'direct' ? 'Đề nghị chốt giá' : `${conversation.last_message_sender_name}: Đề nghị chốt giá`;
+      }
+      if (flatContent.startsWith('[NEG_ACK]')) {
+        return conversation.type === 'direct' ? 'Đã chấp nhận chốt giá' : `${conversation.last_message_sender_name}: Đã chấp nhận chốt giá`;
+      }
+      if (flatContent.startsWith('[NEG_REJ]')) {
+        return conversation.type === 'direct' ? 'Đã từ chối chốt giá' : `${conversation.last_message_sender_name}: Đã từ chối chốt giá`;
+      }
+    }
     if (flatContent) {
       if (conversation.type === 'direct') return flatContent;
       const senderName = conversation.last_message_sender_name;
