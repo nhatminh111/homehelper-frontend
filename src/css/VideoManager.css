@@ -74,7 +74,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
 
@@ -198,6 +197,16 @@
   flex-wrap: wrap;
   gap: 8px;
 }
+
+/* .modal-backdrop {
+  z-index: 1040 !important;
+}
+
+.modal {
+  z-index: 1050 !important;
+  display: block !important;
+  opacity: 1 !important;
+} */
 
 .modal-body .form-group {
   margin-bottom: 1rem;

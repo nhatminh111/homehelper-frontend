@@ -262,247 +262,262 @@ const VideoManager = () => {
   };
 
   return (
-    <Container fluid className="video-manager-container">
-      <ToastContainer />
-      <h2 className="video-manager-title">Quản lý Video</h2>
+<>
+  <Container fluid className="video-manager-container">
+    <ToastContainer />
+    <h2 className="video-manager-title">Quản lý Video</h2>
 
-      {/* Form Upload */}
-      <Form onSubmit={handleUpload} className="upload-form">
-        <h5 className="mb-3">Tải lên video mới</h5>
-        <Form.Group controlId="title">
+    {/* Form Upload */}
+    <Form onSubmit={handleUpload} className="upload-form">
+      <h5 className="mb-3">Tải lên video mới</h5>
+      <Form.Group controlId="title">
+        <Form.Label>Tiêu đề <span className="text-danger">*</span></Form.Label>
+        <Form.Control
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          required
+          placeholder="Nhập tiêu đề video"
+          maxLength={200}
+        />
+      </Form.Group>
+
+      <Form.Group controlId="description" className="mt-3">
+        <Form.Label>Mô tả</Form.Label>
+        <Form.Control
+          as="textarea"
+          rows={3}
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Nhập mô tả (tùy chọn)"
+          maxLength={500}
+        />
+      </Form.Group>
+
+      <Form.Group controlId="videoFile" className="mt-3">
+        <Form.Label>File Video <span className="text-danger">*</span></Form.Label>
+        <Form.Control
+          type="file"
+          accept="video/*"
+          onChange={(e) => setVideoFile(e.target.files[0])}
+          required
+        />
+        <Form.Text className="text-muted">
+          Chọn file video (MP4, AVI, MOV, v.v.). Kích thước tối đa 100MB.
+        </Form.Text>
+      </Form.Group>
+
+      <Button variant="primary" type="submit" className="mt-3" disabled={loading}>
+        {loading ? 'Đang upload...' : 'Upload Video'}
+      </Button>
+    </Form>
+
+    {/* Bộ lọc & Tìm kiếm */}
+    <Form className="filter-form">
+      <div className="filter-group">
+        <Form.Group controlId="searchQuery">
+          <Form.Label>Tìm kiếm</Form.Label>
+          <div className="input-group">
+            <span className="input-group-icon"><i className="bi bi-search"></i></span>
+            <Form.Control
+              type="text"
+              placeholder="Tìm theo tiêu đề hoặc mô tả"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+        </Form.Group>
+      </div>
+
+      <div className="filter-group">
+        <Form.Group controlId="statusFilter">
+          <Form.Label>Trạng thái</Form.Label>
+          <Form.Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="">Tất cả</option>
+            <option value="Pending">Đang chờ duyệt</option>
+            <option value="Approved">Đã duyệt</option>
+            <option value="Rejected">Bị từ chối</option>
+          </Form.Select>
+        </Form.Group>
+      </div>
+
+      <div className="filter-group">
+        <Form.Group controlId="dateSort">
+          <Form.Label>Sắp xếp theo ngày</Form.Label>
+          <Dropdown>
+            <Dropdown.Toggle variant="outline-primary" id="dropdown-date-sort">
+              {dateSort === 'desc' ? 'Mới nhất trước' : 'Cũ nhất trước'}
+            </Dropdown.Toggle>
+            <Dropdown.Menu>
+              <Dropdown.Item onClick={() => setDateSort('desc')}>Mới nhất trước</Dropdown.Item>
+              <Dropdown.Item onClick={() => setDateSort('asc')}>Cũ nhất trước</Dropdown.Item>
+            </Dropdown.Menu>
+          </Dropdown>
+        </Form.Group>
+      </div>
+    </Form>
+
+    {/* Danh sách Video */}
+    <h3 className="mt-4 mb-3">Danh sách Video của bạn ({filteredVideos.length})</h3>
+    {loading ? (
+      <div className="text-center py-5"><p>Đang tải video...</p></div>
+    ) : filteredVideos.length === 0 ? (
+      <div className="text-center py-5">
+        <p className="text-muted">Chưa có video nào phù hợp.</p>
+        <p>Hãy tải lên video hoặc thay đổi bộ lọc!</p>
+      </div>
+    ) : (
+      <>
+        <Row xs={1} sm={2} md={3} lg={4} className="g-4">
+          {currentVideos.map((video) => (
+            <Col key={video.video_id}>
+              <Card className="video-card h-100">
+                <div className="position-relative">
+                  <video controls className="w-100">
+                    <source src={video.video_url} type="video/mp4" />
+                    Trình duyệt của bạn không hỗ trợ video.
+                  </video>
+                  <div className="position-absolute top-0 start-0 p-2">
+                    {getStatusBadge(video.status)}
+                  </div>
+                  <div className="position-absolute top-0 end-0 p-2">
+                    {getStatusBadgeRight(video.status)}
+                  </div>
+                </div>
+
+                <Card.Body className="video-card-body">
+                  <Card.Title className="video-card-title">
+                    <Link to={`/video/${video.video_id}`}>{video.title}</Link>
+                  </Card.Title>
+                  <Card.Text className="video-card-text">
+                    <Link to={`/video/${video.video_id}`}>
+                      {video.description || 'Không có mô tả'}
+                    </Link>
+                  </Card.Text>
+
+                  <div className="video-card-meta">
+                    <div className="mb-1">
+                      <i className="bi bi-heart-fill text-danger me-1"></i>
+                      Lượt thích: {video.likes || 0}
+                    </div>
+                    <div className="mb-1">
+                      <i className="bi bi-calendar3 me-1"></i>
+                      Upload: {new Date(video.uploaded_at).toLocaleDateString('vi-VN')}
+                    </div>
+                    {video.expert && (
+                      <div>
+                        <i className="bi bi-person-circle me-1"></i>
+                        Chuyên gia: {video.expert}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="btn-group-edit">
+                    {video.status === 'Pending' && (
+                      <Button
+                        variant="warning"
+                        onClick={() => handleEdit(video)}
+                        disabled={loading}
+                        size="sm"
+                      >
+                        <i className="bi bi-pencil me-1"></i>Chỉnh sửa
+                      </Button>
+                    )}
+                    <Button
+                      variant="danger"
+                      onClick={() => handleDelete(video.video_id)}
+                      disabled={loading}
+                      size="sm"
+                    >
+                      <i className="bi bi-trash me-1"></i>Xóa
+                    </Button>
+                  </div>
+                </Card.Body>
+              </Card>
+            </Col>
+          ))}
+        </Row>
+
+        {renderPagination()}
+      </>
+    )}
+  </Container>
+
+  {/* ✅ Modal đặt ra ngoài Container để không bị che */}
+  <Modal
+    show={showEditModal}
+    onHide={handleCloseModal}
+    size="lg"
+  >
+    <Modal.Header closeButton>
+      <Modal.Title>Chỉnh sửa Video</Modal.Title>
+    </Modal.Header>
+    <Modal.Body>
+      <Form onSubmit={handleUpdate}>
+        {editVideo && (
+          <div className="current-video-preview">
+            <p>Video hiện tại:</p>
+            <video controls>
+              <source src={editVideo.video_url} type="video/mp4" />
+              Trình duyệt của bạn không hỗ trợ video.
+            </video>
+          </div>
+        )}
+
+        <Form.Group controlId="editTitle">
           <Form.Label>Tiêu đề <span className="text-danger">*</span></Form.Label>
           <Form.Control
             type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.target.value)}
             required
             placeholder="Nhập tiêu đề video"
             maxLength={200}
           />
         </Form.Group>
-        <Form.Group controlId="description" className="mt-3">
+
+        <Form.Group controlId="editDescription" className="mt-3">
           <Form.Label>Mô tả</Form.Label>
           <Form.Control
             as="textarea"
             rows={3}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            value={editDescription}
+            onChange={(e) => setEditDescription(e.target.value)}
             placeholder="Nhập mô tả (tùy chọn)"
             maxLength={500}
           />
         </Form.Group>
-        <Form.Group controlId="videoFile" className="mt-3">
-          <Form.Label>File Video <span className="text-danger">*</span></Form.Label>
+
+        <Form.Group controlId="editVideoFile" className="mt-3">
+          <Form.Label>File Video (tùy chọn - thay thế video hiện tại)</Form.Label>
           <Form.Control
             type="file"
             accept="video/*"
-            onChange={(e) => setVideoFile(e.target.files[0])}
-            required
+            onChange={(e) => setEditVideoFile(e.target.files[0])}
           />
           <Form.Text className="text-muted">
-            Chọn file video (MP4, AVI, MOV, v.v.). Kích thước tối đa 100MB.
+            Để trống nếu không muốn thay đổi video hiện tại.
           </Form.Text>
         </Form.Group>
-        <Button variant="primary" type="submit" className="mt-3" disabled={loading}>
-          {loading ? 'Đang upload...' : 'Upload Video'}
-        </Button>
-      </Form>
 
-      {/* Form Tìm kiếm và Bộ lọc */}
-      <Form className="filter-form">
-        <div className="filter-group">
-          <Form.Group controlId="searchQuery">
-            <Form.Label>Tìm kiếm</Form.Label>
-            <div className="input-group">
-              <span className="input-group-icon">
-                <i className="bi bi-search"></i>
-              </span>
-              <Form.Control
-                type="text"
-                placeholder="Tìm theo tiêu đề hoặc mô tả"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-          </Form.Group>
-        </div>
-        <div className="filter-group">
-          <Form.Group controlId="statusFilter">
-            <Form.Label>Trạng thái</Form.Label>
-            <Form.Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-              <option value="">Tất cả</option>
-              <option value="Pending">Đang chờ duyệt</option>
-              <option value="Approved">Đã duyệt</option>
-              <option value="Rejected">Bị từ chối</option>
-            </Form.Select>
-          </Form.Group>
-        </div>
-        <div className="filter-group">
-          <Form.Group controlId="dateSort">
-            <Form.Label>Sắp xếp theo ngày</Form.Label>
-            <Dropdown>
-              <Dropdown.Toggle variant="outline-primary" id="dropdown-date-sort">
-                {dateSort === 'desc' ? 'Mới nhất trước' : 'Cũ nhất trước'}
-              </Dropdown.Toggle>
-              <Dropdown.Menu>
-                <Dropdown.Item onClick={() => setDateSort('desc')}>
-                  Mới nhất trước
-                </Dropdown.Item>
-                <Dropdown.Item onClick={() => setDateSort('asc')}>
-                  Cũ nhất trước
-                </Dropdown.Item>
-              </Dropdown.Menu>
-            </Dropdown>
-          </Form.Group>
+        <div className="mt-3">
+          <Button variant="primary" type="submit" disabled={editLoading}>
+            {editLoading ? 'Đang cập nhật...' : 'Cập nhật Video'}
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={handleCloseModal}
+            className="ms-2"
+            disabled={editLoading}
+          >
+            Hủy
+          </Button>
         </div>
       </Form>
+    </Modal.Body>
+  </Modal>
+</>
 
-      {/* Modal chỉnh sửa */}
-      <Modal show={showEditModal} onHide={handleCloseModal} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>Chỉnh sửa Video</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Form onSubmit={handleUpdate}>
-            {editVideo && (
-              <div className="current-video-preview">
-                <p>Video hiện tại:</p>
-                <video controls>
-                  <source src={editVideo.video_url} type="video/mp4" />
-                  Trình duyệt của bạn không hỗ trợ video.
-                </video>
-              </div>
-            )}
-            <Form.Group controlId="editTitle">
-              <Form.Label>Tiêu đề <span className="text-danger">*</span></Form.Label>
-              <Form.Control
-                type="text"
-                value={editTitle}
-                onChange={(e) => setEditTitle(e.target.value)}
-                required
-                placeholder="Nhập tiêu đề video"
-                maxLength={200}
-              />
-            </Form.Group>
-            <Form.Group controlId="editDescription" className="mt-3">
-              <Form.Label>Mô tả</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={3}
-                value={editDescription}
-                onChange={(e) => setEditDescription(e.target.value)}
-                placeholder="Nhập mô tả (tùy chọn)"
-                maxLength={500}
-              />
-            </Form.Group>
-            <Form.Group controlId="editVideoFile" className="mt-3">
-              <Form.Label>File Video (tùy chọn - thay thế video hiện tại)</Form.Label>
-              <Form.Control
-                type="file"
-                accept="video/*"
-                onChange={(e) => setEditVideoFile(e.target.files[0])}
-              />
-              <Form.Text className="text-muted">
-                Để trống nếu không muốn thay đổi video hiện tại.
-              </Form.Text>
-            </Form.Group>
-            <div className="mt-3">
-              <Button variant="primary" type="submit" disabled={editLoading}>
-                {editLoading ? 'Đang cập nhật...' : 'Cập nhật Video'}
-              </Button>
-              <Button variant="secondary" onClick={handleCloseModal} className="ms-2" disabled={editLoading}>
-                Hủy
-              </Button>
-            </div>
-          </Form>
-        </Modal.Body>
-      </Modal>
-
-      {/* Danh sách Video */}
-      <h3 className="mt-4 mb-3">Danh sách Video của bạn ({filteredVideos.length})</h3>
-      {loading ? (
-        <div className="text-center py-5">
-          <p>Đang tải video...</p>
-        </div>
-      ) : filteredVideos.length === 0 ? (
-        <div className="text-center py-5">
-          <p className="text-muted">Chưa có video nào phù hợp.</p>
-          <p>Hãy tải lên video hoặc thay đổi bộ lọc!</p>
-        </div>
-      ) : (
-        <>
-          <Row xs={1} sm={2} md={3} lg={4} className="g-4">
-            {currentVideos.map((video) => (
-              <Col key={video.video_id}>
-                <Card className="video-card h-100">
-                  <div className="position-relative">
-                    <video controls className="w-100">
-                      <source src={video.video_url} type="video/mp4" />
-                      Trình duyệt của bạn không hỗ trợ video.
-                    </video>
-                    <div className="position-absolute top-0 start-0 p-2">
-                      {getStatusBadge(video.status)}
-                    </div>
-                    <div className="position-absolute top-0 end-0 p-2">
-                      {getStatusBadgeRight(video.status)}
-                    </div>
-                  </div>
-                  <Card.Body className="video-card-body">
-                    <Card.Title className="video-card-title">
-                      <Link to={`/video/${video.video_id}`}>{video.title}</Link>
-                    </Card.Title>
-                    <Card.Text className="video-card-text">
-                      <Link to={`/video/${video.video_id}`}>
-                        {video.description || 'Không có mô tả'}
-                      </Link>
-                    </Card.Text>
-                    <div className="video-card-meta">
-                      <div className="mb-1">
-                        <i className="bi bi-heart-fill text-danger me-1"></i>
-                        Lượt thích: {video.likes || 0}
-                      </div>
-                      <div className="mb-1">
-                        <i className="bi bi-calendar3 me-1"></i>
-                        Upload: {new Date(video.uploaded_at).toLocaleDateString('vi-VN')}
-                      </div>
-                      {video.expert && (
-                        <div>
-                          <i className="bi bi-person-circle me-1"></i>
-                          Chuyên gia: {video.expert}
-                        </div>
-                      )}
-                    </div>
-                    <div className="btn-group-edit">
-                      {video.status === 'Pending' && (
-                        <Button
-                          variant="warning"
-                          onClick={() => handleEdit(video)}
-                          disabled={loading}
-                          size="sm"
-                        >
-                          <i className="bi bi-pencil me-1"></i>
-                          Chỉnh sửa
-                        </Button>
-                      )}
-                      <Button
-                        variant="danger"
-                        onClick={() => handleDelete(video.video_id)}
-                        disabled={loading}
-                        size="sm"
-                      >
-                        <i className="bi bi-trash me-1"></i>
-                        Xóa
-                      </Button>
-                    </div>
-                  </Card.Body>
-                </Card>
-              </Col>
-            ))}
-          </Row>
-          {renderPagination()}
-        </>
-      )}
-    </Container>
   );
 };
 
