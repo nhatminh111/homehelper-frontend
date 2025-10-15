@@ -23,6 +23,13 @@ const CCCDExtractor = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   
+  // Face verification states
+  const [cameraImage, setCameraImage] = useState(null);
+  const [cameraPreview, setCameraPreview] = useState(null);
+  const [faceVerificationResult, setFaceVerificationResult] = useState(null);
+  const [isCapturing, setIsCapturing] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
+  
   // Thêm state cho user input
   const [userInput, setUserInput] = useState({
     number: '',
@@ -98,6 +105,14 @@ const CCCDExtractor = () => {
       if (result.success) {
         setExtractedData(result.data);
         setFaceImage(result.face_image || null);
+        
+        // Auto-fill form fields with extracted data
+        setUserInput({
+          number: result.data.number || '',
+          full_name: result.data.full_name || '',
+          dob: result.data.dob || '',
+          gender: result.data.gender || 'Nam'
+        });
       } else {
         setError(result.error || 'OCR extraction failed');
       }
@@ -118,6 +133,131 @@ const CCCDExtractor = () => {
     link.download = 'cccd_extracted_data.json';
     link.click();
     URL.revokeObjectURL(url);
+  };
+
+  // Camera capture functionality
+  const startCamera = async () => {
+    console.log('🎥 Starting camera...');
+    // Show modal first
+    setShowCamera(true);
+    console.log('📱 Modal should be visible now');
+    
+    // Wait a bit for modal to render
+    setTimeout(async () => {
+      try {
+        console.log('📷 Requesting camera access...');
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+            facingMode: 'user'
+          } 
+        });
+        
+        console.log('✅ Camera access granted');
+        const video = document.getElementById('camera-video');
+        console.log('📺 Video element:', video);
+        
+        if (video) {
+          video.srcObject = stream;
+          console.log('🎬 Video stream set');
+        } else {
+          console.error('❌ Video element not found!');
+        }
+      } catch (err) {
+        console.error('❌ Camera error:', err);
+        setError('Không thể truy cập camera: ' + err.message);
+        setShowCamera(false);
+      }
+    }, 100);
+  };
+
+  const capturePhoto = () => {
+    const video = document.getElementById('camera-video');
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    context.drawImage(video, 0, 0);
+    
+    canvas.toBlob((blob) => {
+      const file = new File([blob], 'camera-capture.jpg', { type: 'image/jpeg' });
+      setCameraImage(file);
+      
+      const reader = new FileReader();
+      reader.onload = (e) => setCameraPreview(e.target.result);
+      reader.readAsDataURL(file);
+      
+      setShowCamera(false);
+      stopCamera();
+    }, 'image/jpeg', 0.8);
+  };
+
+  const stopCamera = () => {
+    const video = document.getElementById('camera-video');
+    if (video && video.srcObject) {
+      const tracks = video.srcObject.getTracks();
+      tracks.forEach(track => track.stop());
+      video.srcObject = null;
+    }
+    setShowCamera(false);
+  };
+
+  // Face verification function
+  const verifyFace = async () => {
+    if (!faceImage || !cameraImage) {
+      setError('Vui lòng có ảnh khuôn mặt từ CCCD và ảnh chụp từ camera');
+      return;
+    }
+
+    setIsCapturing(true);
+    setError(null);
+
+    try {
+      // Convert faceImage URL to File object if needed
+      let faceFile = faceImage;
+      if (typeof faceImage === 'string') {
+        console.log('Converting faceImage URL to File...');
+        const response = await fetch(faceImage);
+        const blob = await response.blob();
+        faceFile = new File([blob], 'face_from_cccd.jpg', { type: 'image/jpeg' });
+      }
+
+      // Create FormData for face comparison
+      const formData = new FormData();
+      formData.append('face_image', faceFile);
+      formData.append('camera_image', cameraImage);
+
+      console.log('📤 Sending face verification request...');
+      console.log('Face file:', faceFile);
+      console.log('Camera file:', cameraImage);
+
+      const response = await fetch('http://localhost:8080/api/compare-faces', {
+        method: 'POST',
+        body: formData
+      });
+
+      console.log('📡 Response status:', response.status);
+
+      const result = await response.json();
+      
+      if (result.success) {
+        setFaceVerificationResult({
+          isMatch: result.is_match,
+          confidence: result.confidence,
+          message: result.is_match ? 
+            `✅ Khuôn mặt khớp (độ tin cậy: ${Math.round(result.confidence * 100)}%)` :
+            `❌ Khuôn mặt không khớp (độ tin cậy: ${Math.round(result.confidence * 100)}%)`
+        });
+      } else {
+        setError(result.error || 'Lỗi khi so sánh khuôn mặt');
+      }
+    } catch (err) {
+      setError('Không thể kết nối đến dịch vụ so sánh khuôn mặt: ' + err.message);
+    } finally {
+      setIsCapturing(false);
+    }
   };
 
   // Function so sánh dữ liệu
@@ -177,6 +317,11 @@ const CCCDExtractor = () => {
   const submitToBackend = async () => {
     if (!frontImage || !comparisonResult || !comparisonResult.isMatch) {
       setError('Vui lòng đảm bảo thông tin khớp 100% trước khi gửi');
+      return;
+    }
+
+    if (!faceVerificationResult || !faceVerificationResult.isMatch) {
+      setError('Vui lòng hoàn thành xác minh khuôn mặt trước khi gửi');
       return;
     }
 
@@ -476,8 +621,8 @@ const CCCDExtractor = () => {
                     </table>
                   </div>
 
-                  {/* Nút submit khi khớp 100% */}
-                  {comparisonResult.matchRate === 1 && (
+                  {/* Nút submit khi khớp 100% và có xác minh khuôn mặt */}
+                  {comparisonResult.matchRate === 1 && faceVerificationResult && faceVerificationResult.isMatch && (
                     <div className="mt-3">
                       <button
                         className="btn btn-warning btn-lg w-100"
@@ -498,6 +643,16 @@ const CCCDExtractor = () => {
                       </button>
                     </div>
                   )}
+
+                  {/* Thông báo cần xác minh khuôn mặt */}
+                  {comparisonResult.matchRate === 1 && (!faceVerificationResult || !faceVerificationResult.isMatch) && (
+                    <div className="mt-3">
+                      <div className="alert alert-info">
+                        <h6>📸 Cần xác minh khuôn mặt</h6>
+                        <p className="mb-0">Vui lòng hoàn thành xác minh khuôn mặt ở phần bên dưới để có thể gửi xác minh CCCD.</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -512,41 +667,114 @@ const CCCDExtractor = () => {
           </div>
         </div>
       </div>
-      
-      {/* Extracted Data Section */}
-      {extractedData && (
+      {/* Face Verification Section */}
+      {faceImage && (
         <div className="row mt-4">
           <div className="col-12">
             <div className="card">
-              <div className="card-header bg-info text-white d-flex align-items-center justify-content-between">
+              <div className="card-header bg-warning text-dark">
                 <h4 className="mb-0">
-                  <FontAwesomeIcon icon={faCheckCircle} className="mr-2" />
-                  Dữ liệu đã trích xuất từ ảnh
+                  <FontAwesomeIcon icon={faCamera} className="mr-2" />
+                  Xác minh khuôn mặt
                 </h4>
-                <button className="btn btn-light btn-sm" onClick={downloadData}>
-                  <FontAwesomeIcon icon={faDownload} className="mr-2" />
-                  Tải dữ liệu
-                </button>
               </div>
               <div className="card-body">
                 <div className="row">
-                  <div className="col-md-8">
-                    <ul className="list-group">
-                      {Object.entries(extractedData).map(([key, value]) => (
-                        <li key={key} className="list-group-item d-flex justify-content-between align-items-center">
-                          <span className="text-muted">{fieldLabels[key] || key}</span>
-                          <strong>{String(value)}</strong>
-                        </li>
-                      ))}
-                    </ul>
+                  <div className="col-md-6">
+                    <h6>Ảnh khuôn mặt từ CCCD</h6>
+                    <img src={faceImage} alt="CCCD Face" className="img-fluid rounded shadow mb-3" />
                   </div>
-                  {faceImage && (
-                    <div className="col-md-4">
-                      <h6>Ảnh khuôn mặt</h6>
-                      <img src={faceImage} alt="Face" className="img-fluid rounded shadow" />
-                    </div>
-                  )}
+                  <div className="col-md-6">
+                    <h6>Ảnh chụp từ camera</h6>
+                    {!cameraPreview ? (
+                      <div className="text-center">
+                        <button 
+                          className="btn btn-primary btn-lg"
+                          onClick={() => {
+                            console.log('🔘 Camera button clicked!');
+                            startCamera();
+                          }}
+                          disabled={showCamera}
+                        >
+                          <FontAwesomeIcon icon={faCamera} className="mr-2" />
+                          Chụp ảnh từ camera
+                        </button>
+                      </div>
+                    ) : (
+                      <div>
+                        <img src={cameraPreview} alt="Camera Capture" className="img-fluid rounded shadow mb-3" />
+                        <div className="d-flex gap-2">
+                          <button 
+                            className="btn btn-warning"
+                            onClick={() => {
+                              setCameraPreview(null);
+                              setCameraImage(null);
+                              setFaceVerificationResult(null);
+                            }}
+                          disabled={isCapturing}
+                          >
+                            Chụp lại
+                          </button>
+                          <button 
+                            className="btn btn-success"
+                            onClick={verifyFace}
+                            disabled={isCapturing}
+                          >
+                            {isCapturing ? (
+                              <>
+                                <FontAwesomeIcon icon={faSpinner} spin className="mr-2" />
+                                Đang xác minh...
+                              </>
+                            ) : (
+                              'Xác minh khuôn mặt'
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
+
+                {/* Camera Modal */}
+                {showCamera && (
+                  <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
+                    <div className="modal-dialog modal-lg">
+                      <div className="modal-content">
+                        <div className="modal-header">
+                          <h5 className="modal-title">Chụp ảnh khuôn mặt</h5>
+                          <button type="button" className="btn-close" onClick={stopCamera}></button>
+                        </div>
+                        <div className="modal-body text-center">
+                          <video 
+                            id="camera-video" 
+                            autoPlay 
+                            playsInline 
+                            className="img-fluid rounded"
+                            style={{maxHeight: '400px'}}
+                          ></video>
+                        </div>
+                        <div className="modal-footer">
+                          <button type="button" className="btn btn-secondary" onClick={stopCamera}>
+                            Hủy
+                          </button>
+                          <button type="button" className="btn btn-primary" onClick={capturePhoto}>
+                            <FontAwesomeIcon icon={faCamera} className="mr-2" />
+                            Chụp ảnh
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Face Verification Result */}
+                {faceVerificationResult && (
+                  <div className="mt-3">
+                    <div className={`alert ${faceVerificationResult.isMatch ? 'alert-success' : 'alert-danger'}`}>
+                      <h6>{faceVerificationResult.message}</h6>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
