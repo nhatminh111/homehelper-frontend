@@ -1,19 +1,19 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { authAPI } from '../services/api';
+import React, { createContext, useContext, useState, useEffect } from "react";
+import { authAPI } from "../services/api";
 
 const AuthContext = createContext();
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('token'));
+  const [token, setToken] = useState(localStorage.getItem("token"));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -24,14 +24,15 @@ export const AuthProvider = ({ children }) => {
         try {
           const response = await authAPI.getCurrentUser(token);
           setUser(response.user);
+          localStorage.setItem("user", JSON.stringify(response.user));
+          localStorage.setItem("role", response.user.role);
         } catch (error) {
-          console.error('Token không hợp lệ:', error);
+          console.error("Token không hợp lệ:", error);
           logout();
         }
       }
       setLoading(false);
     };
-
     checkAuth();
   }, [token]);
 
@@ -40,13 +41,15 @@ export const AuthProvider = ({ children }) => {
     try {
       setError(null);
       const response = await authAPI.login(credentials);
-      
+
       const { user: userData, token: authToken } = response;
-      
+
       setUser(userData);
       setToken(authToken);
-      localStorage.setItem('token', authToken);
-      
+      localStorage.setItem("token", authToken);
+      localStorage.setItem("user", JSON.stringify(userData));
+      localStorage.setItem("role", userData.role);
+
       return response;
     } catch (error) {
       setError(error.message);
@@ -59,14 +62,14 @@ export const AuthProvider = ({ children }) => {
     try {
       setError(null);
       const response = await authAPI.register(userData);
-      
+
       // Tự động đăng nhập sau khi đăng ký thành công
       const { user: newUser, token: authToken } = response;
-      
+
       setUser(newUser);
       setToken(authToken);
-      localStorage.setItem('token', authToken);
-      
+      localStorage.setItem("token", authToken);
+
       return response;
     } catch (error) {
       setError(error.message);
@@ -82,7 +85,7 @@ export const AuthProvider = ({ children }) => {
       const { user: userData, token: authToken } = response;
       setUser(userData);
       setToken(authToken);
-      localStorage.setItem('token', authToken);
+      localStorage.setItem("token", authToken);
       return response;
     } catch (error) {
       setError(error.message);
@@ -94,7 +97,7 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     setUser(null);
     setToken(null);
-    localStorage.removeItem('token');
+    localStorage.removeItem("token");
     setError(null);
   };
 
@@ -147,16 +150,16 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Kiểm tra user có phải admin không
-  const isAdmin = () => user?.role === 'Admin';
+  const isAdmin = () => user?.role === "Admin";
 
   // Kiểm tra user có phải tasker không
-  const isTasker = () => user?.role === 'Tasker';
+  const isTasker = () => user?.role === "Tasker";
 
   // Kiểm tra user có phải customer không
-  const isCustomer = () => user?.role === 'Customer';
+  const isCustomer = () => user?.role === "Customer";
 
   // Kiểm tra user có phải staff không
-  const isStaff = () => user?.role === 'Staff';
+  const isStaff = () => user?.role === "Staff";
 
   // Kiểm tra user đã đăng nhập chưa
   const isAuthenticated = () => !!user && !!token;
@@ -182,10 +185,5 @@ export const AuthProvider = ({ children }) => {
     setError,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
-

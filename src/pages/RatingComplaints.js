@@ -1,21 +1,16 @@
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faStar,
-  faThumbsUp,
-  faThumbsDown,
   faExclamationTriangle,
   faCheck,
   faTimes,
   faEye,
   faEdit,
-  faTrash,
   faFilter,
   faSearch,
   faCalendar,
-  faUser,
   faComments,
   faFlag,
-  faShieldAlt,
   faReply,
   faPaperPlane,
 } from "@fortawesome/free-solid-svg-icons";
@@ -37,6 +32,8 @@ const RatingComplaints = () => {
     rating: 0,
     comment: "",
   });
+  const userRole = localStorage.getItem("role");
+  const isStaff = userRole === "Staff";
 
   const renderStars = (rating) => {
     return Array.from({ length: 5 }, (_, index) => (
@@ -102,6 +99,33 @@ const RatingComplaints = () => {
       headers: { Authorization: `Bearer ${token}` },
     });
     // fetch lại dữ liệu sau khi submit
+  };
+  const handleApprove = async (id) => {
+    try {
+      const token = localStorage.getItem("token");
+      await axios.put(
+        `http://localhost:3001/api/ratings/${id}/approve`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      fetchRatings();
+    } catch (err) {
+      console.error("Approve failed:", err);
+    }
+  };
+
+  const handleReject = async (id) => {
+    try {
+      const token = localStorage.getItem("token");
+      await axios.put(
+        `http://localhost:3001/api/ratings/${id}/reject`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      fetchRatings();
+    } catch (err) {
+      console.error("Reject failed:", err);
+    }
   };
 
   return (
@@ -216,7 +240,7 @@ const RatingComplaints = () => {
                         <div className="col-md-8">
                           <div className="d-flex justify-content-between align-items-start mb-2">
                             <div>
-                              <h6 className="mb-1">{rating.tasker_name}</h6>
+                              <h6 className="mb-1">{rating.reviewer_name}</h6>
                               <p className="text-muted mb-1">
                                 {rating.service_name}
                               </p>
@@ -230,7 +254,6 @@ const RatingComplaints = () => {
                                 ).toLocaleDateString()}
                               </small>
                             </div>
-                            <span className="badge badge-secondary">N/A</span>
                           </div>
 
                           <div className="rating-stars mb-2">
@@ -244,16 +267,70 @@ const RatingComplaints = () => {
                             <p className="mb-2">{rating.comment}</p>
                           </div>
                         </div>
+                        {console.log(
+                          "CHECK:",
+                          rating.rating_id,
+                          "status:",
+                          rating.status,
+                          "type:",
+                          typeof rating.status,
+                          "role:",
+                          userRole
+                        )}
 
                         <div className="col-md-4 text-right">
                           <div className="rating-actions">
-                            <button
-                              className="btn btn-outline-primary btn-sm mr-2"
-                              onClick={() => setSelectedRating(rating)}
-                            >
-                              <FontAwesomeIcon icon={faEye} className="mr-1" />
-                              View Details
-                            </button>
+                            <div className="d-flex align-items-center gap-2 mt-2">
+                              {isStaff && (
+                                <>
+                                  {rating.status === 0 ||
+                                  rating.status === false ? (
+                                    <>
+                                      <button
+                                        className="btn btn-outline-success btn-sm"
+                                        onClick={() =>
+                                          handleApprove(rating.rating_id)
+                                        }
+                                      >
+                                        Approve
+                                      </button>
+                                      <button
+                                        className="btn btn-outline-danger btn-sm"
+                                        onClick={() =>
+                                          handleReject(rating.rating_id)
+                                        }
+                                      >
+                                        Reject
+                                      </button>
+                                    </>
+                                  ) : rating.status === 1 ||
+                                    rating.status === true ? (
+                                    <span className="badge bg-success d-flex align-items-center p-2">
+                                      Approved
+                                    </span>
+                                  ) : rating.status === 2 ? (
+                                    <span className="badge bg-danger d-flex align-items-center p-2">
+                                      Rejected
+                                    </span>
+                                  ) : (
+                                    <span className="badge bg-secondary d-flex align-items-center p-2">
+                                      Pending
+                                    </span>
+                                  )}
+                                </>
+                              )}
+
+                              <button
+                                className="btn btn-outline-primary btn-sm"
+                                onClick={() => setSelectedRating(rating)}
+                              >
+                                <FontAwesomeIcon
+                                  icon={faEye}
+                                  className="mr-1"
+                                />
+                                View Details
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </div>
