@@ -26,13 +26,13 @@ const Video = () => {
         public_id: video.public_id,
         likes: video.likes || 0,
         uploaded_at: video.uploaded_at,
-        expert: video.expert || `User ${video.user_id}`, // name từ Users
-        rating: video.rating || 4.5, // rating từ Taskers, mặc định 4.5 nếu null
+        expert: video.expert || `User ${video.user_id}`,
+        rating: video.rating || 4.5,
         views: 'N/A', // Cần bảng riêng để lưu views
         timeAgo: calculateTimeAgo(video.uploaded_at),
-        price: 'Liên hệ', // Giá trị mặc định
-        expertAvatar: '/images/avatars/default.png', // Mặc định vì Users không có avatar_url
-        verified: true, // Giá trị mặc định
+        price: 'Liên hệ',
+        expertAvatar: '/images/avatars/default.png',
+        verified: true,
       }));
       setVideos(mappedVideos);
     } catch (err) {
@@ -47,10 +47,10 @@ const Video = () => {
     const uploaded = new Date(uploadedAt);
     const diffMs = now - uploaded;
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    if (diffDays === 0) return 'Now';
-    if (diffDays < 7) return `${diffDays} days ago`;
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-    return `${Math.floor(diffDays / 30)} months ago`;
+    if (diffDays === 0) return 'Hôm nay';
+    if (diffDays < 7) return `${diffDays} ngày trước`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} tuần trước`;
+    return `${Math.floor(diffDays / 30)} tháng trước`;
   };
 
   return (
@@ -78,19 +78,19 @@ const Video = () => {
         <div className="container">
           <div className="row justify-content-center pb-5 mb-3">
             <div className="col-md-7 heading-section text-center ftco-animate">
-              <h2 className="mb-4">Professional Cleaning Videos</h2>
+              <h2 className="mb-4">Video Dịch Vụ Vệ Sinh Chuyên Nghiệp</h2>
             </div>
           </div>
           <div className="row align-items-center mb-4">
             <div className="col-md-6">
               <div className="input-group">
-                <input type="text" className="form-control" placeholder="Search videos..." />
+                <input type="text" className="form-control" placeholder="Tìm kiếm video..." />
               </div>
             </div>
             <div className="col-md-6 text-right">
-              <button className="btn btn-outline-primary mr-2 btn-no-transform">Latest</button>
-              <button className="btn btn-outline-primary mr-2 btn-no-transform">Most Popular</button>
-              <button className="btn btn-outline-primary btn-no-transform">Oldest</button>
+              <button className="btn btn-outline-primary mr-2 btn-no-transform">Mới nhất</button>
+              <button className="btn btn-outline-primary mr-2 btn-no-transform">Phổ biến nhất</button>
+              <button className="btn btn-outline-primary btn-no-transform">Cũ nhất</button>
             </div>
           </div>
           {error && (
@@ -99,69 +99,58 @@ const Video = () => {
             </div>
           )}
           {loading ? (
-  <div className="text-center">
-    <div className="spinner-border" role="status">
-      <span className="visually-hidden">Đang tải...</span>
-    </div>
-  </div>
-) : videos.length === 0 ? (
-  <p>Chưa có video nào.</p>
-) : (
-  <div className="row">
-    {videos.map((video) => (
-      <div key={video.video_id} className="col-md-3 col-sm-6 mb-4 ftco-animate">
-        <div className="video-card">
-          {/* Hình ảnh video với Link */}
-          <Link to={`/video/${video.video_id}`}>
-            <div className="thumbnail-wrap">
-              <video className="img-fluid">
-                <source src={video.video_url} type="video/mp4" />
-                Trình duyệt của bạn không hỗ trợ video.
-              </video>
+            <div className="text-center">
+              <div className="spinner-border" role="status">
+                <span className="visually-hidden">Đang tải...</span>
+              </div>
             </div>
-          </Link>
-
-          {/* Tiêu đề với Link */}
-          <Link to={`/video/${video.video_id}`}>
-            <h4 className="video-title">{video.title}</h4>
-          </Link>
-
-          {/* Hàng thông tin chuyên gia */}
-          <div className="expert-row">
-            <img src={video.expertAvatar} className="expert-avatar" alt={video.expert} />
-            <span className="expert-name">{video.expert}</span>
-            {video.verified && (
-              <FontAwesomeIcon icon={faCircleCheck} className="expert-verified" />
-            )}
-          </div>
-
-          {/* Hàng thông tin thống kê */}
-          <div className="stats-row">
-            <div>Ngày đăng: {new Date(video.uploaded_at).toLocaleDateString('vi-VN')}</div>
-          </div>
-
-          {/* Đánh giá và Giá */}
-          <div className="rating-price-row">
-            <div className="rating">⭐ {video.rating}</div>
-            <div className="price">{video.price}</div>
-          </div>
-
-          {/* Lượt thích và Đặt ngay */}
-          <div className="action-row">
-            <span className="likes">❤️ {video.likes} lượt thích</span>
-            <a href="#" className="btn btn-outline-primary-1 btn-sm btn-no-transform">
-              <FontAwesomeIcon icon={faPhone} className="mr-2" />
-              Đặt ngay
-            </a>
-          </div>
-        </div>
-      </div>
-    ))}
-  </div>
-)}
+          ) : videos.length === 0 ? (
+            <p>Chưa có video nào.</p>
+          ) : (
+            <div className="row">
+              {videos.map((video) => (
+                <div key={video.video_id} className="col-md-3 col-sm-6 mb-4 ftco-animate">
+                  <div className="video-card">
+                    <Link to={`/video/${video.video_id}`}>
+                      <div className="thumbnail-wrap">
+                        <video className="img-fluid">
+                          <source src={video.video_url} type="video/mp4" />
+                          Trình duyệt của bạn không hỗ trợ video.
+                        </video>
+                      </div>
+                    </Link>
+                    <Link to={`/video/${video.video_id}`}>
+                      <h4 className="video-title">{video.title}</h4>
+                    </Link>
+                    <div className="expert-row">
+                      <img src={video.expertAvatar} className="expert-avatar" alt={video.expert} />
+                      <span className="expert-name">{video.expert}</span>
+                      {video.verified && (
+                        <FontAwesomeIcon icon={faCircleCheck} className="expert-verified" />
+                      )}
+                    </div>
+                    <div className="stats-row">
+                      <div>Ngày đăng: {new Date(video.uploaded_at).toLocaleDateString('vi-VN')}</div>
+                    </div>
+                    <div className="rating-price-row">
+                      <div className="rating">⭐ {video.rating}</div>
+                      <div className="price">{video.price}</div>
+                    </div>
+                    <div className="action-row">
+                      <span className="likes">❤️ {video.likes} lượt thích</span>
+                      <a href="#" className="btn btn-outline-primary-1 btn-sm btn-no-transform">
+                        <FontAwesomeIcon icon={faPhone} className="mr-2" />
+                        Đặt ngay
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
           <div className="row">
             <div className="col-md-12 text-center">
-              <button className="btn btn-outline-primary btn-no-transform">Load More Videos</button>
+              <button className="btn btn-outline-primary btn-no-transform">Tải thêm video</button>
             </div>
           </div>
         </div>

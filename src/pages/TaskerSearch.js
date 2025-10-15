@@ -3,14 +3,16 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { addressAPI, servicesAPI } from '../services/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { 
-  faSearch, 
-  faMapMarkerAlt, 
-  faStar, 
-  faEye, 
+import {
+  faSearch,
+  faMapMarkerAlt,
+  faStar,
+  faEye,
   faFilter,
-  faDollarSign
+  faDollarSign,
+  faBars,
 } from '@fortawesome/free-solid-svg-icons';
+import '../css/TaskerSearch.css'; // Nhập file CSS riêng
 
 const TaskerSearch = () => {
   const mapContainer = useRef(null);
@@ -18,7 +20,7 @@ const TaskerSearch = () => {
   const geolocateControlRef = useRef(null);
   const { token, isAuthenticated } = useAuth();
   const [error, setError] = useState(null);
-  const [currentLocation, setCurrentLocation] = useState(null);  // { lng, lat }
+  const [currentLocation, setCurrentLocation] = useState(null); // { lng, lat }
   const [circleLayer, setCircleLayer] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [filters, setFilters] = useState({
@@ -30,21 +32,23 @@ const TaskerSearch = () => {
   const [taskers, setTaskers] = useState([]);
   const [services, setServices] = useState([]);
   const [searchMetadata, setSearchMetadata] = useState({});
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   useEffect(() => {
     const fetchServices = async () => {
       try {
         const servicesData = await servicesAPI.getAllServices();
-        setServices(servicesData.map(service => ({
-          id: service.service_id,
-          name: service.name,
-        })));
+        setServices(
+          servicesData.map((service) => ({
+            id: service.service_id,
+            name: service.name,
+          }))
+        );
       } catch (error) {
         console.error('Error fetching services:', error);
         setError('Không thể tải danh sách dịch vụ');
       }
     };
-
     fetchServices();
   }, []);
 
@@ -54,24 +58,19 @@ const TaskerSearch = () => {
       if (!window.vietmapgl || !mapContainer.current || mapRef.current) {
         return;
       }
-
       const apiKey = process.env.REACT_APP_VIETMAP_APIKEY || '1fa61c768541c030585bdd9aa021c5a7e74a477fe7ae2540';
-      
       map = new window.vietmapgl.Map({
         container: mapContainer.current,
         style: `https://maps.vietmap.vn/mt/tm/style.json?apikey=${apiKey}`,
         center: [106.654551, 10.762317],
         zoom: 11,
       });
-
       const geolocateControl = new window.vietmapgl.GeolocateControl({
         positionOptions: { enableHighAccuracy: true },
         trackUserLocation: true,
       });
-
       map.addControl(geolocateControl);
-      map.addControl(new window.vietmapgl.NavigationControl(), 'top-right'); // Thêm điều khiển zoom và xoay
-
+      map.addControl(new window.vietmapgl.NavigationControl(), 'top-right');
       mapRef.current = map;
       geolocateControlRef.current = geolocateControl;
 
@@ -85,43 +84,37 @@ const TaskerSearch = () => {
       map.on('load', () => {
         map.addSource('taskers', {
           type: 'geojson',
-          data: { type: 'FeatureCollection', features: [] }
+          data: { type: 'FeatureCollection', features: [] },
         });
-
         map.addLayer({
           id: 'taskers-layer',
           type: 'circle',
           source: 'taskers',
           paint: {
-            'circle-radius': 12, // Tăng kích thước điểm
-            'circle-color': '#ff5733', // Màu cam nổi bật
-            'circle-stroke-width': 3, // Tăng độ dày viền
-            'circle-stroke-color': '#ffffff'
-          }
+            'circle-radius': 12,
+            'circle-color': '#ff5733',
+            'circle-stroke-width': 3,
+            'circle-stroke-color': '#ffffff',
+          },
         });
-
         map.addSource('current-location', {
           type: 'geojson',
-          data: { type: 'FeatureCollection', features: [] }
+          data: { type: 'FeatureCollection', features: [] },
         });
-
         map.addLayer({
           id: 'current-location-layer',
           type: 'circle',
           source: 'current-location',
           paint: {
-            'circle-radius': 15, // Tăng kích thước điểm vị trí hiện tại
-            'circle-color': '#e74c3c', // Màu đỏ nổi bật
+            'circle-radius': 15,
+            'circle-color': '#e74c3c',
             'circle-stroke-width': 3,
-            'circle-stroke-color': '#ffffff'
-          }
+            'circle-stroke-color': '#ffffff',
+          },
         });
-
-        // Thêm popup khi click vào tasker
         map.on('click', 'taskers-layer', (e) => {
           const coordinates = e.features[0].geometry.coordinates.slice();
           const { name, distance } = e.features[0].properties;
-
           new window.vietmapgl.Popup()
             .setLngLat(coordinates)
             .setHTML(`
@@ -140,7 +133,6 @@ const TaskerSearch = () => {
         script.async = true;
         script.onload = initMap;
         document.body.appendChild(script);
-
         const link = document.createElement('link');
         link.href = 'https://unpkg.com/@vietmap/vietmap-gl-js@4.2.0/vietmap-gl.css';
         link.rel = 'stylesheet';
@@ -159,9 +151,10 @@ const TaskerSearch = () => {
   }, []);
 
   useEffect(() => {
-    const filterCount = (filters.services.length > 0 ? 1 : 0) + 
-                       (filters.minRating > 0 ? 1 : 0) + 
-                       (filters.radius !== 5000 ? 1 : 0);
+    const filterCount =
+      (filters.services.length > 0 ? 1 : 0) +
+      (filters.minRating > 0 ? 1 : 0) +
+      (filters.radius !== 5000 ? 1 : 0);
     setActiveFilters(filterCount);
   }, [filters]);
 
@@ -170,10 +163,8 @@ const TaskerSearch = () => {
       setError('Vui lòng lấy vị trí hiện tại trước khi tìm kiếm.');
       return;
     }
-
     setIsLoading(true);
     setError(null);
-
     try {
       const response = await addressAPI.searchNearby(
         currentLocation.lat,
@@ -183,83 +174,78 @@ const TaskerSearch = () => {
         filters.minRating,
         token
       );
-
       if (mapRef.current && mapRef.current.getSource('taskers')) {
         mapRef.current.getSource('taskers').setData({
           type: 'FeatureCollection',
-          features: response.users.map(tasker => ({
+          features: response.users.map((tasker) => ({
             type: 'Feature',
             geometry: {
               type: 'Point',
-              coordinates: [tasker.lng, tasker.lat]
+              coordinates: [tasker.lng, tasker.lat],
             },
             properties: {
               user_id: tasker.user_id,
               name: tasker.name,
-              distance: tasker.distance
-            }
-          }))
+              distance: tasker.distance,
+            },
+          })),
         });
       }
-
       setSearchMetadata({
         filters_applied: { min_rating: filters.minRating, services: filters.services },
         total_filtered_before_geofence: response.total_filtered_before_geofence || 0,
         total_in_range: response.users ? response.users.length : 0,
       });
-
       if (mapRef.current && mapRef.current.getSource('current-location')) {
         mapRef.current.getSource('current-location').setData({
           type: 'FeatureCollection',
-          features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: [currentLocation.lng, currentLocation.lat] }, properties: {} }]
+          features: [
+            {
+              type: 'Feature',
+              geometry: { type: 'Point', coordinates: [currentLocation.lng, currentLocation.lat] },
+              properties: {},
+            },
+          ],
         });
       }
-
       if (circleLayer && mapRef.current.getLayer('circle-layer')) {
         mapRef.current.removeLayer('circle-layer');
         mapRef.current.removeSource('circle');
       }
-
       if (mapRef.current) {
         mapRef.current.addSource('circle', {
           type: 'geojson',
-          data: { 
-            type: 'Feature', 
-            geometry: { 
-              type: 'Point', 
-              coordinates: [currentLocation.lng, currentLocation.lat] 
+          data: {
+            type: 'Feature',
+            geometry: {
+              type: 'Point',
+              coordinates: [currentLocation.lng, currentLocation.lat],
             },
             properties: {
-              radius: filters.radius
-            }
-          }
+              radius: filters.radius,
+            },
+          },
         });
-
         mapRef.current.addLayer({
           id: 'circle-layer',
           type: 'circle',
           source: 'circle',
           paint: {
-            'circle-radius': [
-              'case',
-              ['==', ['get', 'radius'], 0],
-              0,
-              ['/', ['get', 'radius'], 100]
-            ],
+            'circle-radius': ['case', ['==', ['get', 'radius'], 0], 0, ['/', ['get', 'radius'], 100]],
             'circle-color': '#007cbf',
-            'circle-opacity': 0.2
-          }
+            'circle-opacity': 0.2,
+          },
         });
-
         setCircleLayer(true);
       }
-
-      setTaskers(response.users.map(user => ({
-        ...user,
-        service_variants: user.service_variants || [],
-        distance: parseFloat(user.distance) || 0,
-        rating: parseFloat(user.rating) || 0
-      })));
+      setTaskers(
+        response.users.map((user) => ({
+          ...user,
+          service_variants: user.service_variants || [],
+          distance: parseFloat(user.distance) || 0,
+          rating: parseFloat(user.rating) || 0,
+        }))
+      );
     } catch (error) {
       console.error('Search error:', error);
       setError(`Lỗi khi tìm kiếm tasker: ${error.message}`);
@@ -270,22 +256,26 @@ const TaskerSearch = () => {
   };
 
   const handleServiceToggle = (serviceId) => {
-    setFilters(prev => ({
+    setFilters((prev) => ({
       ...prev,
       services: prev.services.includes(serviceId)
-        ? prev.services.filter(s => s !== serviceId)
-        : [...prev.services, serviceId]
+        ? prev.services.filter((s) => s !== serviceId)
+        : [...prev.services, serviceId],
     }));
   };
 
   const handleFilterChange = (key, value) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
+    setFilters((prev) => ({ ...prev, [key]: value }));
   };
 
   const triggerGeolocation = () => {
     if (geolocateControlRef.current) {
       geolocateControlRef.current.trigger();
     }
+  };
+
+  const toggleFilter = () => {
+    setIsFilterOpen(!isFilterOpen);
   };
 
   return (
@@ -306,23 +296,34 @@ const TaskerSearch = () => {
       </div>
 
       {/* Main Content */}
-      <div className="container-fluid py-4">
+      <div className="container-fluid py-4 main-content">
         <div className="row">
+          {/* Mobile Filter Toggle Button */}
+          <div className="col-12 d-lg-none mb-3">
+            <button className="btn btn-primary w-100" onClick={toggleFilter}>
+              <FontAwesomeIcon icon={faBars} className="mr-2" />
+              Bộ Lọc Tìm Kiếm ({activeFilters})
+            </button>
+          </div>
+
           {/* Left Sidebar - Filters */}
-          <div className="col-lg-3">
+          <div className={`col-lg-3 filters-sidebar-container ${isFilterOpen ? 'filters-open' : ''}`}>
             <div className="filters-sidebar bg-white rounded shadow-sm p-4">
               <div className="d-flex justify-content-between align-items-center mb-4">
                 <h5 className="mb-0">Bộ Lọc Tìm Kiếm</h5>
-                <button className="btn btn-outline-primary btn-sm">
+                <button className="btn btn-outline-primary btn-sm d-lg-block d-none">
                   <FontAwesomeIcon icon={faFilter} className="mr-1" />
                   Bộ lọc ({activeFilters})
+                </button>
+                <button className="btn btn-outline-secondary btn-sm d-lg-none" onClick={toggleFilter}>
+                  Đóng
                 </button>
               </div>
 
               {/* Location */}
               <div className="filter-section mb-4">
                 <h6>Vị trí</h6>
-                <button 
+                <button
                   className="btn btn-outline-secondary btn-sm w-100 mb-2"
                   onClick={triggerGeolocation}
                   disabled={isLoading}
@@ -387,7 +388,7 @@ const TaskerSearch = () => {
               </div>
 
               {/* Apply Filters Button */}
-              <button 
+              <button
                 className="btn btn-primary w-100"
                 onClick={searchNearbyTaskers}
                 disabled={isLoading || !currentLocation}
@@ -399,10 +400,10 @@ const TaskerSearch = () => {
           </div>
 
           {/* Right Content - Search Results */}
-          <div className="col-lg-9">
+          <div className="col-lg-9 search-results-container">
             {/* Error Message */}
             {error && (
-              <div className="alert alert-danger" style={{ marginBottom: '1rem', padding: '0.75rem', borderRadius: '4px' }} role="alert">
+              <div className="alert alert-danger" role="alert">
                 {error}
               </div>
             )}
@@ -413,9 +414,12 @@ const TaskerSearch = () => {
                 <div className="d-flex justify-content-between align-items-center">
                   <div>
                     <h5 className="mb-1">
-                      Tìm thấy {taskers.length} tasker trong bán kính {filters.radius / 1000}km 
+                      Tìm thấy {taskers.length} tasker trong bán kính {filters.radius / 1000}km
                       {filters.minRating > 0 && ` với đánh giá ${filters.minRating}+ sao`}
-                      {filters.services.length > 0 && ` cung cấp dịch vụ: ${filters.services.map(id => services.find(s => s.id === id)?.name || 'Unknown').join(', ')}`}
+                      {filters.services.length > 0 &&
+                        ` cung cấp dịch vụ: ${filters.services
+                          .map((id) => services.find((s) => s.id === id)?.name || 'Unknown')
+                          .join(', ')}`}
                     </h5>
                     <p className="text-muted mb-0">
                       Tổng tasker phù hợp trước lọc vị trí: {searchMetadata.total_filtered_before_geofence || 'N/A'}
@@ -426,88 +430,70 @@ const TaskerSearch = () => {
             )}
 
             {/* Map Container */}
-            <div className="map-container bg-white rounded shadow-sm p-4 mb-4">
-              <div 
-                ref={mapContainer} 
-                style={{ 
+            <div className="map-container bg-white rounded shadow-sm mb-4">
+              <div
+                ref={mapContainer}
+                style={{
                   width: '100%',
-                  height: '600px', // Tăng chiều cao để map to hơn
+                  height: '500px',
                   position: 'relative',
-                  border: '2px solid #007bff', // Thêm viền để nổi bật
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)', // Thêm bóng đổ để nổi bật
-                  borderRadius: '8px' // Bo góc để đẹp hơn
-                }} 
+                  border: '2px solid #007bff',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                  borderRadius: '8px',
+                }}
               />
             </div>
 
             {/* Taskers List */}
-            <div className="taskers-list">
+            <div className="taskers-list-container bg-white rounded shadow-sm p-4">
               <h5 className="mb-3">Tasker Gần Bạn</h5>
-              <div className="row">
-                {taskers.length === 0 ? (
-                  <p className="col-12 text-muted">Không tìm thấy tasker nào phù hợp với tiêu chí. Thử điều chỉnh bộ lọc!</p>
-                ) : (
+              <div className="taskers-list">
+                {taskers.length > 0 ? (
                   taskers.map((tasker) => (
-                    <div key={tasker.user_id} className="col-12 mb-3">
+                    <div key={tasker.user_id} className="mb-3">
                       <div className="tasker-card bg-white rounded shadow-sm p-4">
                         <div className="row align-items-center">
-                          {/* Avatar & Basic Info */}
-                          <div className="col-md-3">
-                            <div className="d-flex align-items-center">
-                              <div className="tasker-avatar mr-3">
+                          {/* Avatar, Name, and Rating (Left) */}
+                          <div className="col-md-3 col-12 col-md-auto mb-3 mb-md-0">
+                            <div className="tasker-avatar-wrapper">
+                              <div className="tasker-avatar">
                                 <span className="initials">{tasker.name?.slice(0, 2).toUpperCase()}</span>
                               </div>
-                              <div>
+                              <div className="tasker-basic-info mt-2">
                                 <h6 className="mb-1">{tasker.name}</h6>
                                 <div className="rating mb-1">
                                   <FontAwesomeIcon icon={faStar} className="text-warning mr-1" />
                                   <span>{tasker.rating ? `${tasker.rating.toFixed(1)}/5` : 'Chưa có đánh giá'}</span>
                                 </div>
-                                <small className="text-muted d-block">
-                                  <FontAwesomeIcon icon={faMapMarkerAlt} className="mr-1" />
-                                  {(tasker.distance / 1000).toFixed(2)} km
-                                </small>
                               </div>
                             </div>
                           </div>
 
-                          {/* Services */}
-                          <div className="col-md-6">
+                          {/* Services (Middle) */}
+                          <div className="col-md-6 col-12 col-md-auto mb-3 mb-md-0 services-container">
                             <div className="services-offered">
-                              <h6 className="small text-muted mb-2">Dịch vụ cung cấp:</h6>
-                              <div className="service-details">
-                                {tasker.service_variants && tasker.service_variants.length > 0 ? (
-                                  tasker.service_variants.map((variant, index) => (
-                                    <div key={index} className="service-item mb-2">
-                                      <span className="badge badge-soft-primary mr-2">
-                                        {variant.service_name}
-                                      </span>
-                                      <small className="text-muted">
-                                        {variant.variant_name} ({variant.pricing_type})
-                                      </small>
-                                      <div className="price-range small">
-                                        <FontAwesomeIcon icon={faDollarSign} className="mr-1" />
-                                        {variant.specific_price.toLocaleString('vi-VN')} /{variant.unit}
-                                      </div>
-                                    </div>
-                                  ))
-                                ) : (
-                                  <small className="text-muted">Không có dịch vụ nào được cung cấp</small>
-                                )}
-                              </div>
+                              {tasker.service_variants && tasker.service_variants.length > 0 ? (
+                                tasker.service_variants.map((variant, index) => (
+                                  <span key={index} className="badge badge-soft-primary mr-2 mb-1">
+                                    {variant.service_name}
+                                  </span>
+                                ))
+                              ) : (
+                                <small className="text-muted">Không có dịch vụ</small>
+                              )}
                             </div>
                           </div>
 
-                          {/* Actions */}
-                          <div className="col-md-3 text-right">
-                            <Link 
+                          {/* Actions (Right) */}
+                          <div className="col-md-3 col-12 col-md-auto text-md-right d-flex flex-column flex-md-row justify-content-md-end">
+                            <Link
                               to={`/tasker-profile/${tasker.user_id}`}
-                              className="btn btn-outline-primary btn-sm d-block mb-2"
+                              className="btn btn-outline-primary btn-sm mb-2 mb-md-0 mr-md-2 w-100 w-md-auto"
                             >
                               <FontAwesomeIcon icon={faEye} className="mr-1" />
                               Xem hồ sơ
                             </Link>
-                            <button className="btn btn-primary btn-sm d-block w-100">
+                            <button className="btn btn-primary btn-sm w-100 w-md-auto">
                               Đặt dịch vụ
                             </button>
                           </div>
@@ -515,126 +501,14 @@ const TaskerSearch = () => {
                       </div>
                     </div>
                   ))
+                ) : (
+                  <p className="text-muted">Không tìm thấy tasker nào phù hợp với tiêu chí. Thử điều chỉnh bộ lọc!</p>
                 )}
               </div>
             </div>
           </div>
         </div>
       </div>
-
-      <style jsx>{`
-        .tasker-search-container {
-          background-color: #f8f9fa;
-          min-height: 100vh;
-        }
-        
-        .hero-section {
-          background-size: cover;
-          background-position: center;
-          padding: 100px 0;
-          position: relative;
-        }
-        
-        .overlay {
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(0, 0, 0, 0.5);
-        }
-        
-        .hero-content {
-          position: relative;
-          z-index: 1;
-        }
-        
-        .filters-sidebar {
-          border: 1px solid #e9ecef;
-          position: sticky;
-          top: 20px;
-        }
-        
-        .filter-section {
-          padding-bottom: 1rem;
-          margin-bottom: 1rem;
-          border-bottom: 1px solid #e9ecef;
-        }
-        
-        .filter-section:last-child {
-          border-bottom: none;
-        }
-        
-        .services-list {
-          max-height: 200px;
-          overflow-y: auto;
-        }
-        
-        .tasker-avatar {
-          width: 60px;
-          height: 60px;
-          background-color: #007bff;
-          border-radius: 50%;
-          color: white;
-          font-weight: bold;
-          font-size: 1.2rem;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        
-        .tasker-card {
-          transition: transform 0.2s;
-          border: 1px solid #eee;
-        }
-        
-        .tasker-card:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }
-        
-        .map-container {
-          position: relative;
-        }
-        
-        .badge-soft-primary {
-          background-color: rgba(0, 123, 255, 0.1);
-          color: #007bff;
-          font-weight: 500;
-          padding: 0.5em 1em;
-        }
-        
-        .service-item {
-          display: flex;
-          align-items: center;
-          flex-wrap: wrap;
-          gap: 0.5rem;
-        }
-        
-        .price-range {
-          color: #28a745;
-          font-weight: 500;
-        }
-        
-        .form-control-range {
-          width: 100%;
-        }
-        
-        @media (max-width: 768px) {
-          .filters-sidebar {
-            position: relative;
-            margin-bottom: 2rem;
-          }
-          
-          .hero-section {
-            padding: 60px 0;
-          }
-          
-          .map-container {
-            height: 400px !important; // Điều chỉnh cho di động
-          }
-        }
-      `}</style>
     </div>
   );
 };

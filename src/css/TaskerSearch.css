@@ -1,0 +1,326 @@
+.tasker-search-container {
+  background-color: #f8f9fa;
+}
+
+.hero-section {
+  background-size: cover;
+  background-position: center;
+  padding: 100px 0;
+  position: relative;
+}
+
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.hero-content {
+  position: relative;
+  z-index: 1;
+}
+
+.main-content {
+  padding-bottom: 80px;
+}
+
+.filters-sidebar {
+  border: 1px solid #e9ecef;
+  position: sticky;
+  top: 20px;
+}
+
+.filter-section {
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.filter-section:last-child {
+  border-bottom: none;
+}
+
+.services-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.tasker-avatar {
+  width: 40px; /* Thu nhỏ avatar */
+  height: 40px;
+  background-color: #007bff;
+  border-radius: 50%;
+  color: white;
+  font-weight: bold;
+  font-size: 0.9rem; /* Thu nhỏ chữ trong avatar */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tasker-avatar-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tasker-card {
+  transition: transform 0.2s;
+  border: 1px solid #eee;
+  display: flex;
+  flex-direction: column;
+}
+
+.tasker-card .row {
+  flex-wrap: nowrap;
+  align-items: stretch;
+}
+
+.tasker-card .col-12 {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.map-container {
+  position: relative;
+  z-index: 1;
+}
+
+.taskers-list-container {
+  position: relative;
+  z-index: 2;
+  min-height: 200px;
+}
+
+.badge-soft-primary {
+  background-color: rgba(0, 123, 255, 0.1);
+  color: #007bff;
+  font-weight: 500;
+  padding: 0.25em 0.5em; /* Thu nhỏ padding badge */
+}
+
+.service-item {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.price-range {
+  color: #28a745;
+  font-weight: 500;
+}
+
+.form-control-range {
+  width: 100%;
+}
+
+.alert {
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  border-radius: 4px;
+}
+
+/* Mobile-Specific Styles */
+@media (max-width: 768px) {
+  .hero-section {
+    padding: 60px 0;
+  }
+
+  .hero-content h1 {
+    font-size: 1.8rem;
+  }
+
+  .hero-content p {
+    font-size: 1rem;
+  }
+
+  .main-content {
+    padding-bottom: 60px;
+  }
+
+  .filters-sidebar-container {
+    position: fixed;
+    top: 0;
+    left: -100%;
+    width: 80%;
+    max-width: 300px;
+    height: 100%;
+    background: #fff;
+    z-index: 1000;
+    transition: left 0.3s ease-in-out;
+    overflow-y: auto;
+  }
+
+  .filters-sidebar-container.filters-open {
+    left: 0;
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.2);
+  }
+
+  .filters-sidebar {
+    border: none;
+    position: relative;
+    top: 0;
+    padding: 1rem;
+  }
+
+  .filters-sidebar .btn {
+    font-size: 0.9rem;
+    padding: 0.5rem 1rem;
+    min-height: 44px;
+  }
+
+  .map-container {
+    height: 250px;
+    padding: 0.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .taskers-list-container {
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .tasker-card {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column; /* Giữ cột trên mobile */
+    align-items: stretch;
+  }
+
+  .tasker-card .row {
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+  }
+
+  .tasker-card .col-md-auto {
+    flex: 0 0 auto;
+    width: 100%; /* Full width trên mobile */
+    max-width: none;
+    margin-bottom: 1rem;
+    text-align: center;
+  }
+
+  .tasker-card .col-12 {
+    flex: 1;
+    margin-bottom: 1rem;
+  }
+
+  .tasker-avatar {
+    width: 40px; /* Thu nhỏ avatar trên mobile */
+    height: 40px;
+    font-size: 0.9rem; /* Thu nhỏ chữ trong avatar */
+    margin: 0 auto; /* Căn giữa avatar */
+  }
+
+  .tasker-avatar-wrapper {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .tasker-basic-info {
+    text-align: center;
+    margin-top: 0.5rem;
+  }
+
+  .tasker-card h6 {
+    font-size: 1rem; /* Thu nhỏ tên */
+  }
+
+  .tasker-card .small,
+  .tasker-card small {
+    font-size: 0.9rem; /* Thu nhỏ mô tả */
+  }
+
+  .tasker-card .rating {
+    font-size: 0.9rem; /* Thu nhỏ rating */
+    text-align: center;
+  }
+
+  .tasker-card .btn {
+    font-size: 0.9rem; /* Thu nhỏ chữ nút */
+    padding: 0.5rem 1rem;
+    min-height: 40px; /* Giảm kích thước nút */
+    width: 100%; /* Full width trên mobile */
+    margin-bottom: 0.5rem;
+    display: block; /* Đảm bảo nút hiển thị từng cái một */
+  }
+
+  .tasker-card .d-flex.flex-column.flex-md-row .btn {
+    width: 100%;
+    margin-right: 0;
+  }
+
+  .tasker-card .d-flex.flex-column.flex-md-row .btn:last-child {
+    margin-right: 0;
+  }
+
+  .services-offered {
+    display: none; /* Ẩn dịch vụ trên mobile để tiết kiệm không gian */
+  }
+
+  .services-list {
+    max-height: 150px;
+  }
+
+  .search-summary h5 {
+    font-size: 0.9rem;
+  }
+
+  .search-summary p {
+    font-size: 0.8rem;
+  }
+
+  .form-check-label {
+    font-size: 0.85rem;
+  }
+
+  .form-control-range {
+    height: 44px;
+  }
+
+  .btn {
+    min-height: 44px;
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+  }
+}
+
+/* High-DPI Adjustments for Galaxy S20 Ultra */
+@media (max-width: 768px) and (-webkit-min-device-pixel-ratio: 2) {
+  .tasker-avatar {
+    font-size: 1rem; /* Điều chỉnh cho high-DPI */
+  }
+
+  .tasker-card h6 {
+    font-size: 1.1rem;
+  }
+
+  .tasker-card .small,
+  .tasker-card small {
+    font-size: 1rem;
+  }
+
+  .tasker-card .rating {
+    font-size: 1rem;
+  }
+
+  .tasker-card .btn {
+    font-size: 1rem;
+  }
+
+  .hero-content h1 {
+    font-size: 2.2rem;
+  }
+
+  .hero-content p {
+    font-size: 1.2rem;
+  }
+}

@@ -171,8 +171,8 @@ function App() {
                   <ContentManagement />
                 </ProtectedRoute>
               } />
-              <Route path="/video-upload" element={
-                <ProtectedRoute requiredRole="Tasker">
+              <Route path="/videostaff" element={
+                <ProtectedRoute requiredRole="Staff">
                   <VideoUpload />
                 </ProtectedRoute>
               } />

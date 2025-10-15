@@ -1,0 +1,352 @@
+
+.navbar-nav {
+ 
+  margin-left: auto !important;
+  display: flex;
+  align-items: center; 
+}
+
+/* 2. Khoảng cách giữa các mục (Nav Links) */
+.navbar-nav .nav-item {
+
+  margin-right: 10px; /* Thêm khoảng cách phải */
+}
+
+.navbar-nav .nav-link {
+  color: #fff !important;
+  font-size: 1rem;
+  /* Tăng padding ngang để các nút trông lớn hơn và cân đối hơn */
+  padding: 10px 18px; 
+  /* Đảm bảo transition vẫn hoạt động */
+  transition: all 0.2s ease-in-out; 
+  border-radius: 4px; /* Thêm bo góc nhẹ cho hiệu ứng hover đẹp hơn */
+}
+
+.navbar-nav .nav-link:hover {
+  transform: translateY(-2px);
+  background-color: #495057; /* Thêm màu nền tối nhẹ khi hover */
+}
+
+.navbar-nav .nav-item.active .nav-link {
+  color: #f0ad4e !important;
+  border-bottom: 2px solid #f0ad4e; /* Gạch chân nổi bật */
+  padding-bottom: 8px; /* Giữ cân bằng sau khi thêm border */
+}
+
+/* 3. Cân bằng Dropdown Tài khoản (Desktop) */
+.navbar-nav .dropdown {
+  margin-left: 15px; /* Tách biệt rõ ràng với các mục menu chính */
+}
+
+.navbar-nav .dropdown-menu {
+  /* Tinh chỉnh lại vị trí và kích thước */
+  right: 0;
+  left: auto; 
+  width: 280px; 
+  padding: 15px 15px 10px 15px;  
+}
+
+/* 4. Căn chỉnh mục Đăng nhập/Đăng ký */
+.navbar-nav .nav-item:last-of-type {
+    margin-right: 0; 
+}
+
+/* Đảm bảo Notification Bell căn giữa với các link */
+.nav-item.d-flex.align-items-center {
+    margin-left: 15px;
+}
+
+
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: -270px;
+  width: 260px;
+  height: 100%;
+  background: #343a40;
+  color: #fff;
+  padding: 20px;
+  transition: left 0.3s ease;
+  z-index: 2000;
+  overflow-y: auto;
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.4);
+}
+
+.sidebar.open {
+  left: 0;
+}
+
+.close-btn {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  font-size: 24px;
+  cursor: pointer;
+  color: #fff;
+  transition: transform 0.2s ease;
+}
+
+.close-btn:hover {
+  transform: rotate(90deg);
+  color: #ffc107;
+}
+
+.sidebar-content a {
+  display: flex;
+  align-items: center;
+  color: #fff;
+  text-decoration: none;
+  padding: 12px 0;
+  border-bottom: 1px solid #495057;
+  transition: all 0.2s ease-in-out;
+}
+
+.sidebar-content a:hover {
+  color: #ffc107;
+  padding-left: 10px;
+  background-color: #495057;
+}
+
+.user-section {
+  text-align: center;
+}
+
+.user-btn {
+  background: none;
+  border: none;
+  color: #f0ad4e;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 10px 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.user-btn:hover {
+  color: #ffc107;
+  transform: scale(1.02);
+}
+
+/* User Info in Sidebar */
+.user-info {
+  margin-top: 50px;
+}
+
+.user-info h3 {
+  color: #f0ad4e;
+  text-align: center;
+  margin-bottom: 15px;
+}
+
+.user-info ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.user-info li {
+  margin-bottom: 8px;
+  border-bottom: 1px solid #495057;
+  padding-bottom: 5px;
+  color: #ccc;
+}
+
+.user-actions a,
+.logout-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f0ad4e;
+  color: #212529;
+  border: none;
+  padding: 10px;
+  border-radius: 6px;
+  margin-top: 10px;
+  text-align: center;
+  font-weight: bold;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s ease-in-out;
+}
+
+.user-actions a:hover,
+.logout-btn:hover {
+  background: #ffc107;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(240, 173, 78, 0.3);
+}
+
+.back-btn {
+  background: none;
+  border: none;
+  color: #f0ad4e;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.back-btn:hover {
+  color: #ffc107;
+  transform: scale(1.05);
+}
+
+.sidebar-overlay.active {
+  position: fixed;
+  top: 0;
+  left: 0;
+  background: rgba(0, 0, 0, 0.4);
+  width: 100%;
+  height: 100%;
+  z-index: 1500;
+}
+
+
+.phone a {
+  color: #007bff;
+  text-decoration: none;
+}
+
+.phone a:hover {
+  text-decoration: underline;
+}
+
+.social-media a {
+  color: #343a40;
+  margin: 0 10px;
+  font-size: 18px;
+  transition: color 0.2s;
+}
+
+.social-media a:hover {
+  color: #f0ad4e;
+}
+
+.navbar {
+  background: #343a40 !important;
+}
+
+.navbar-brand {
+
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+@media (max-width: 991.98px) {
+  .navbar-brand .home-text {
+    color: #fff !important; /* Màu trắng cho Home trên mobile */
+  }
+}
+
+.navbar-brand span {
+  color: #f0ad4e;
+}
+
+.navbar-toggler {
+  border: none;
+  color: #fff;
+  font-size: 1.2rem;
+  transition: transform 0.3s ease;
+}
+
+/* Hiệu ứng cho Notification Bell */
+.notification-bell-icon {
+  font-size: 1.2rem;
+  color: #fff;
+  transition: color 0.2s, transform 0.2s;
+}
+
+.notification-bell-icon:hover {
+  color: #f0ad4e;
+  transform: rotate(15deg);
+}
+
+
+/* Dropdown Animation */
+.navbar-nav .dropdown {
+  position: relative;
+}
+
+.navbar-nav .dropdown-menu {
+  position: absolute;
+  top: 100%;
+  background: #343a40;
+  color: #fff;
+  border-radius: 6px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  margin-top: 5px;
+  display: none;
+  transition: all 0.3s ease-out;
+  transform-origin: top right;
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+.navbar-nav .dropdown.open .dropdown-menu {
+  display: block;
+  animation: fadeInScale 0.3s ease-out forwards;
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.navbar-nav .dropdown-menu .dropdown-item {
+  color: #fff;
+  padding: 8px 12px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  transition: background 0.2s, color 0.2s;
+  border-radius: 4px;
+}
+
+.navbar-nav .dropdown-menu .dropdown-item:hover {
+  background: #f0ad4e;
+  color: #212529;
+}
+
+.navbar-nav .dropdown-menu .dropdown-divider {
+  border-top: 1px solid #495057;
+  margin: 8px 0;
+}
+
+.navbar-nav .dropdown-menu .badge {
+  background: #007bff;
+}
+
+.navbar-nav .dropdown-menu button.bg-white {
+  background: #fff !important;
+  border: 1px solid #dee2e6;
+  transition: background 0.2s;
+}
+
+.navbar-nav .dropdown-menu button.bg-white:hover {
+  background: #f8f9fa !important;
+}
+
+.navbar-nav .dropdown-toggle::after {
+  margin-left: 5px;
+  vertical-align: middle;
+}
+
+/* Hide dropdown on mobile */
+@media (max-width: 991.98px) {
+  .navbar-nav .dropdown-menu {
+    display: none !important;
+  }
+  /* Đảm bảo các link login/register không có margin quá lớn */
+  .navbar-nav .nav-item {
+    margin-right: 0; 
+  }
+}
