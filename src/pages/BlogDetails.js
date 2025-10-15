@@ -4,6 +4,7 @@ import parse, { domToReact } from "html-react-parser";
 import blogService from '../services/blogService';
 import { useAuth } from '../contexts/AuthContext';
 import '../css/BlogDetails.css';
+import CreateQuoteButton from '../components/quotes/CreateQuoteButton';
 
 const BlogDetails = () => {
   const { id } = useParams();
@@ -306,7 +307,7 @@ const BlogDetails = () => {
                           {service.variant_name && (
                             <>
                               <span className="service-variant-label">Nhóm:</span>
-                              <span className="service-variant improved-service-variant">{service.variant_name}</span>
+                              <span className="service-variant1 improved-service-variant">{service.variant_name}</span>
                             </>
                           )}
                         </div>
@@ -334,8 +335,13 @@ const BlogDetails = () => {
                             <strong>Ghi chú:</strong> {service.notes}
                           </p>
                         )}
+                        {/* Quote CTA inside each service card? If only one service overall, we show a single CTA at bottom-right of the section */}
                       </div>
                     ))}
+                  </div>
+                  {/* Bottom-right CTA to open modal */}
+                  <div className="services-quote-cta">
+                    <CreateQuoteButton postId={id} services={services} />
                   </div>
                 </div>
               )}
@@ -367,6 +373,8 @@ const BlogDetails = () => {
                   <i className="fas fa-share"></i> Chia sẻ
                 </button>
               </div>
+
+              {/* Quote button moved into related services section */}
             </article>
 
             {/* Comments Section */}

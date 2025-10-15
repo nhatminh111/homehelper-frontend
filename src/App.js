@@ -54,6 +54,7 @@ import AIInteraction from './pages/AIInteraction';
 import SystemManagement from './pages/SystemManagement';
 import QuotesPage from './pages/QuotesPage';
 import VideoManager from './pages/VideoManager';
+import NegotiateSessionTest from './pages/NegotiateSessionTest';
 // Role landing pages
 import TaskerHome from './pages/tasker/TaskerHome';
 import AdminHome from './pages/admin/AdminHome';
@@ -63,6 +64,8 @@ import CCCDExtractor from './pages/CCCDExtractor';
 import BecomeTasker from './pages/BecomeTasker';
 import TaskerApprovals from './pages/admin/TaskerApprovals';
 import Wishlist from "./pages/Wishlist";
+import StaffApplications from './pages/StaffApplications';
+import { Navigate } from 'react-router-dom';
 function App() {
   return (
     <AuthProvider>
@@ -198,6 +201,11 @@ function App() {
                   <ChatPage />
                 </ProtectedRoute>
               } />
+              <Route path="/negotiate-session-test" element={
+                <ProtectedRoute>
+                  <NegotiateSessionTest />
+                </ProtectedRoute>
+              } />
               {/* Role landing */}
               <Route path="/tasker" element={
                 <ProtectedRoute requiredRole="Tasker">
@@ -219,6 +227,12 @@ function App() {
                   <TaskerApprovals />
                 </ProtectedRoute>
               } />
+              <Route path="/staff/applications" element={
+                <ProtectedRoute requiredRole="Staff">
+                  <StaffApplications />
+                </ProtectedRoute>
+              } />
+              <Route path="/staff" element={<Navigate to="/staff/applications" replace />} />
             </Routes>
             </main>
             <Footer />

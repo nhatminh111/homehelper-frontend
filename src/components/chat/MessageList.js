@@ -14,7 +14,7 @@ const MessageList = ({
   const [editingMessage, setEditingMessage] = useState(null);
   const [replyingToMessage, setReplyingToMessage] = useState(null);
 
-  // Group messages by date
+  // Group messages by date (support synthetic system messages)
   const groupedMessages = messages.reduce((groups, message, index) => {
     // Group theo ngày UTC để không bị lệch ngày khi dữ liệu là ISO UTC
     const messageDate = new Date(message.created_at);
@@ -140,6 +140,16 @@ const MessageList = ({
             {dateMessages.map((message, messageIndex) => {
               const previousMessage = messageIndex > 0 ? dateMessages[messageIndex - 1] : null;
               const nextMessage = messageIndex < dateMessages.length - 1 ? dateMessages[messageIndex + 1] : null;
+
+              if (message.message_type === 'system_ack' && message.system_ack) {
+                return (
+                  <div key={message.message_id} className="system-inline-pill fade-in" role="status" aria-live="polite">
+                    <i className="fas fa-check-circle me-2 text-success"></i>
+                    Chốt giá thành công: <strong>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(message.system_ack.price || 0))}</strong>
+                    {message.system_ack.unit ? <span> / {message.system_ack.unit}</span> : null}
+                  </div>
+                );
+              }
 
               return (
                 <MessageItem
