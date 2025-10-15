@@ -6,7 +6,7 @@ class VideoService {
       const response = await api.get('/videos/my-videos', { params });
       return response.data;
     } catch (error) {
-      console.error('Error fetching user videos:', error);
+      console.error('Lỗi khi lấy video của người dùng:', error);
       throw error;
     }
   }
@@ -16,7 +16,7 @@ class VideoService {
       const response = await api.get(`/videos/${id}`);
       return response.data;
     } catch (error) {
-      console.error('Error fetching video:', error);
+      console.error('Lỗi khi lấy video:', error);
       throw error;
     }
   }
@@ -37,18 +37,50 @@ class VideoService {
       });
       return response.data;
     } catch (error) {
-      console.error('Error uploading video:', error);
-      throw error;
+      console.error('Lỗi khi upload video:', error);
+      throw new Error(error.response?.data?.error || `Lỗi khi upload video: ${error.message}`);
+    }
+  }
+
+  async updateVideo(videoId, videoData) {
+    try {
+      const formData = new FormData();
+      formData.append('title', videoData.title);
+      if (videoData.description) {
+        formData.append('description', videoData.description);
+      }
+      if (videoData.video) {
+        formData.append('video', videoData.video);
+      }
+
+      const response = await api.put(`/videos/${videoId}`, formData, {
+        headers: {
+          Authorization: api.getStoredToken() ? `Bearer ${api.getStoredToken()}` : undefined,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Lỗi khi cập nhật video:', error);
+      throw new Error(
+        error.response?.data?.error ||
+        (error.response?.status === 401 || error.response?.status === 403
+          ? 'Không có quyền: Vui lòng đăng nhập lại'
+          : `Lỗi khi cập nhật video: ${error.message}`)
+      );
     }
   }
 
   async deleteVideo(id) {
     try {
-      const response = await api.delete(`/videos/${id}`);
+      const response = await api.delete(`/videos/${id}`, {
+        headers: {
+          Authorization: api.getStoredToken() ? `Bearer ${api.getStoredToken()}` : undefined,
+        },
+      });
       return response.data;
     } catch (error) {
-      console.error('Error deleting video:', error);
-      throw error;
+      console.error('Lỗi khi xóa video:', error);
+      throw new Error(error.response?.data?.error || `Lỗi khi xóa video: ${error.message}`);
     }
   }
 
@@ -57,7 +89,7 @@ class VideoService {
       const response = await api.get('/videos/recent', { params: { limit } });
       return response.data;
     } catch (error) {
-      console.error('Error fetching recent videos:', error);
+      console.error('Lỗi khi lấy video gần đây:', error);
       throw error;
     }
   }
@@ -67,7 +99,7 @@ class VideoService {
       const response = await api.get('/videos/popular', { params: { limit } });
       return response.data;
     } catch (error) {
-      console.error('Error fetching popular videos:', error);
+      console.error('Lỗi khi lấy video phổ biến:', error);
       throw error;
     }
   }
@@ -79,7 +111,7 @@ class VideoService {
       });
       return response.data;
     } catch (error) {
-      console.error('Error searching videos:', error);
+      console.error('Lỗi khi tìm kiếm video:', error);
       throw error;
     }
   }
@@ -89,7 +121,7 @@ class VideoService {
       const response = await api.post(`/videos/${id}/like`, { user_id: userId });
       return response.data;
     } catch (error) {
-      console.error('Error toggling like on video:', error);
+      console.error('Lỗi khi like/unlike video:', error);
       throw error;
     }
   }
@@ -101,7 +133,7 @@ class VideoService {
       });
       return response.data.isLiked || false;
     } catch (error) {
-      console.error('Error checking like status on video:', error);
+      console.error('Lỗi khi kiểm tra trạng thái like video:', error);
       return false;
     }
   }
@@ -111,7 +143,7 @@ class VideoService {
       const response = await api.get('/videos/stats');
       return response.data;
     } catch (error) {
-      console.error('Error fetching video stats:', error);
+      console.error('Lỗi khi lấy thống kê video:', error);
       throw error;
     }
   }
@@ -121,7 +153,7 @@ class VideoService {
       const response = await api.get('/videos/all-videos', { params });
       return response.data;
     } catch (error) {
-      console.error('Error fetching all videos:', error);
+      console.error('Lỗi khi lấy tất cả video:', error);
       throw error;
     }
   }
@@ -131,8 +163,37 @@ class VideoService {
       const response = await api.get(`/videos/user/${userId}`, { params });
       return response.data;
     } catch (error) {
-      console.error('Error fetching videos by user:', error);
+      console.error('Lỗi khi lấy video theo user:', error);
       throw error;
+    }
+  }
+
+  async getPendingVideos(params = {}) {
+    try {
+      const response = await api.get('/videos/pending', { params });
+      return response.data;
+    } catch (error) {
+      console.error('Lỗi khi lấy tất cả video cho Staff:', error);
+      throw new Error(error.response?.data?.error || `Lỗi khi lấy tất cả video cho Staff: ${error.message}`);
+    }
+  }
+
+  async updateVideoStatus(videoId, status) {
+    try {
+      const response = await api.put(`/videos/${videoId}/status`, { status }, {
+        headers: {
+          Authorization: api.getStoredToken() ? `Bearer ${api.getStoredToken()}` : undefined,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Lỗi khi cập nhật trạng thái video:', error);
+      throw new Error(
+        error.response?.data?.error ||
+        (error.response?.status === 401 || error.response?.status === 403
+          ? 'Không có quyền: Vui lòng đăng nhập lại'
+          : `Lỗi khi cập nhật trạng thái video: ${error.message}`)
+      );
     }
   }
 
@@ -141,7 +202,7 @@ class VideoService {
       const response = await api.post(`/videos/${videoId}/comments`, {
         video_id: videoId,
         content: commentData.content,
-        parent_comment_id: commentData.parent_comment_id || null
+        parent_comment_id: commentData.parent_comment_id || null,
       }, {
         headers: {
           Authorization: api.getStoredToken() ? `Bearer ${api.getStoredToken()}` : undefined,
@@ -149,10 +210,13 @@ class VideoService {
       });
       return response.data;
     } catch (error) {
-      console.error('Error creating comment:', error);
-      throw new Error(error.response?.status === 401 || error.response?.status === 403
-        ? 'Unauthorized: Please log in again'
-        : `Failed to create comment: ${error.message}`);
+      console.error('Lỗi khi tạo comment:', error);
+      throw new Error(
+        error.response?.data?.error ||
+        (error.response?.status === 401 || error.response?.status === 403
+          ? 'Không có quyền: Vui lòng đăng nhập lại'
+          : `Lỗi khi tạo comment: ${error.message}`)
+      );
     }
   }
 
@@ -165,10 +229,13 @@ class VideoService {
       });
       return response.data;
     } catch (error) {
-      console.error('Error updating comment:', error);
-      throw new Error(error.response?.status === 401 || error.response?.status === 403
-        ? 'Unauthorized: Please log in again'
-        : `Failed to update comment: ${error.message}`);
+      console.error('Lỗi khi cập nhật comment:', error);
+      throw new Error(
+        error.response?.data?.error ||
+        (error.response?.status === 401 || error.response?.status === 403
+          ? 'Không có quyền: Vui lòng đăng nhập lại'
+          : `Lỗi khi cập nhật comment: ${error.message}`)
+      );
     }
   }
 
@@ -181,10 +248,13 @@ class VideoService {
       });
       return response.data;
     } catch (error) {
-      console.error('Error deleting comment:', error);
-      throw new Error(error.response?.status === 401 || error.response?.status === 403
-        ? 'Unauthorized: Please log in again'
-        : `Failed to delete comment: ${error.message}`);
+      console.error('Lỗi khi xóa comment:', error);
+      throw new Error(
+        error.response?.data?.error ||
+        (error.response?.status === 401 || error.response?.status === 403
+          ? 'Không có quyền: Vui lòng đăng nhập lại'
+          : `Lỗi khi xóa comment: ${error.message}`)
+      );
     }
   }
 
@@ -193,7 +263,7 @@ class VideoService {
       const response = await api.get(`/videos/${videoId}/comments`, { params });
       return response.data;
     } catch (error) {
-      console.error('Error fetching video comments:', error);
+      console.error('Lỗi khi lấy comment video:', error);
       throw error;
     }
   }
@@ -201,10 +271,18 @@ class VideoService {
   async getVideoCommentTree(videoId, params = {}) {
     try {
       const response = await api.get(`/videos/${videoId}/comments/tree`, { params });
-      return response.data; // Trả về dữ liệu trực tiếp từ API, đã được xử lý ở backend
+      return response.data;
     } catch (error) {
-      console.error('Error fetching video comment tree:', error);
+      console.error('Lỗi khi lấy cây comment video:', error);
       throw error;
+    }
+  }
+  static async deleteVideoByStaff(videoId) {
+    try {
+      const response = await api.delete(`/videos/${videoId}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.error || 'Lỗi khi xóa video');
     }
   }
 }
