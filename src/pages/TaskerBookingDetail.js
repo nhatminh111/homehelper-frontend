@@ -1,7 +1,9 @@
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Container, Row, Col, Card, Button, Badge } from "react-bootstrap";
 
 export default function TaskerBookingDetail() {
+  const navigate = useNavigate();
+
   const location = useLocation();
   const booking = location.state || {};
 
@@ -148,8 +150,7 @@ export default function TaskerBookingDetail() {
                         chosenVariants[0].price_min * 1000
                       ).toLocaleString("vi-VN")}đ – ${(
                         chosenVariants[0].price_max * 1000
-                      ).toLocaleString("vi-VN")}đ/${
-                        chosenVariants[0].unit || ""
+                      ).toLocaleString("vi-VN")}đ/${chosenVariants[0].unit || ""
                       }`}
                   </div>
                 </>
@@ -184,6 +185,7 @@ export default function TaskerBookingDetail() {
           size="lg"
           className="px-5 fw-semibold"
           style={{ borderRadius: "10px", minWidth: "180px" }}
+          onClick={() => navigate("/chat")}
         >
           💬 Chat thương lượng
         </Button>
