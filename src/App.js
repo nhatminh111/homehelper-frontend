@@ -31,6 +31,7 @@ import Wallet from './pages/Wallet';
 import Booking from './pages/Booking';
 import JobDescription from './pages/JobDescription';
 import Contract from './pages/Contract';
+import TaskerBookingDetail from "./pages/TaskerBookingDetail";
 
 // Import authentication pages
 import Login from './pages/auth/Login';
@@ -115,7 +116,8 @@ function App() {
               <Route path="/payment-result" element={<PaymentResult />} />
               <Route path="/wallet" element={<Wallet />} />
               <Route path="/cccd" element={<CCCDExtractor />} />
-              <Route path="/booking" element={<Booking />} />
+              <Route path="/booking/:taskerId" element={<Booking />} />
+              <Route path="/tasker/bookings/:id" element={<TaskerBookingDetail />} />
               <Route path="/job-description" element={<JobDescription />} />
               <Route path="/contract" element={<Contract />} />
 

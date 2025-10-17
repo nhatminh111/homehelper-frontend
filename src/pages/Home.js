@@ -509,9 +509,16 @@ const Home = () => {
                           <FontAwesomeIcon icon={faComments} className="mr-1" />
                           Start Chat
                         </button>
-                        <button className="btn btn-primary btn-sm">
-                          Đặt Lịch Ngay
-                        </button>
+                        {taskers.map((t) => (
+                          <div key={t.tasker_id}>
+                            <Link
+                              to={`/booking/${t.tasker_id}`}
+                              className="btn btn-primary btn-sm"
+                            >
+                              Đặt Lịch Ngay
+                            </Link>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   </div>
@@ -613,9 +620,8 @@ const Home = () => {
             {tiers.map((t) => (
               <div key={t.name} className="col-md-6 col-lg-3 mb-4 d-flex">
                 <div
-                  className={`card shadow-sm border-0 w-100 ${
-                    t.popular ? "position-relative" : ""
-                  }`}
+                  className={`card shadow-sm border-0 w-100 ${t.popular ? "position-relative" : ""
+                    }`}
                   style={{
                     boxShadow: t.popular
                       ? "0 0 0 3px #ffe58f inset"
@@ -665,9 +671,8 @@ const Home = () => {
                       ))}
                     </ul>
                     <button
-                      className={`btn ${
-                        t.popular ? "btn-warning" : "btn-primary"
-                      }`}
+                      className={`btn ${t.popular ? "btn-warning" : "btn-primary"
+                        }`}
                     >
                       Unlock Rewards
                     </button>
