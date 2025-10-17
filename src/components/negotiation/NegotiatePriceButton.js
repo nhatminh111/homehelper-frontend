@@ -52,7 +52,7 @@ export default function NegotiatePriceButton({
 
   return (
     <button className={`${className} btn-${size}`} onClick={onClick} type="button" disabled={loading} aria-busy={loading}>
-      {loading ? 'Đang mở chat…' : `💬 ${label}`}
+      {loading ? 'Đang mở chat…' : `${label}`}
     </button>
   );
 }

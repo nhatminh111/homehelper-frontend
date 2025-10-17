@@ -1,3 +1,80 @@
+/* Modern, minimal blog card styles inspired by QuotesPage */
+.myblogs-card {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(30,41,59,0.07);
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+  margin-bottom: 28px;
+}
+.myblogs-thumb {
+  border-radius: 12px;
+  object-fit: cover;
+  width: 100%;
+  height: 180px;
+  background: #f1f5f9;
+}
+.myblogs-title {
+  font-weight: 700;
+  color: #1e293b;
+  font-size: 1.15rem;
+}
+.myblogs-preview {
+  color: #334155;
+  font-size: 1rem;
+  line-height: 1.6;
+  margin-bottom: 0.5rem;
+}
+.myblogs-interaction-bar {
+  display: flex;
+  justify-content: start;
+  align-items: center;
+  gap: 24px;
+  color: #64748b;
+  font-size: 0.97rem;
+  margin-bottom: 2px;
+}
+.myblogs-action-bar {
+  display: flex;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 8px;
+  gap: 8px;
+}
+.myblogs-action-btn {
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 0;
+  border-radius: 8px;
+  background: none;
+  border: none;
+  color: #64748b;
+  font-weight: 500;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  outline: none;
+  text-decoration: none;
+}
+.myblogs-action-btn:hover, .myblogs-action-btn:focus {
+  background: #f1f5f9;
+  color: #2563eb;
+}
+@media (max-width: 700px) {
+  .myblogs-card {
+    padding: 10px 2px;
+  }
+  .myblogs-thumb {
+    height: 120px;
+  }
+  .myblogs-action-bar {
+    flex-direction: column;
+    gap: 4px;
+  }
+}
 /* MyBlogs page styles */
 
 /* Spacing from sticky header */
@@ -52,8 +129,10 @@
 }
 
 /* Card body spacing */
-.myblogs-card .card-body {
-  padding: 14px 16px;
+.myblogs-card .card-body,
+.myblogs-card .p-4 {
+  padding-top: 0 !important;
+  margin-top: 0 !important;
 }
 
 /* Title clamp */
@@ -89,4 +168,11 @@
   .myblogs-page { padding-top: 20px; }
   .myblogs-card .card-body { padding: 12px; }
   .myblogs-thumb-link { height: 150px; }
+}
+
+.myblogs-card h1,
+.myblogs-card h2,
+.myblogs-card h3,
+.myblogs-card p {
+  margin-top: 0 !important;
 }

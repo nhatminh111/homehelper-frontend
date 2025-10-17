@@ -79,7 +79,7 @@ const CCCDExtractor = () => {
       if (type === 'front') {
         setFrontImage(file);
         const reader = new FileReader();
-        reader.onload = (ev) => setFrontPreview(ev.target.result);
+reader.onload = (ev) => setFrontPreview(ev.target.result);
         reader.readAsDataURL(file);
       } else {
         setBackImage(file);
@@ -146,6 +146,9 @@ const CCCDExtractor = () => {
     setTimeout(async () => {
       try {
         console.log('📷 Requesting camera access...');
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error('Trình duyệt không hỗ trợ camera (mediaDevices)');
+        }
         const stream = await navigator.mediaDevices.getUserMedia({ 
           video: { 
             width: { ideal: 640 },
@@ -161,6 +164,20 @@ const CCCDExtractor = () => {
         if (video) {
           video.srcObject = stream;
           console.log('🎬 Video stream set');
+          // Some browsers require an explicit play() call after setting srcObject
+          const ensurePlay = async () => {
+            try {
+              await video.play();
+              console.log('▶️ Video is playing');
+            } catch (e) {
+console.warn('⚠️ Autoplay prevented, retry on metadata loaded:', e);
+            }
+          };
+          if (video.readyState >= 2) {
+            ensurePlay();
+          } else {
+            video.onloadedmetadata = () => ensurePlay();
+          }
         } else {
           console.error('❌ Video element not found!');
         }
@@ -246,8 +263,8 @@ const CCCDExtractor = () => {
         setFaceVerificationResult({
           isMatch: result.is_match,
           confidence: result.confidence,
-          message: result.is_match ? 
-            `✅ Khuôn mặt khớp (độ tin cậy: ${Math.round(result.confidence * 100)}%)` :
+          message: result.is_match ?
+`✅ Khuôn mặt khớp (độ tin cậy: ${Math.round(result.confidence * 100)}%)` :
             `❌ Khuôn mặt không khớp (độ tin cậy: ${Math.round(result.confidence * 100)}%)`
         });
       } else {
@@ -339,7 +356,7 @@ const CCCDExtractor = () => {
       if (faceImage) {
         try {
           console.log('🖼️ Uploading face image to Cloudinary:', faceImage);
-          const faceUploadResponse = await cccdAPI.uploadFaceImage(faceImage, token);
+const faceUploadResponse = await cccdAPI.uploadFaceImage(faceImage, token);
           if (faceUploadResponse.success) {
             faceCloudUrl = faceUploadResponse.data.face_cloud_url;
             console.log('✅ Face image uploaded to Cloudinary:', faceCloudUrl);
@@ -433,7 +450,7 @@ const CCCDExtractor = () => {
       <div className="row">
         {/* Upload Section */}
         <div className={`col-lg-6 ${isVerified ? 'pe-none opacity-50' : ''}`}>
-          <div className="card h-100">
+<div className="card h-100">
             <div className="card-header bg-primary text-white">
               <h4 className="mb-0">
                 <FontAwesomeIcon icon={faUpload} className="mr-2" />
@@ -504,7 +521,7 @@ const CCCDExtractor = () => {
               >
                 {loading ? (
                   <>
-                    <FontAwesomeIcon icon={faSpinner} spin className="mr-2" />
+<FontAwesomeIcon icon={faSpinner} spin className="mr-2" />
                     Đang xử lý...
                   </>
                 ) : (
@@ -581,7 +598,7 @@ const CCCDExtractor = () => {
               </div>
               
               <button
-                className="btn btn-success btn-lg w-100"
+className="btn btn-success btn-lg w-100"
                 onClick={compareData}
                 disabled={!extractedData}
               >
@@ -646,7 +663,7 @@ const CCCDExtractor = () => {
 
                   {/* Thông báo cần xác minh khuôn mặt */}
                   {comparisonResult.matchRate === 1 && (!faceVerificationResult || !faceVerificationResult.isMatch) && (
-                    <div className="mt-3">
+<div className="mt-3">
                       <div className="alert alert-info">
                         <h6>📸 Cần xác minh khuôn mặt</h6>
                         <p className="mb-0">Vui lòng hoàn thành xác minh khuôn mặt ở phần bên dưới để có thể gửi xác minh CCCD.</p>
@@ -714,7 +731,7 @@ const CCCDExtractor = () => {
                           disabled={isCapturing}
                           >
                             Chụp lại
-                          </button>
+</button>
                           <button 
                             className="btn btn-success"
                             onClick={verifyFace}
@@ -737,7 +754,18 @@ const CCCDExtractor = () => {
 
                 {/* Camera Modal */}
                 {showCamera && (
-                  <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
+                  <div
+                    className="modal show d-block"
+                    style={{
+                      backgroundColor: 'rgba(0,0,0,0.5)',
+                      position: 'fixed',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      zIndex: 2000
+                    }}
+                  >
                     <div className="modal-dialog modal-lg">
                       <div className="modal-content">
                         <div className="modal-header">
@@ -773,7 +801,7 @@ const CCCDExtractor = () => {
                     <div className={`alert ${faceVerificationResult.isMatch ? 'alert-success' : 'alert-danger'}`}>
                       <h6>{faceVerificationResult.message}</h6>
                     </div>
-                  </div>
+</div>
                 )}
               </div>
             </div>

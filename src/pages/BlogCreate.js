@@ -343,14 +343,14 @@ function BlogCreate() {
             <div className="col-md-9 ftco-animate pb-5">
               <p className="breadcrumbs mb-2">
                 <span className="mr-2">
-                  <Link to="/">Home <FontAwesomeIcon icon={faChevronRight} /></Link>
+                  <Link to="/">Trang chủ <FontAwesomeIcon icon={faChevronRight} /></Link>
                 </span>
                 <span className="mr-2">
                   <Link to="/blog">Blog <FontAwesomeIcon icon={faChevronRight} /></Link>
                 </span>
-                <span>{isEdit ? 'Edit Post' : 'Create Post'}</span>
+                <span>{isEdit ? 'Chỉnh sửa bài viết' : 'Tạo bài viết'}</span>
               </p>
-              <h1 className="mb-0 bread">{isEdit ? 'Edit Post' : 'Create a New Post'}</h1>
+              <h1 className="mb-0 bread">{isEdit ? 'Chỉnh sửa bài viết' : 'Tạo bài viết'}</h1>
             </div>
           </div>
         </div>
@@ -363,9 +363,9 @@ function BlogCreate() {
             <div className="col-lg-10">
               <div className="bg-white p-4 p-md-5 shadow-sm rounded">
                 <div className="d-flex justify-content-between align-items-center mb-3">
-                  <h4 className="mb-0">{isEdit ? 'Edit details' : 'Post details'}</h4>
+                  <h4 className="mb-0">{isEdit ? 'Chỉnh sửa thông tin' : 'Thông tin bài viết'}</h4>
                   <button className="btn btn-outline-secondary" onClick={() => navigate(-1)}>
-                    <FontAwesomeIcon icon={faArrowLeft} className="mr-1" /> Back
+                    <FontAwesomeIcon icon={faArrowLeft} className="mr-1" /> Quay lại
                   </button>
                 </div>
 
@@ -378,20 +378,20 @@ function BlogCreate() {
 
                 <form onSubmit={handleSubmit}>
                   <div className="form-group">
-                    <label>Title<span className="text-danger">*</span></label>
+                    <label>Tiêu đề<span className="text-danger">*</span></label>
                     <input
                       type="text"
                       className="form-control"
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
-                      placeholder="Enter a concise title"
+                      placeholder="Tiêu đề bài viết"
                       maxLength={255}
                       required
                     />
                   </div>
 
                   <div className="form-group">
-                    <label>Content<span className="text-danger">*</span></label>
+                    <label>Nội dung<span className="text-danger">*</span></label>
                     <div className="quill-wrapper" ref={editorWrapperRef}>
                       <div ref={editorRef} />
                     </div>
@@ -399,7 +399,7 @@ function BlogCreate() {
 
                   {/* Images: full width, above Service selection */}
                   <div className="form-group">
-                    <label>Images</label>
+                    <label>Hình ảnh</label>
                     <input
                       ref={fileInputRef}
                       type="file"
@@ -433,7 +433,7 @@ function BlogCreate() {
                       </div>
                     </div>
                     {uploadingImages && (
-                      <div className="mt-2 text-info">Uploading images...</div>
+                      <div className="mt-2 text-info">Đang tải hình ảnh...</div>
                     )}
                     {uploadError && (
                       <div className="mt-2 text-danger">{uploadError}</div>
@@ -442,7 +442,7 @@ function BlogCreate() {
 
                   {!linkBooking && (
                     <div className="form-group">
-                      <label>Service selection</label>
+                      <label>Chọn dịch vụ</label>
                       <div className="border rounded p-3">
                         <div className="form-row">
                           <div className="form-group col-md-3">
@@ -461,7 +461,7 @@ function BlogCreate() {
                                 }
                               }}
                             >
-                              <option value="">-- Select service --</option>
+                              <option value="">-- Chọn dịch vụ --</option>
                               {allServices.map(s => (
                                 <option key={s.service_id} value={s.service_id}>{s.name}</option>
                               ))}
@@ -502,7 +502,7 @@ function BlogCreate() {
                                 if (isNaN(want)) return 'is-invalid';
                                 return (want < min || want > max) ? 'is-invalid' : '';
                               })()}`}
-                              placeholder="Desired price"
+                              placeholder="Giá mong muốn"
                               value={desiredPrice}
                               onChange={(e) => setDesiredPrice(e.target.value)}
                               disabled={!selectedVariantId}
@@ -528,11 +528,11 @@ function BlogCreate() {
                               return (
                                 <>
                                   <small className="form-text text-muted">
-                                    Price range: {variant.price_min} - {variant.price_max}/{variant.unit || ''}
+                                    Khoảng giá: {variant.price_min} - {variant.price_max}/{variant.unit || ''}
                                   </small>
                                   {out && (
                                     <div className="invalid-feedback d-block">
-                                      Desired price must be between {variant.price_min} and {variant.price_max} {variant.unit || ''}
+                                      Giá mong muốn phải nằm trong khoảng {variant.price_min} và {variant.price_max} {variant.unit || ''}
                                     </div>
                                   )}
                                 </>
@@ -545,7 +545,7 @@ function BlogCreate() {
                             <textarea
                               className="form-control"
                               rows={3}
-                              placeholder="Notes (optional)"
+                              placeholder="Ghi chú (tùy chọn)"
                               value={serviceNotes}
                               onChange={(e) => setServiceNotes(e.target.value)}
                             />
@@ -576,7 +576,7 @@ function BlogCreate() {
                           }
                         }}
                       />
-                      <label className="custom-control-label" htmlFor="toggleLinkBooking">Link existing Booking</label>
+                      <label className="custom-control-label" htmlFor="toggleLinkBooking">Liên kết với Booking hiện có</label>
                     </div>     
                   </div>
 
@@ -597,7 +597,7 @@ function BlogCreate() {
                           }
                         }}
                       >
-                        <option value="">-- Select booking --</option>
+                        <option value="">-- Chọn booking --</option>
                         {myBookings.map(b => (
                           <option key={b.booking_id} value={b.booking_id}>
                             #{b.booking_id} • {b.service_name || 'Service'}{b.variant_name ? ` - ${b.variant_name}` : ''} • {b.status}
@@ -613,14 +613,14 @@ function BlogCreate() {
                     const variants = service?.variants || [];
                     return (
                       <div className="form-group">
-                        <label>Variant for selected booking's service</label>
+                        <label>Variant cho dịch vụ của booking đã chọn</label>
                         <select
                           className="form-control"
                           value={bookingVariantId}
                           onChange={(e) => setBookingVariantId(e.target.value)}
                           disabled={!variants.length}
                         >
-                          <option value="">-- {variants.length ? 'Select variant (optional)' : 'No variants available'} --</option>
+                          <option value="">-- {variants.length ? 'Chọn variant (tùy chọn)' : 'Không có variant nào'} --</option>
                           {variants.map(v => (
                             <option key={v.variant_id} value={v.variant_id}>
                               {v.variant_name} {v.unit ? `(${v.unit})` : ''}
@@ -632,9 +632,9 @@ function BlogCreate() {
                   })()}
 
                   <div className="d-flex justify-content-end">
-                    <button type="button" className="btn btn-outline-secondary mr-2" onClick={() => navigate(isEdit ? `/blog/${editId}` : '/blog')} disabled={submitting}>Cancel</button>
+                    <button type="button" className="btn btn-outline-secondary mr-2" onClick={() => navigate(isEdit ? `/blog/${editId}` : '/blog')} disabled={submitting}>Hủy</button>
                     <button type="submit" className="btn btn-primary" disabled={submitting}>
-                      {submitting ? (isEdit ? 'Updating...' : 'Creating...') : (isEdit ? 'Update Post' : 'Create Post')}
+                      {submitting ? (isEdit ? 'Cập nhật...' : 'Tạo mới...') : (isEdit ? 'Cập nhật bài viết' : 'Tạo bài viết')}
                     </button>
                   </div>
                 </form>

@@ -1,10 +1,13 @@
 "use client"
 
+
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import QuoteService from '../services/quoteService';
 import NegotiatePriceButton from '../components/negotiation/NegotiatePriceButton';
+import { FaArrowLeft, FaCheckCircle, FaTimesCircle, FaHandshake } from 'react-icons/fa';
+import '../css/QuotesPage.css';
 
 const QuotesPage = () => {
   const { postId } = useParams();
@@ -15,202 +18,9 @@ const QuotesPage = () => {
   const [showModal, setShowModal] = useState(false);
   const [selectedQuote, setSelectedQuote] = useState(null);
 
-  const styles = {
-    container: {
-      fontFamily: "Arial, sans-serif",
-      backgroundColor: "#f8fafc",
-      minHeight: "100vh",
-      padding: "24px",
-      maxWidth: "1200px",
-      margin: "0 auto",
-    },
-    header: {
-      marginBottom: "32px",
-    },
-    title: {
-      fontSize: "32px",
-      fontWeight: "bold",
-      color: "#1f2937",
-      marginBottom: "8px",
-    },
-    subtitle: {
-      fontSize: "16px",
-      color: "#6b7280",
-      marginBottom: "24px",
-    },
-    searchContainer: {
-      display: "flex",
-      gap: "16px",
-      alignItems: "center",
-      marginBottom: "32px",
-    },
-    searchInputWrapper: {
-      position: "relative",
-      flex: "1",
-    },
-    searchIcon: {
-      position: "absolute",
-      left: "12px",
-      top: "50%",
-      transform: "translateY(-50%)",
-      color: "#9ca3af",
-      fontSize: "16px",
-    },
-    searchInput: {
-      width: "100%",
-      padding: "12px 12px 12px 40px",
-      border: "1px solid #d1d5db",
-      borderRadius: "8px",
-      fontSize: "14px",
-      backgroundColor: "white",
-    },
-    select: {
-      padding: "12px 16px",
-      border: "1px solid #d1d5db",
-      borderRadius: "8px",
-      fontSize: "14px",
-      backgroundColor: "white",
-      minWidth: "180px",
-    },
-    profileCard: {
-      backgroundColor: "white",
-      borderRadius: "8px",
-      padding: "24px",
-      marginBottom: "24px",
-      boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-      position: "relative",
-      overflow: "hidden",
-    },
-    statusBadge: {
-      position: "absolute",
-      top: "16px",
-      left: "16px",
-      padding: "6px 12px",
-      borderRadius: "16px",
-      fontSize: "12px",
-      fontWeight: "500",
-      zIndex: 10,
-    },
-    approvedBadge: {
-      backgroundColor: "#10b981",
-      color: "white",
-    },
-    pendingBadge: {
-      backgroundColor: "#fef3c7",
-      color: "#92400e",
-    },
-    profileContent: {
-      paddingTop: "24px",
-    },
-    profileLayout: {
-      display: "flex",
-      gap: "16px",
-    },
-    avatar: {
-      width: "80px",
-      height: "80px",
-      borderRadius: "50%",
-      objectFit: "cover",
-      flexShrink: 0,
-    },
-    mainContent: {
-      flex: "1",
-    },
-    topSection: {
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "start",
-      marginBottom: "16px",
-    },
-    leftInfo: {
-      flex: "1",
-    },
-    profileName: {
-      fontSize: "20px",
-      fontWeight: "600",
-      color: "#1f2937",
-      marginBottom: "8px",
-    },
-    priceSection: {
-      marginBottom: "16px",
-    },
-    price: {
-      fontSize: "28px",
-      fontWeight: "bold",
-      color: "#2563eb",
-      marginBottom: "4px",
-    },
-    priceNote: {
-      fontSize: "14px",
-      color: "#6b7280",
-    },
-    rightInfo: {
-      textAlign: "right",
-    },
-    dateContainer: {
-      display: "flex",
-      alignItems: "center",
-      gap: "4px",
-      fontSize: "14px",
-      color: "#6b7280",
-      marginBottom: "4px",
-    },
-    calendarIcon: {
-      color: "#eab308",
-      fontSize: "16px",
-    },
-    sectionTitle: {
-      fontSize: "14px",
-      fontWeight: "500",
-      color: "#374151",
-      marginBottom: "8px",
-    },
-    descriptionSection: {
-      marginBottom: "24px",
-    },
-    description: {
-      fontSize: "14px",
-      color: "#374151",
-      lineHeight: "1.6",
-      padding: "16px",
-      backgroundColor: "#fffbeb",
-      borderRadius: "8px",
-      borderLeft: "4px solid #eab308",
-    },
-    buttonContainer: {
-      display: "flex",
-      gap: "12px",
-    },
-    button: {
-      padding: "12px 24px",
-      borderRadius: "8px",
-      fontSize: "14px",
-      fontWeight: "500",
-      border: "none",
-      cursor: "pointer",
-      transition: "all 0.2s",
-      display: "flex",
-      alignItems: "center",
-      gap: "8px",
-    },
-    primaryButton: {
-      backgroundColor: "#2563eb",
-      color: "white",
-      flex: "1",
-    },
-    infoButton: {
-      backgroundColor: "#3b82f6",
-      color: "white",
-    },
-    dangerButton: {
-      backgroundColor: "#dc2626",
-      color: "white",
-    },
-    warningButton: {
-      backgroundColor: "#eab308",
-      color: "black",
-    },
-  };
+
+
+  // All styles moved to QuotesPage.css
 
   useEffect(() => {
     const fetchQuotes = async () => {
@@ -258,115 +68,124 @@ const QuotesPage = () => {
   };
 
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <h1 style={styles.title}>Danh Sách Báo Giá</h1>
-        <p style={styles.subtitle}>Quản lý và đánh giá các báo giá cho bài viết của bạn</p>
+
+    <div className="quotes-container">
+      <div className="quotes-header">
+        <h1 className="quotes-title">Danh Sách Báo Giá</h1>
+        <p className="quotes-subtitle">Quản lý và đánh giá các báo giá cho bài viết của bạn</p>
       </div>
 
-      <div style={styles.searchContainer}>
-        <div style={styles.searchInputWrapper}>
-          <span style={styles.searchIcon}>🔍</span>
+      <div className="quotes-search-container">
+        <div className="quotes-search-input-wrapper">
+          <span className="quotes-search-icon">🔍</span>
           <input
             type="text"
             placeholder="Tìm kiếm theo tên..."
-            style={styles.searchInput}
+            className="quotes-search-input"
           />
         </div>
-        <select style={styles.select}>
+        <select className="quotes-select">
           <option>Tất cả danh giá</option>
           <option>Ngày đăng ký</option>
         </select>
       </div>
 
+
       {loading && <div className="text-center">Đang tải...</div>}
       {error && (
-        <div style={{ ...styles.descriptionSection, backgroundColor: '#fee2e2', borderLeftColor: '#dc2626' }}>
+        <div className="quote-description-section" style={{ backgroundColor: '#fee2e2', borderLeft: '4px solid #dc2626' }}>
           {error}
         </div>
       )}
 
       {!loading && !error && quotes.length === 0 && (
-        <div style={{ ...styles.descriptionSection, backgroundColor: '#dbeafe', borderLeftColor: '#3b82f6' }}>
+        <div className="quote-description-section" style={{ backgroundColor: '#dbeafe', borderLeft: '4px solid #3b82f6' }}>
           Chưa có báo giá nào cho bài viết này.
         </div>
       )}
 
       {quotes.length > 0 && quotes.map((quote) => (
-        <div key={quote.quote_id} style={styles.profileCard}>
-          <div
-            style={{
-              ...styles.statusBadge,
-              ...(quote.status === 'Đã duyệt' ? styles.approvedBadge : styles.pendingBadge),
-            }}
-          >
-            {quote.status}
-          </div>
-
-          <div style={styles.profileContent}>
-            <div style={styles.profileLayout}>
-              <img src={quote.tasker_avatar || "/placeholder.svg"} alt={quote.tasker_name} style={styles.avatar} />
-
-              <div style={styles.mainContent}>
-                <div style={styles.topSection}>
-                  <div style={styles.leftInfo}>
-                    <h3 style={styles.profileName}>{quote.tasker_name}</h3>
-                    <div style={styles.priceSection}>
-                      <div style={styles.price}>₫ {quote.proposed_price.toLocaleString()}</div>
-                      <div style={styles.priceNote}>Giá đề xuất</div>
-                    </div>
-                  </div>
-
-                  <div style={styles.rightInfo}>
-                    <div style={styles.dateContainer}>
-                      <span style={styles.calendarIcon}>📅</span>
-                      <span>{new Date(quote.sent_at).toLocaleDateString()}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <h4 style={styles.sectionTitle}>Dịch vụ:</h4>
-                  <span style={{ ...styles.serviceTag, backgroundColor: '#dbeafe', color: '#1d4ed8' }}>
-                    {quote.variant_name}
-                  </span>
-                </div>
-
-                <div style={styles.descriptionSection}>
-                  <h4 style={styles.sectionTitle}>Đề xuất:</h4>
-                  <div style={styles.description}>{quote.proposal || 'Không có đề xuất'}</div>
-                </div>
-
-                <div style={styles.buttonContainer}>
-                  {quote.status === 'Chờ xử lý' && (
-                    <>
-                      <button style={{ ...styles.button, ...styles.infoButton }}>
-                        👁 Xem chi tiết
-                      </button>
-                      <button
-                        style={{ ...styles.button, ...styles.dangerButton }}
-                        onClick={() => handleReject(quote)}
-                      >
-                        ✕ Từ chối
-                      </button>
-                    </>
-                  )}
-                  <NegotiatePriceButton
-                    peerId={quote.tasker_id || quote.taskerUserId}
-                    quoteId={quote.quote_id}
-                    label="Thương lượng giá"
-                    className="btn btn-warning"
-                    size="md"
-                  />
-                </div>
-              </div>
+        <div key={quote.quote_id} className="quote-card">
+          {/* Header: avatar, name, date */}
+          <div className="quote-header-row" style={{ position: 'relative' }}>
+            {/* Status badge in top right */}
+            <div
+              className={
+                'quote-status-badge ' +
+                (quote.status === 'Đã duyệt' ? 'quote-status-approved' : 'quote-status-pending')
+              }
+              style={{ position: 'absolute', top: 0, right: 0, left: 'auto', zIndex: 2 }}
+            >
+              {quote.status}
             </div>
+            <img src={quote.tasker_avatar || "/placeholder.svg"} alt={quote.tasker_name} className="quote-avatar" />
+            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-start' }}>
+              <span className="quote-header-name">
+                <Link
+                  to={`/tasker-profile/${quote.tasker_id}`}
+                  style={{ color: '#1e293b', textDecoration: 'none' }}
+                >
+                  {quote.tasker_name}
+                </Link>
+              </span>
+              <span className="quote-header-date" style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '1px' }}>
+                {new Date(quote.sent_at).toLocaleDateString()}
+              </span>
+            </div>
+          </div>
+          {/* Main content: service, price, message */}
+          <div className="quote-main-content">
+            <div>
+              <span className="quote-service-label">Dịch vụ:</span>
+              <span className="quote-service-name">{quote.variant_name}</span>
+            </div>
+            <div>
+              <span className="quote-price-label">Giá đề xuất:</span>
+              <span className="quote-price-value">
+                {quote.proposed_price.toLocaleString()} ₫
+              </span>
+            </div>
+            <div>
+              <span className="quote-price-label">Tasker đề xuất:</span>
+              <span className="quote-service-name">{quote.proposal || 'Không có đề xuất'}</span>
+            </div>
+          </div>
+          {/* Action buttons row */}
+          <div className="quote-action-row">
+            <button
+              className="quote-action-btn"
+              // onClick={...} // TODO: add approve handler
+              title="Duyệt"
+            >
+              <FaCheckCircle className="quote-action-icon" /> Duyệt
+            </button>
+            <button
+              className="quote-action-btn"
+              onClick={() => handleReject(quote)}
+              title="Từ chối"
+            >
+              <FaTimesCircle className="quote-action-icon" /> Từ chối
+            </button>
+            <button
+              className="quote-action-btn"
+              title="Thương lượng giá"
+            >
+              <FaHandshake className="quote-action-icon" />
+              <NegotiatePriceButton
+                peerId={quote.tasker_id || quote.taskerUserId}
+                quoteId={quote.quote_id}
+                label="Thương lượng giá"
+                className="btn"
+                size="md"
+              />
+            </button>
           </div>
         </div>
       ))}
 
-      <div style={styles.buttonContainer}>
-        <Link to="/my-blogs" style={{ ...styles.button, ...styles.primaryButton }}>
+      <div className="quote-button-container">
+        <Link to="/my-blogs" className="quote-button">
+          <FaArrowLeft size={20} />
           Quay lại bài viết của tôi
         </Link>
       </div>
@@ -385,8 +204,8 @@ const QuotesPage = () => {
               </div>
             )}
             <div style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
-              <button style={{ ...styles.button, ...styles.primaryButton }} onClick={handleConfirm}>Xác nhận Từ chối</button>
-              <button style={{ ...styles.button, ...styles.dangerButton }} onClick={handleCloseModal}>Hủy</button>
+              <button className="quote-button" onClick={handleConfirm}>Xác nhận Từ chối</button>
+              <button className="quote-button quote-button-danger" onClick={handleCloseModal}>Hủy</button>
             </div>
           </div>
         </div>
