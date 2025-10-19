@@ -281,44 +281,31 @@ const RatingComplaints = () => {
                         <div className="col-md-4 text-right">
                           <div className="rating-actions">
                             <div className="d-flex align-items-center gap-2 mt-2">
-                              {isStaff && (
-                                <>
-                                  {rating.status === 0 ||
-                                  rating.status === false ? (
-                                    <>
-                                      <button
-                                        className="btn btn-outline-success btn-sm"
-                                        onClick={() =>
-                                          handleApprove(rating.rating_id)
-                                        }
-                                      >
-                                        Approve
-                                      </button>
-                                      <button
-                                        className="btn btn-outline-danger btn-sm"
-                                        onClick={() =>
-                                          handleReject(rating.rating_id)
-                                        }
-                                      >
-                                        Reject
-                                      </button>
-                                    </>
-                                  ) : rating.status === 1 ||
-                                    rating.status === true ? (
-                                    <span className="badge bg-success d-flex align-items-center p-2">
-                                      Approved
-                                    </span>
-                                  ) : rating.status === 2 ? (
-                                    <span className="badge bg-danger d-flex align-items-center p-2">
-                                      Rejected
-                                    </span>
-                                  ) : (
-                                    <span className="badge bg-secondary d-flex align-items-center p-2">
-                                      Pending
-                                    </span>
-                                  )}
-                                </>
-                              )}
+                              {isStaff && (() => {
+                                const statusNum = Number(rating.status);
+                                if (statusNum === 0) {
+                                  return <>
+                                    <button
+                                      className="btn btn-outline-success btn-sm"
+                                      onClick={() => handleApprove(rating.rating_id)}
+                                    >
+                                      Approve
+                                    </button>
+                                    <button
+                                      className="btn btn-outline-danger btn-sm"
+                                      onClick={() => handleReject(rating.rating_id)}
+                                    >
+                                      Reject
+                                    </button>
+                                  </>;
+                                } else if (statusNum === 1) {
+                                  return <span className="badge bg-success d-flex align-items-center p-2">Approved</span>;
+                                } else if (statusNum === 2) {
+                                  return <span className="badge bg-danger d-flex align-items-center p-2">Rejected</span>;
+                                } else {
+                                  return <span className="badge bg-secondary d-flex align-items-center p-2">Pending</span>;
+                                }
+                              })()}
 
                               <button
                                 className="btn btn-outline-primary btn-sm"

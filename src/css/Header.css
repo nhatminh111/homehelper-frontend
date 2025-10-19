@@ -257,10 +257,6 @@
   transition: color 0.2s, transform 0.2s;
 }
 
-.notification-bell-icon:hover {
-  color: #f0ad4e;
-  transform: rotate(15deg);
-}
 
 
 /* Dropdown Animation */
