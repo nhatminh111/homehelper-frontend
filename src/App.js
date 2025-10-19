@@ -32,6 +32,7 @@ import Booking from './pages/Booking';
 import JobDescription from './pages/JobDescription';
 import Contract from './pages/Contract';
 import TaskerBookingDetail from "./pages/TaskerBookingDetail";
+import TestNegotiatePrice from "./pages/TestNegotiatePrice";
 
 // Import authentication pages
 import Login from './pages/auth/Login';
@@ -76,6 +77,7 @@ function App() {
             <Header />
             <main>
             <Routes>
+              <Route path="/test-negotiate-price" element={<TestNegotiatePrice />} />
               <Route path="/" element={<Home />} />
               <Route path="/about" element={<About />} />
               <Route path="/services" element={<Services />} />
