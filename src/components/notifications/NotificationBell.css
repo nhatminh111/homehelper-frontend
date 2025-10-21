@@ -31,9 +31,9 @@
   background-color: #e3f2fd;
 }
 
-.bell-button.animating {
+/* .bell-button.animating {
   animation: bellShake 0.3s ease-in-out;
-}
+} */
 
 @keyframes bellShake {
   0%, 100% { transform: rotate(0deg); }

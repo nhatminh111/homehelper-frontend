@@ -178,21 +178,34 @@ const MyBlogs = () => {
                           {preview}
                         </p>
 
-                        <div className="d-flex align-items-center mt-auto">
-                          <p className="mb-0">
-                            <Link to={`/blog/${post.post_id}`} className="btn btn-secondary btn-sm">
-                              Xem chi tiết <span className="ion-ios-arrow-round-forward"></span>
+                        {/* Top bar: like & comment count */}
+                        <div className="mt-auto">
+                          <div className="myblogs-interaction-bar" style={{ justifyContent: 'flex-end' }}>
+                            <span className="flex items-center gap-1">
+                              <FontAwesomeIcon icon={faHeart} className="text-pink-400" />
+                              {post.likes || 0}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <FontAwesomeIcon icon={faComment} className="text-blue-400" />
+                              {post.comments_count || 0}
+                            </span>
+                          </div>
+                          <div className="myblogs-action-bar">
+                            <Link
+                              to={`/blog/${post.post_id}`}
+                              className="myblogs-action-btn"
+                            >
+                              Xem chi tiết <span className="ion-ios-arrow-round-forward ml-2"></span>
                             </Link>
                             { !post.related_booking_id && (
-                              <Link to={`/blog/${post.post_id}/quotes`} className="btn btn-outline-primary btn-sm ml-2">
+                              <Link
+                                to={`/blog/${post.post_id}/quotes`}
+                                className="myblogs-action-btn"
+                              >
                                 Xem Yêu Cầu
                               </Link>
                             )}
-                          </p>
-                          <p className="ml-auto mb-0">
-                            <span className="mr-3"><span className="icon-heart"><FontAwesomeIcon icon={faHeart} /></span> {post.likes || 0}</span>
-                            <span className="mr-3"><span className="icon-chat"><FontAwesomeIcon icon={faComment} /></span> {post.comments_count || 0}</span>
-                          </p>
+                          </div>
                         </div>
                       </div>
                     </div>

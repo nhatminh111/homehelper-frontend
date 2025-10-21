@@ -321,26 +321,65 @@ const BecomeTasker = () => {
     });
   }, [serviceCerts, refreshSignedUrl]);
 
+  // Helper: check if certificate code exists anywhere in the system
+  const checkCertCodeExists = async (certCode) => {
+    if (!certCode) {
+      console.log('[CertCheck] Không có mã chứng chỉ để kiểm tra');
+      return false;
+    }
+    try {
+      console.log(`[CertCheck] Kiểm tra mã chứng chỉ: ${certCode}`);
+      const res = await authFetch(`${API_BASE_URL}/tasker/certifications/check-code?code=${encodeURIComponent(certCode)}`);
+      const json = await res.json();
+      console.log('[CertCheck] Kết quả API:', json);
+      return json.exists === true;
+    } catch (err) {
+      console.error('[CertCheck] Lỗi khi kiểm tra mã chứng chỉ:', err);
+      return false;
+    }
+  };
+
   const handleCertFileUpload = async (service_id, files) => {
     if (!files || !files.length) return;
     setUploading(true);
     try {
       const form = new FormData();
       Array.from(files).forEach(f => form.append('cert_files', f));
-  // Use absolute URL to avoid dev server (3000) relative proxy confusion
-  const res = await authFetch(`${API_BASE_URL}/tasker/certifications/upload`, { method: 'POST', body: form });
+      // Use absolute URL to avoid dev server (3000) relative proxy confusion
+      const res = await authFetch(`${API_BASE_URL}/tasker/certifications/upload`, { method: 'POST', body: form });
       const text = await res.text();
       let json;
       try { json = JSON.parse(text); } catch (_) {
-        // Likely received HTML (e.g. 404 page or proxy). Surface raw content.
         throw new Error(text.startsWith('<!DOCTYPE') ? 'Server trả về HTML (có thể sai URL hoặc 404). Kiểm tra endpoint /api/tasker/certifications/upload.' : text);
       }
       if (!res.ok || !json.success) throw new Error(json.message || 'Upload thất bại');
       const uploadedFiles = json.data?.files || [];
-      // For each uploaded file create certification (auto AI extraction) sequentially to reduce load
       const createdCerts = [];
+      // Track existing codes in current state to prevent duplicates within this session
+      const existingCodes = new Set(
+        Object.values(serviceCerts)
+          .flat()
+          .map(c => (c.parsed_certificate_code || '').toString().trim().toLowerCase())
+          .filter(Boolean)
+      );
       for (const f of uploadedFiles) {
         try {
+          // First, try to extract certificate code from file info if available
+          let certCode = f.certificate_code || f.cert_code || '';
+          // If not available, will be extracted by AI after creation
+          // Try to check duplicate before creating cert
+          if (certCode) {
+            const exists = await checkCertCodeExists(certCode);
+            if (exists) {
+              console.warn(`[CertCheck] Phát hiện mã chứng chỉ trùng: ${certCode}. Bỏ qua file.`);
+              alert(`Mã chứng chỉ '${certCode}' đã tồn tại trong hệ thống. Không thể upload chứng chỉ trùng lặp.`);
+              continue; // Skip this file
+            } else {
+              console.log(`[CertCheck] Mã chứng chỉ chưa tồn tại: ${certCode}. Tiếp tục upload.`);
+            }
+          } else {
+            console.log('[CertCheck] Không tìm thấy mã chứng chỉ trong file upload, bỏ qua kiểm tra trùng.');
+          }
           const createRes = await authFetch(`${API_BASE_URL}/tasker/certifications`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -355,8 +394,13 @@ const BecomeTasker = () => {
             })
           });
           const createJson = await createRes.json();
-          console.log('[AI][upload-create] response', createJson);
-          // Immediate debug log summary
+          // If backend returns duplicate error, show message
+          if (createRes.status === 409 && createJson.duplicate) {
+            alert(`Mã chứng chỉ đã tồn tại trong hệ thống. Không thể upload chứng chỉ trùng lặp.`);
+            continue;
+          }
+          if (!createRes.ok || !createJson.success) throw new Error(createJson.message || 'Upload thất bại');
+          // Fallback: if ai_status Extracted but parsed_* missing, try parse raw_ai JSON locally to enrich
           if (createJson?.data) {
             const d = createJson.data;
             console.log('[AI][upload-summary]', {
@@ -372,123 +416,54 @@ const BecomeTasker = () => {
               ai_detected_service: d.ai_detected_service,
               has_raw_ai: !!d.raw_ai
             });
-          }
-          // Fallback: if ai_status Extracted but parsed_* missing, try parse raw_ai JSON locally to enrich
-          if (createJson?.data && createJson.data.ai_status === 'Extracted') {
-            const d = createJson.data;
-            const needsEnrich = !d.parsed_holder_name || !d.parsed_grade_or_level || !d.parsed_certificate_code;
-            if (needsEnrich && d.raw_ai) {
-              try {
-                const raw = d.raw_ai;
-                let jsonText = raw;
-                const first = raw.indexOf('{');
-                const last = raw.lastIndexOf('}');
-                if (first !== -1 && last !== -1 && last > first) {
-                  jsonText = raw.substring(first, last + 1);
+            if (d.ai_status === 'Extracted') {
+              const needsEnrich = !d.parsed_holder_name || !d.parsed_grade_or_level || !d.parsed_certificate_code;
+              if (needsEnrich && d.raw_ai) {
+                try {
+                  const raw = d.raw_ai;
+                  let jsonText = raw;
+                  const first = raw.indexOf('{');
+                  const last = raw.lastIndexOf('}');
+                  if (first !== -1 && last !== -1 && last > first) {
+                    jsonText = raw.substring(first, last + 1);
+                  }
+                  const parsedObj = JSON.parse(jsonText);
+                  if (parsedObj) {
+                    d.parsed_holder_name = d.parsed_holder_name || parsedObj.holder_name || null;
+                    d.parsed_grade_or_level = d.parsed_grade_or_level || parsedObj.level_or_grade || null;
+                    d.parsed_certificate_code = d.parsed_certificate_code || parsedObj.certificate_code || null;
+                    console.log('[AI][upload-enrich-fallback] Applied parsed fields from raw_ai JSON');
+                  }
+                } catch (e) {
+                  console.warn('[AI][upload-enrich-fallback] Failed to parse raw_ai JSON', e.message);
                 }
-                const parsedObj = JSON.parse(jsonText);
-                if (parsedObj) {
-                  d.parsed_holder_name = d.parsed_holder_name || parsedObj.holder_name || null;
-                  d.parsed_grade_or_level = d.parsed_grade_or_level || parsedObj.level_or_grade || null;
-                  d.parsed_certificate_code = d.parsed_certificate_code || parsedObj.certificate_code || null;
-                  console.log('[AI][upload-enrich-fallback] Applied parsed fields from raw_ai JSON');
-                }
-              } catch (e) {
-                console.warn('[AI][upload-enrich-fallback] Failed to parse raw_ai JSON', e.message);
               }
             }
           }
-          if (createRes.status === 409 && createJson.duplicate) {
-            console.warn('Duplicate certificate skipped:', createJson.message);
-            createdCerts.push({
-              cert_name: f.original,
-              // Do not store direct URL for authenticated assets
-              ...(f.delivery_type === 'authenticated' ? {} : { cert_file_url: f.url }),
-              cert_public_id: f.public_id || null,
-              delivery_type: f.delivery_type || null,
-              needsSigned: f.delivery_type === 'authenticated' || !!f.public_id,
-              service_id,
-              error_type: 'duplicate',
-              error_message: createJson.message
-            });
+          // Sau khi backend trả về, kiểm tra trùng mã với toàn hệ thống
+          const d = createJson.data;
+          const code = (d?.parsed_certificate_code || '').toString().trim();
+          let isDuplicateGlobal = false;
+          if (code) {
+            const existsGlobal = await checkCertCodeExists(code);
+            if (existsGlobal) {
+              console.warn(`[CertCheck] Mã chứng chỉ '${code}' đã tồn tại trong hệ thống (kiểm tra sau upload). Không thêm vào danh sách.`);
+              alert(`Mã chứng chỉ '${code}' đã tồn tại trong hệ thống. Không thể thêm chứng chỉ trùng lặp.`);
+              isDuplicateGlobal = true;
+            }
+          }
+          // Prevent adding duplicate code within this session
+          const codeLower = code.toLowerCase();
+          if (codeLower && existingCodes.has(codeLower)) {
+            alert(`Mã chứng chỉ '${code}' đã có trong danh sách chứng chỉ đang thêm. Bỏ qua tệp này.`);
             continue;
           }
-          if (createRes.status === 400 && (createJson.service_mismatch || createJson.holder_mismatch || createJson.service_content_mismatch || createJson.ai_service_mismatch)) {
-            console.warn('Validation error certificate kept:', createJson.message);
-            createdCerts.push({
-              cert_name: f.original,
-              ...(f.delivery_type === 'authenticated' ? {} : { cert_file_url: f.url }),
-              cert_public_id: f.public_id || null,
-              delivery_type: f.delivery_type || null,
-              needsSigned: f.delivery_type === 'authenticated' || !!f.public_id,
-              service_id,
-              error_type: 'validation',
-              error_message: createJson.message,
-              service_content_mismatch: createJson.service_content_mismatch,
-              service_mismatch: createJson.service_mismatch,
-              ai_service_mismatch: createJson.ai_service_mismatch,
-              holder_mismatch: createJson.holder_mismatch
-            });
-            continue;
-          }
-          if (createRes.ok && createJson.success) {
-            const row = createJson.data;
-            createdCerts.push({
-              cert_id: row.cert_id,
-              cert_name: row.parsed_cert_name || row.cert_name || f.original,
-              cert_file_url: row.cert_file_url, // may be null when authenticated
-              cert_public_id: row.cert_public_id || f.public_id || null,
-              delivery_type: row.delivery_type || f.delivery_type || null,
-              needsSigned: (row.delivery_type === 'authenticated' || !!row.cert_public_id),
-              issued_by: row.parsed_issued_by || row.issued_by || '',
-              issued_date: row.parsed_issued_date || row.issued_date || '',
-              holder_name: row.parsed_holder_name || row.parsed_holder_name || '',
-              holder_authorization_confirmed: false,
-              service_id,
-              ai_confidence: row.ai_confidence,
-              ai_status: row.ai_status,
-              needs_review: row.needs_review,
-              validation: row.validation || null,
-              // Preserve parsed_* fields for upgrade
-              parsed_cert_name: row.parsed_cert_name,
-              parsed_issued_by: row.parsed_issued_by,
-              parsed_issued_date: row.parsed_issued_date,
-              parsed_holder_name: row.parsed_holder_name,
-              parsed_grade_or_level: row.parsed_grade_or_level,
-              parsed_certificate_code: row.parsed_certificate_code,
-              extracted_payload: row.extracted_payload || row.raw_ai,
-              ai_detected_service: row.validation?.ai_detected_service || row.ai_detected_service,
-              ai_service_match: row.validation?.ai_service_match,
-              ai_service_score: row.validation?.ai_service_score
-            });
-          } else {
-            createdCerts.push({
-              cert_name: f.original,
-              ...(f.delivery_type === 'authenticated' ? {} : { cert_file_url: f.url }),
-              cert_public_id: f.public_id || null,
-              delivery_type: f.delivery_type || null,
-              needsSigned: f.delivery_type === 'authenticated' || !!f.public_id,
-              issued_by: '',
-              issued_date: '',
-              holder_name: '',
-              holder_authorization_confirmed: false,
-              service_id
-            });
+          if (codeLower) existingCodes.add(codeLower);
+          if (!isDuplicateGlobal) {
+            createdCerts.push(d);
           }
         } catch (inner) {
-          console.error('Create cert failed', inner);
-          createdCerts.push({
-            cert_name: f.original,
-            ...(f.delivery_type === 'authenticated' ? {} : { cert_file_url: f.url }),
-            cert_public_id: f.public_id || null,
-            delivery_type: f.delivery_type || null,
-            needsSigned: f.delivery_type === 'authenticated' || !!f.public_id,
-            issued_by: '',
-            issued_date: '',
-            holder_name: '',
-              holder_authorization_confirmed: false,
-            service_id
-          });
+          alert(inner.message);
         }
       }
       setServiceCerts(prev => ({

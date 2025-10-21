@@ -28,6 +28,21 @@ const fetchSignedCertificateUrlByPublicId = async (public_id, token) => {
   }
 };
 
+// Hàm giả lập lấy danh sách certificate_code đã duyệt
+async function fetchApprovedCertificateCodes(token) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/tasker/certifications/approved-codes`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const json = await res.json();
+    if (!res.ok || !json.success) throw new Error(json.message || 'Failed to get approved codes');
+  return json.codes || [];
+  } catch (e) {
+    console.warn('[StaffApplications] fetchApprovedCertificateCodes failed', e.message);
+    return [];
+  }
+}
+
 export default function StaffApplications() {
   const { token, isStaff, user } = useAuth();
   const [apps, setApps] = useState([]);
@@ -50,6 +65,8 @@ export default function StaffApplications() {
   const [videoMeta, setVideoMeta] = useState(null); // {orientation, width, height}
   // Active certificate index for highlighting & sync with AI results
   const [activeCert, setActiveCert] = useState(null);
+  const [approvedCodes, setApprovedCodes] = useState([]);
+  const [pendingCodes, setPendingCodes] = useState([]);
   const aiRefs = useRef({});
 
   // Scroll AI block into view when active certificate changes
@@ -111,6 +128,19 @@ export default function StaffApplications() {
         rows = rows.filter(r => (r.user_name||'').toLowerCase().includes(q) || (r.email||'').toLowerCase().includes(q));
       }
       setApps(rows);
+      // Collect all certificate codes from all pending applications
+      if (status === 'Pending') {
+        const codes = [];
+        rows.forEach(app => {
+          (app.certifications||[]).forEach(cert => {
+            const code = cert.certificate_code || cert.parsed_certificate_code;
+            if (code) codes.push(code);
+          });
+        });
+        setPendingCodes(codes);
+      } else {
+        setPendingCodes([]);
+      }
       // Resolve one preview image per application if authenticated
       rows.forEach(async (a) => {
         const certs = Array.isArray(a.certifications) ? a.certifications : [];
@@ -169,6 +199,13 @@ export default function StaffApplications() {
         core.application.certifications = enriched;
       }
       setDetail(core);
+      // Luôn lấy danh sách mã chứng chỉ đã duyệt khi mở chi tiết đơn
+      if (core && core.application) {
+        const codes = await fetchApprovedCertificateCodes(token);
+        setApprovedCodes(codes);
+      } else {
+        setApprovedCodes([]);
+      }
     } catch(e){
       console.warn('[StaffApplications] openDetail error', e);
       setDetailError(e.message);
@@ -366,6 +403,20 @@ export default function StaffApplications() {
                         {detail.application.certifications?.map((c,i)=>{
                           const resolvedUrl = (c.delivery_type === 'authenticated' && c._signed_url) ? c._signed_url : c.cert_file_url;
                           const isImage = (c.delivery_type === 'authenticated' && !!resolvedUrl) || (resolvedUrl && /(\.jpg|\.jpeg|\.png|\.gif|\.webp)$/i.test(resolvedUrl));
+                          const certCode = String(c.certificate_code || c.parsed_certificate_code || '').trim();
+
+                          // Check duplicate in approved codes and in other pending applications (excluding itself)
+                          let isDuplicate = false;
+                          if (certCode) {
+                            if (approvedCodes.map(String).includes(certCode)) {
+                              isDuplicate = true;
+                            } else if (
+                              detail && detail.application && detail.application.status === 'Pending' &&
+                              pendingCodes.filter(code => String(code) === certCode).length > 1
+                            ) {
+                              isDuplicate = true;
+                            }
+                          }
                           return (
                             <li key={i} className={activeCert===i? 'active-cert' : ''} onMouseEnter={()=>setActiveCert(i)} onFocus={()=>setActiveCert(i)} onClick={()=>setActiveCert(i)}>
                               <div className="cert-row no-ai-inline" style={{cursor:'pointer'}}>
@@ -375,6 +426,11 @@ export default function StaffApplications() {
                                     {(c.holder_mismatch || (c.validation && c.validation.holder_name_match === false)) && (
                                       <span className="badge-inline" style={{marginLeft:8, background:'#ffecb3', color:'#b26a00', padding:'2px 6px', borderRadius:4, fontSize:11}}>
                                         Holder khác tên account
+                                      </span>
+                                    )}
+                                    {isDuplicate && (
+                                      <span className="badge-inline" style={{marginLeft:8, background:'#ffcdd2', color:'#b71c1c', padding:'2px 6px', borderRadius:4, fontSize:11}}>
+                                        ⚠️ Chứng chỉ này đã tồn tại
                                       </span>
                                     )}
                                   </div>

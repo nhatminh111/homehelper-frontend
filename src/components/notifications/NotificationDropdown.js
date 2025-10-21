@@ -63,14 +63,34 @@ const NotificationDropdown = ({
   };
 
   // Get notification preview text
-  const getNotificationPreview = (notification) => {
-    if (notification.content) {
-      return notification.content.length > 100 
-        ? notification.content.substring(0, 100) + '...'
-        : notification.content;
+const getNotificationPreview = (notification) => {
+  const content = notification.content || '';
+  if (typeof content !== 'string') return 'Thông báo mới';
+
+  const types = [
+    { prefix: '[NEG_REQ]', label: 'Yêu cầu thương lượng giá với mức giá' },
+    { prefix: '[NEG_ACK]', label: 'Đã chấp nhận thương lượng ở mức giá' },
+    { prefix: '[NEG_REJ]', label: 'Đã từ chối thương lượng ở mức giá' },
+  ];
+
+  for (const { prefix, label } of types) {
+    if (content.startsWith(prefix)) {
+      let payload = {};
+      try {
+        payload = JSON.parse(content.substring(prefix.length));
+      } catch {}
+      const priceText =
+        payload.price !== undefined
+          ? `${Number(payload.price).toLocaleString()}₫`
+          : 'Không xác định';
+      return `${label} ${priceText}`;
     }
-    return 'Thông báo mới';
-  };
+  }
+
+  if (content.length > 100) return content.substring(0, 100) + '...';
+  return content || 'Thông báo mới';
+};
+
 
   return (
     <div className="notification-dropdown">
