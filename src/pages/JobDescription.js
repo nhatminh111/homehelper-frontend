@@ -31,46 +31,74 @@ export default function JobDescription() {
 
   const handleCreateBooking = async () => {
     try {
+      // ✅ Kiểm tra đăng nhập
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      console.log("🪣 [JobDescription] user in localStorage:", user);
+      console.log("🪣 [JobDescription] token from localStorage:", user.token);
+
+      if (!user?.user_id) {
+        alert("⚠️ Vui lòng đăng nhập để gửi yêu cầu!");
+        return;
+      }
+
+      // ✅ Chuẩn hóa dữ liệu gửi BE
       const payload = {
-        customer_id: bookingData.customer_id,
+        customer_id: user.user_id,
         tasker_id: bookingData.tasker_id,
         service_id: bookingData.service_id,
-        variant_id: chosenVariants?.[0]?.variant_id,
-        start_time: selection.startISO,
-        end_time: selection.endISO || null,
-        location: bookingData.location || "",
-        expected_price: Number(expectedPrice || 0),
-        job_description: description,
-        photos
+        variant_id: chosenVariants?.[0]?.variant_id || null,
+        start_time: selection.startISO || selection.start_time || null,
+        end_time: selection.endISO || selection.end_time || null,
+        location: bookingData.location || selection.address || "",
+        expected_price: Number(expectedPrice || bookingData.expected_price || 0),
+        status: "Pending",
+        created_at: new Date().toISOString(),
+
+        // 🔹 Thông tin cho bảng Tasks
+        task: {
+          description: jobTitle.trim(),  // Tiêu đề công việc → lưu vào `Tasks.description`
+          checklist: description.trim(), // Nội dung mô tả chi tiết → lưu vào `Tasks.checklist`
+          photos: photos || [],          // Ảnh nếu có, sẽ insert vào TaskPhotos
+        },
       };
 
+      console.log("📦 [JobDescription] Payload gửi BE:", payload);
+
+      // ✅ Gửi request POST tạo Booking + Task
+      const token = user.token;
       const res = await fetch("http://localhost:3001/api/bookings", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: token ? `Bearer ${token}` : undefined,
+        },
         body: JSON.stringify(payload),
       });
 
       const data = await res.json();
       if (!data.success) throw new Error(data.message || "Create booking failed");
 
-      // Điều hướng tới trang Tasker xem chi tiết booking
+      alert("✅ Gửi yêu cầu thành công!");
+
+      console.log("📦 navigate state:", {
+  ...bookingData,
+  ...payload,
+  expectedPrice: payload.expected_price,
+});
+
+      // ✅ Điều hướng sang trang xem trước
       navigate("/tasker/bookings/preview", {
         state: {
-          ...bookingData,         // dữ liệu gốc từ Booking
-          jobTitle,               // tiêu đề
-          description,            // mô tả
-          photos,                 // ảnh upload
-          expectedPrice,          // giá mong muốn
+          ...bookingData,
+          ...payload,
+          expectedPrice: payload.expected_price,
           total: bookingData.total || 0,
-          selection,
-          chosenVariants,
           cleaner: bookingData.cleaner,
-          status: "Pending"
-        }
+        },
       });
     } catch (err) {
-      console.error("Create booking error:", err);
-      alert("Không gửi được mô tả. Vui lòng thử lại.");
+      console.error("❌ [JobDescription] Lỗi khi tạo booking:", err);
+      alert("Không gửi được mô tả. Vui lòng thử lại sau.");
     }
   };
 
