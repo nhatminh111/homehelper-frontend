@@ -7,6 +7,8 @@ export default function TaskerBookingDetail() {
   const location = useLocation();
   const booking = location.state || {};
 
+    console.log("🧾 booking nhận được:", booking);
+
   const {
     jobTitle,
     description,
@@ -15,6 +17,12 @@ export default function TaskerBookingDetail() {
     chosenVariants = [],
     selection = {},
     status = "Chờ xác nhận",
+    customer_name,
+    customer_email,
+    customer_phone,
+    location: bookingAddress,
+    start_time,
+    end_time,
   } = booking;
 
   // Lấy thời gian hiện tại
@@ -29,6 +37,19 @@ export default function TaskerBookingDetail() {
     hour: "2-digit",
     minute: "2-digit",
   });
+  const formatDateTime = (isoString) => {
+    if (!isoString) return "—";
+    const date = new Date(isoString);
+    return `${date.toLocaleDateString("vi-VN", {
+      weekday: "long",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    })}, ${date.toLocaleTimeString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+    })}`;
+  };
 
   return (
     <Container className="py-5">
@@ -40,42 +61,49 @@ export default function TaskerBookingDetail() {
       <Row className="g-4 align-items-stretch">
         {/* CỘT TRÁI - Thông tin khách hàng */}
         <Col md={5}>
-          <Card
-            className="shadow-sm border-0 h-100"
-            style={{ borderRadius: "14px" }}
-          >
+          <Card className="shadow-sm border-0 h-100" style={{ borderRadius: "14px" }}>
             <Card.Body>
               <h5 className="fw-bold mb-4">Thông tin khách hàng</h5>
 
               <div className="d-flex flex-column gap-3 text-secondary">
                 <div>
-                  <h6 className="fw-semibold mb-0 text-dark">Sarah Johnson</h6>
+                  <h6 className="fw-semibold mb-0 text-dark">
+                    {customer_name || "Khách hàng ẩn danh"}
+                  </h6>
                   <small className="text-muted">
                     ⭐ 4.8 đánh giá • 12 công việc đã hoàn thành
                   </small>
                 </div>
 
-                <div>
-                  <i className="bi bi-telephone text-primary me-2"></i>
-                  +1 (555) 123-4567
-                </div>
+                {customer_phone && (
+                  <div>
+                    <i className="bi bi-telephone text-primary me-2"></i>
+                    {customer_phone}
+                  </div>
+                )}
 
-                <div>
-                  <i className="bi bi-envelope text-primary me-2"></i>
-                  sarah.johnson@email.com
-                </div>
+                {customer_email && (
+                  <div>
+                    <i className="bi bi-envelope text-primary me-2"></i>
+                    {customer_email}
+                  </div>
+                )}
 
-                <div>
-                  <i className="bi bi-geo-alt text-primary me-2"></i>
-                  1234 Oak Street, San Francisco, CA 94102
-                </div>
+                {bookingAddress && (
+                  <div>
+                    <i className="bi bi-geo-alt text-primary me-2"></i>
+                    {bookingAddress}
+                  </div>
+                )}
 
-                <div>
-                  <i className="bi bi-clock text-primary me-2"></i>
-                  {dateStr}, {timeStr}
-                  <br />
-                  <small className="text-muted">Thời gian đặt lịch</small>
-                </div>
+                {(start_time || end_time) && (
+                  <div>
+                    <i className="bi bi-clock text-primary me-2"></i>
+                    {formatDateTime(start_time)} → {formatDateTime(end_time)}
+                    <br />
+                    <small className="text-muted">Thời gian đặt lịch</small>
+                  </div>
+                )}
               </div>
 
               <hr className="mt-4 mb-3" />
@@ -83,9 +111,9 @@ export default function TaskerBookingDetail() {
               <div className="d-flex justify-content-between align-items-center">
                 <span className="fw-medium text-muted">Giá mong muốn</span>
                 <span className="fw-bold text-success fs-5">
-                  {expectedPrice
-                    ? `${Number(expectedPrice * 1000).toLocaleString("vi-VN")}đ`
-                    : "—"}
+                  {expectedPrice != null && expectedPrice !== ""
+                    ? `${(Number(expectedPrice) * 1000).toLocaleString("vi-VN")}đ`
+                    : "Chưa có giá"}
                 </span>
               </div>
             </Card.Body>

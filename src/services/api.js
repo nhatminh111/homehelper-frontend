@@ -36,9 +36,8 @@ const buildUrl = (url, params) => {
       usp.append(key, String(value));
     }
   });
-  return `${API_BASE_URL}${url}${
-    url.includes("?") ? "&" : "?"
-  }${usp.toString()}`;
+  return `${API_BASE_URL}${url}${url.includes("?") ? "&" : "?"
+    }${usp.toString()}`;
 };
 
 // Helper: get token from localStorage (if present)
@@ -138,12 +137,19 @@ export const authAPI = {
 
   // Đăng nhập
   login: async (credentials) => {
-    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+    const res = await fetch(`${API_BASE_URL}/auth/login`, {
       method: "POST",
-      headers: createHeaders(null, false),
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(credentials),
     });
-    return handleResponse(response);
+
+    const data = await res.json();
+    console.log("📤 [authAPI.login] Raw response data:", data);
+
+    if (!res.ok) throw new Error(data.error || "Login failed");
+
+    // ✅ Trả nguyên toàn bộ data (gồm cả user và token)
+    return data;
   },
 
   // Đăng nhập với Google ID token
@@ -212,9 +218,9 @@ export const authAPI = {
 export const cccdAPI = {
   submit: async (payload, token) => {
     console.log('🚀 CCCD API submit - payload:', payload);
-    
+
     const form = new FormData();
-    
+
     // Thêm các trường text
     if (payload.number) form.append('number', payload.number);
     if (payload.full_name) form.append('full_name', payload.full_name);
@@ -222,7 +228,7 @@ export const cccdAPI = {
     if (payload.gender) form.append('gender', payload.gender);
     if (payload.ocr_payload) form.append('ocr_payload', payload.ocr_payload);
     if (payload.face_cloud_url) form.append('face_cloud_url', payload.face_cloud_url);
-    
+
     // Thêm các file
     if (payload.front) {
       console.log('📸 Adding front file:', payload.front.name);
@@ -232,30 +238,30 @@ export const cccdAPI = {
       console.log('📸 Adding back file:', payload.back.name);
       form.append('back', payload.back);
     }
-    
+
     console.log('📋 FormData entries:');
     for (let [key, value] of form.entries()) {
       console.log(`  ${key}:`, value instanceof File ? `${value.name} (${value.size} bytes)` : value);
     }
-    
+
     const url = `${API_BASE_URL}/cccd/submit`;
     console.log('🌐 Request URL:', url);
-    
+
     const response = await fetch(url, {
       method: "POST",
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       body: form,
     });
-    
+
     console.log('📡 Response status:', response.status);
     console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
-    
+
     const responseText = await response.clone().text();
     console.log('📡 Response body:', responseText);
-    
+
     return handleResponse(response);
   },
-  
+
   getUserCccd: async (token) => {
     const response = await fetch(`${API_BASE_URL}/cccd/user`, {
       method: "GET",
@@ -263,7 +269,7 @@ export const cccdAPI = {
     });
     return handleResponse(response);
   },
-  
+
   getLatestCccd: async (token) => {
     const response = await fetch(`${API_BASE_URL}/cccd/latest`, {
       method: "GET",
@@ -307,27 +313,27 @@ export const pythonOCRAPI = {
     // Sử dụng API gốc như web interface: upload rồi extract
     const form = new FormData();
     form.append('file', frontImage);
-    
+
     // Bước 1: Upload ảnh
     const uploadResponse = await fetch('http://localhost:8080/uploader', {
       method: 'POST',
       body: form,
     });
-    
+
     if (!uploadResponse.ok) {
       throw new Error('Upload failed');
     }
-    
+
     // Bước 2: Extract thông tin
     const extractResponse = await fetch('http://localhost:8080/extract', {
       method: 'POST',
     });
-    
+
     const data = await extractResponse.json();
     if (!extractResponse.ok) {
       throw new Error(data.message || 'Python OCR processing failed');
     }
-    
+
     // Convert format để phù hợp với frontend
     const fields = data.data || [];
     const extracted_data = {
@@ -340,10 +346,10 @@ export const pythonOCRAPI = {
       place_of_residence: fields[6] || "",
       expiry_date: fields[7] || ""
     };
-    
+
     // Lấy ảnh từ thư mục results (giống web interface gốc)
     const faceImageUrl = 'http://localhost:8080/static/results/0.jpg';
-    
+
     return {
       success: true,
       data: extracted_data,
@@ -446,9 +452,17 @@ export const servicesAPI = {
     return data.data || [];
   },
 
-  // Get service by ID
   getServiceById: async (serviceId, token = null) => {
     const response = await fetch(`${API_BASE_URL}/services/${serviceId}`, {
+      method: "GET",
+      headers: createHeaders(token),
+    });
+    return handleResponse(response);
+  },
+
+  // Get service by ID
+  getServicesByTaskerId: async (taskerId, token = null) => {
+    const response = await fetch(`${API_BASE_URL}/taskers/${taskerId}/services`, {
       method: "GET",
       headers: createHeaders(token),
     });

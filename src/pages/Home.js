@@ -103,61 +103,61 @@ const Home = () => {
   }, []);
 
   const handleSearch = async () => {
-  setLoading(true);
-  setError(null);
-  try {
-    // 1. Gọi API tìm kiếm Tasker (giữ nguyên logic cũ)
-    const res = await fetch(
-      `http://localhost:3001/api/tasker?search=${searchName}&serviceId=${selectedService}`
-    );
-    if (!res.ok) throw new Error(`Phản hồi mạng không ổn: ${res.status}`);
-    const result = await res.json();
-    const taskersData = Array.isArray(result.data) ? result.data : [];
-
-    if (!user || !token) {
-      // Nếu chưa đăng nhập, hiển thị taskers mà không có khoảng cách mới
-      setTaskers(taskersData.map(t => ({
-        ...t,
-        tasker_id: t.tasker_id || t.user_id,
-        distance_km: null
-      })));
-      setLoading(false);
-      return;
-    }
-
-    // 2. Gọi API lấy khoảng cách
-    let distanceResult = [];
+    setLoading(true);
+    setError(null);
     try {
-      distanceResult = await TaskerService.getTaskersWithDistance();
-    } catch (distanceError) {
-      console.warn('Không thể lấy dữ liệu khoảng cách, tiếp tục mà không có dữ liệu khoảng cách:', distanceError);
-      setTaskers(taskersData.map(t => ({
-        ...t,
-        tasker_id: t.tasker_id || t.user_id,
-        distance_km: null
-      })));
+      // 1. Gọi API tìm kiếm Tasker (giữ nguyên logic cũ)
+      const res = await fetch(
+        `http://localhost:3001/api/tasker?search=${searchName}&serviceId=${selectedService}`
+      );
+      if (!res.ok) throw new Error(`Phản hồi mạng không ổn: ${res.status}`);
+      const result = await res.json();
+      const taskersData = Array.isArray(result.data) ? result.data : [];
+
+      if (!user || !token) {
+        // Nếu chưa đăng nhập, hiển thị taskers mà không có khoảng cách mới
+        setTaskers(taskersData.map(t => ({
+          ...t,
+          tasker_id: t.tasker_id || t.user_id,
+          distance_km: null
+        })));
+        setLoading(false);
+        return;
+      }
+
+      // 2. Gọi API lấy khoảng cách
+      let distanceResult = [];
+      try {
+        distanceResult = await TaskerService.getTaskersWithDistance();
+      } catch (distanceError) {
+        console.warn('Không thể lấy dữ liệu khoảng cách, tiếp tục mà không có dữ liệu khoảng cách:', distanceError);
+        setTaskers(taskersData.map(t => ({
+          ...t,
+          tasker_id: t.tasker_id || t.user_id,
+          distance_km: null
+        })));
+        setLoading(false);
+        return;
+      }
+
+      const distanceMap = new Map(distanceResult.map(t => [t.user_id, t.distance_km]));
+
+      // 3. Kết hợp khoảng cách vào taskers
+      const taskersWithDistance = taskersData.map(tasker => ({
+        ...tasker,
+        tasker_id: tasker.tasker_id || tasker.user_id, // Chuẩn hóa ID
+        distance_km: distanceMap.get(tasker.tasker_id || tasker.user_id) || null
+      }));
+
+      setTaskers(taskersWithDistance);
+    } catch (err) {
+      console.error("Lỗi khi tải danh sách Tasker:", err);
+      setError("Không thể tải danh sách Tasker. Vui lòng thử lại.");
+      setTaskers([]);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const distanceMap = new Map(distanceResult.map(t => [t.user_id, t.distance_km]));
-
-    // 3. Kết hợp khoảng cách vào taskers
-    const taskersWithDistance = taskersData.map(tasker => ({
-      ...tasker,
-      tasker_id: tasker.tasker_id || tasker.user_id, // Chuẩn hóa ID
-      distance_km: distanceMap.get(tasker.tasker_id || tasker.user_id) || null
-    }));
-
-    setTaskers(taskersWithDistance);
-  } catch (err) {
-    console.error("Lỗi khi tải danh sách Tasker:", err);
-    setError("Không thể tải danh sách Tasker. Vui lòng thử lại.");
-    setTaskers([]);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const cleaners = [
     {
@@ -509,16 +509,26 @@ const Home = () => {
                           <FontAwesomeIcon icon={faComments} className="mr-1" />
                           Start Chat
                         </button>
-                        {taskers.map((t) => (
-                          <div key={t.tasker_id}>
-                            <Link
-                              to={`/booking/${t.tasker_id}`}
-                              className="btn btn-primary btn-sm"
-                            >
-                              Đặt Lịch Ngay
-                            </Link>
-                          </div>
-                        ))}
+                        <div className="d-flex justify-content-end">
+                          <button
+                            className="btn btn-primary btn-sm"
+                            onClick={() => {
+                              if (!user || !token) {
+                                alert("⚠️ Vui lòng đăng nhập để đặt dịch vụ!");
+                                return;
+                              }
+
+                              if (user.role !== "Customer") {
+                                alert("❌ Chỉ khách hàng mới có thể đặt lịch!");
+                                return;
+                              }
+
+                              window.location.href = `/booking/${t.tasker_id}`;
+                            }}
+                          >
+                            Đặt Lịch Ngay
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
