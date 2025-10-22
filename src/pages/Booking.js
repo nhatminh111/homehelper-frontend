@@ -3,7 +3,9 @@ import { Container, Row, Col, Card, Badge, Form, Button, Accordion, ProgressBar,
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 import { servicesAPI } from "../services/api";
+import api from "../services/api";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
+import TaskerService from '../services/taskerService';
 
 function formatVND(input) {
     const n = Number(input);
@@ -28,18 +30,35 @@ export default function Booking() {
     const [touched, setTouched] = useState(false);
 
     const { taskerId } = useParams();
+
+    const [taskers, setTaskers] = useState([]);
     const [tasker, setTasker] = useState(null);
+    const [services, setServices] = useState([]);
+    const [selectedVariantId, setSelectedVariantId] = useState(null);
+
+    useEffect(() => {
+        if (!selectedVariantId) return;
+        TaskerService.getTaskersByVariant(selectedVariantId)
+            .then((res) => setTaskers(res.data || []))
+            .catch((err) => console.error('Lỗi lấy tasker theo variant:', err));
+    }, [selectedVariantId]);
 
     useEffect(() => {
         async function fetchTaskerData() {
             try {
-                const res = await fetch(`http://localhost:3001/api/tasker/${taskerId}/services`);
-                const data = await res.json(); // ✅ Khai báo biến data
-                setTasker(data.tasker);        // ✅ data.tasker
-                setServices(data.variants || []); // ✅ data.variants
-                console.log("Tasker fetched:", data);
+                const token = api.getStoredToken();
+                const data = await servicesAPI.getServicesByTaskerId(taskerId, token);
+                console.log("📦 [Booking] Data trả về từ API:", data);
+
+                if (data.success) {
+                    setTasker(data.tasker);
+                    setServices(data.variants || []);
+                    console.log("✅ [Booking] Services được set:", data.variants);
+                } else {
+                    console.warn("⚠️ [Booking] Không lấy được service theo ID:", data);
+                }
             } catch (err) {
-                console.error("Lỗi khi load Tasker:", err);
+                console.error("❌ [Booking] Lỗi khi load Tasker:", err);
             }
         }
 
@@ -66,34 +85,28 @@ export default function Booking() {
     }, [bookingData]);
 
     // Fake user data (test UI)
-    const [user, setUser] = useState({
-        name: "Nguyễn Văn A",
-        phone: "0901234567",
-        email: "nguyenvana@example.com",
-        role: "Customer"
-    });
+    const [user, setUser] = useState(null);
 
-    // const [user, setUser] = useState(null);
-
-    // useEffect(() => {
-    //     async function fetchUser() {
-    //         try {
-    //             const res = await fetch("/api/users/current"); // API backend trả về user
-    //             const data = await res.json();
-    //             setUser(data); // data gồm { name, phone, email, role }
-    //         } catch (err) {
-    //             console.error("Không thể load user:", err);
-    //         }
-    //     }
-    //     fetchUser();
-    // }, []);
+    useEffect(() => {
+        try {
+            const storedUser = JSON.parse(localStorage.getItem("user"));
+            if (storedUser) {
+                setUser(storedUser);
+                console.log("✅ [Booking] User đã đăng nhập:", storedUser);
+            } else {
+                console.warn("⚠️ [Booking] Không tìm thấy user trong localStorage.");
+            }
+        } catch (err) {
+            console.error("❌ [Booking] Lỗi khi đọc user:", err);
+        }
+    }, []);
 
     // Progress có animation nhẹ mỗi khi Next
     const [progressKey, setProgressKey] = useState(0);
     const progress = Math.round(((step + 1) / totalSteps) * 100);
 
     // Lấy dịch vụ + variants từ API
-    const [services, setServices] = useState([]);
+
     const [variantsByService, setVariantsByService] = useState({});
     const [loadingServices, setLoadingServices] = useState(true);
 
@@ -230,8 +243,10 @@ export default function Booking() {
     };
 
     const goPrev = () => {
-        if (step > 0) {
-            setStep(step - 1);
+        if (step === 0) {
+            navigate("/"); // 🔹 Quay lại trang chủ khi đang ở bước đầu
+        } else {
+            setStep(step - 1); // 🔹 Bình thường thì lùi 1 bước
         }
     };
 
@@ -1436,21 +1451,48 @@ export default function Booking() {
                                         <Button
                                             variant="teal"
                                             className="nav-btn"
-                                            onClick={() =>
-                                                navigate("/job-description", {
-                                                    state: {
-                                                        step,
-                                                        selection: {
-                                                            ...selection,
-                                                            unit: chosenVariants[0]?.unit || ""
-                                                        },
-                                                        chosenVariants,
-                                                        allVariants,
-                                                        total: totalPrice,
-                                                        cleaner: "Sarah Johnson",
+                                            onClick={() => {
+                                                const startISO = selection.date && selection.startTime
+                                                    ? new Date(`${selection.date}T${selection.startTime}`).toISOString()
+                                                    : null;
+
+                                                const endISO = selection.date && selection.endTime
+                                                    ? new Date(`${selection.date}T${selection.endTime}`).toISOString()
+                                                    : null;
+
+                                                const payload = {
+                                                    step,
+                                                    selection: {
+                                                        ...selection,
+                                                        unit: chosenVariants[0]?.unit || "",
+                                                        startISO,
+                                                        endISO,
                                                     },
-                                                })
-                                            }
+                                                    chosenVariants,
+                                                    allVariants,
+                                                    total: totalPrice,
+                                                    cleaner: tasker?.name || "Không rõ",
+                                                    // 🔹 Dữ liệu thật từ user & tasker
+                                                    customer_id: user?.id,
+                                                    customer_name: user?.name,
+                                                    customer_email: user?.email,
+                                                    customer_phone: user?.phone,
+                                                    tasker_id: taskerId,
+                                                    tasker_name: tasker?.name,
+                                                    service_id: chosenVariants[0]?.service_id,
+                                                    service_name: chosenVariants[0]?.service_name,
+                                                    variant_id: chosenVariants[0]?.variant_id,
+                                                    variant_name: chosenVariants[0]?.name,
+                                                    start_time: startISO,
+                                                    end_time: endISO,
+                                                    location: selection.address,
+                                                    expected_price: totalPrice,
+                                                };
+
+                                                console.log("📦 [Booking] Dữ liệu gửi sang JobDescription:", payload);
+
+                                                navigate("/job-description", { state: payload });
+                                            }}
                                         >
                                             📋 Chuyển sang trang mô tả công việc
                                         </Button>

@@ -24,7 +24,11 @@ export const AuthProvider = ({ children }) => {
         try {
           const response = await authAPI.getCurrentUser(token);
           setUser(response.user);
-          localStorage.setItem("user", JSON.stringify(response.user));
+          const oldUser = JSON.parse(localStorage.getItem("user") || "{}");
+          localStorage.setItem(
+            "user",
+            JSON.stringify({ ...response.user, token: oldUser.token || token })
+          );
           localStorage.setItem("role", response.user.role);
         } catch (error) {
           console.error("Token không hợp lệ:", error);
