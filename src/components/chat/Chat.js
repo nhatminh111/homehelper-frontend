@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useNavigate, useSearchParams} from 'react-router-dom';
+import { useNavigate, useSearchParams, Link} from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../contexts/SocketContext';
 import { useChat } from '../../hooks/useChat';
@@ -191,13 +191,17 @@ const Chat = () => {
     // Fetch booking details
     (async () => {
       try {
-        const { default: bookingService } = await import('../../services/bookingService');
-        const res = await bookingService.getBookingDetails(Number(bookingIdFromPending));
-        const bookingObj = res?.booking || res?.data?.booking || res?.data || null;
-        if (res?.success && bookingObj) {
+  const { default: bookingService } = await import('../../services/bookingService');
+  const res = await bookingService.getBookingDetails(Number(bookingIdFromPending));
+  // bookingService returns booking object directly; fallback to nested just in case
+  const bookingObj = (res && res.booking_id) ? res : (res?.booking || res?.data?.booking || res?.data || null);
+        // Accept booking object regardless of res.success flag
+        if (bookingObj && bookingObj.booking_id) {
           setBookingDetails(bookingObj);
           // Clear any pseudo session quoteDetails so UI shows booking context only
           if (quoteDetails && quoteDetails.quote_id && String(quoteDetails.quote_id).startsWith('session:')) setQuoteDetails(null);
+        } else {
+          console.warn('[DEBUG][Chat.js] bookingService.getBookingDetails did not return booking:', bookingObj);
         }
       } catch (e) {
         console.error('[Chat] auto-load booking details from pending NEG_REQ error', e);
@@ -328,10 +332,12 @@ const Chat = () => {
         return; 
       }
       try {
-        const { default: bookingService } = await import('../../services/bookingService');
-        const res = await bookingService.getBookingDetails(Number(bookingIdParam));
-        const bookingObj = res?.booking || res?.data?.booking || res?.data || null;
-        if (res?.success && bookingObj) {
+  const { default: bookingService } = await import('../../services/bookingService');
+  const res = await bookingService.getBookingDetails(Number(bookingIdParam));
+  // bookingService returns booking object directly; fallback to nested just in case
+  const bookingObj = (res && res.booking_id) ? res : (res?.booking || res?.data?.booking || res?.data || null);
+        // Accept booking object regardless of res.success flag
+        if (bookingObj && bookingObj.booking_id) {
           setBookingDetails(prev => {
             return bookingObj;
           });
@@ -348,7 +354,7 @@ const Chat = () => {
             navigate(`/chat?${params.toString()}`, { replace: true });
           }
         } else {
-          console.warn('[DEBUG][Chat.js] bookingService.getBookingDetails did not return booking:', res);
+          console.warn('[DEBUG][Chat.js] bookingService.getBookingDetails did not return booking:', bookingObj);
         }
       } catch (e) {
         console.error('[Chat] load booking details error', e);
@@ -1237,61 +1243,79 @@ const Chat = () => {
                   <div className="me-2">
                     <div className="small text-muted">
                       {bookingDetails ? (
-                        <>
-                          <div>
-                            Bạn đang thương lượng giá cả cho booking:{" "}
-                            <strong>
+                        <div>
+                          <div className="d-flex align-items-center">
+                            <span>Bạn đang thương lượng giá cả cho booking: </span>
+                            <strong className="ms-1">
                               {bookingDetails.variant_name ||
                                 bookingDetails.service_name ||
                                 `#${bookingDetails.booking_id}`}
                             </strong>
+                            {bookingDetails?.booking_id && (
+                              <Link
+                                to={`/tasker/bookings/${bookingDetails.booking_id}`}
+                                className="ms-2 btn btn-link btn-sm p-0 align-baseline"
+                              >
+                                Xem chi tiết
+                              </Link>
+                            )}
                           </div>
-
                           {bookingDetails.tasker_name && (
                             <div>
                               Tasker: <strong>{bookingDetails.tasker_name}</strong>
                             </div>
                           )}
-
                           {(bookingDetails.start_time || bookingDetails.end_time) && (
                             <div>
-                              Thời gian:{" "}
+                              Thời gian: {" "}
                               <strong>
                                 {bookingDetails.start_time
                                   ? new Date(bookingDetails.start_time).toLocaleString("vi-VN")
-                                  : "N/A"}{" "}
-                                -{" "}
+                                  : "N/A"} {" "}
+                                - {" "}
                                 {bookingDetails.end_time
                                   ? new Date(bookingDetails.end_time).toLocaleString("vi-VN")
                                   : "N/A"}
                               </strong>
                             </div>
                           )}
-                        </>
+                        </div>
                       ) : (
                         <div>
-                          Bạn đang thương lượng giá cả cho dịch vụ:{" "}
+                          Bạn đang thương lượng giá cả cho dịch vụ: {" "}
                           <strong>{quoteDetails.variant_name}</strong>
                         </div>
                       )}
                     </div>
 
                     <div className="fw-semibold mt-1">
-                      Giá hiện tại: {" "}
-                      <strong>
-                        {bookingDetails ? (
-                          bookingDetails.final_price != null
-                            ? currencyVND(bookingDetails.final_price)
-                            : "Chưa có"
-                        ) : quoteDetails.proposed_price != null ? (
-                          currencyVND(quoteDetails.proposed_price)
-                        ) : (
-                          "Chưa có"
-                        )}
-                      </strong>
-                      {(bookingDetails?.unit || quoteDetails?.unit) && (
-                        <span> / {(bookingDetails?.unit || quoteDetails?.unit)}</span>
-                      )}
+                      {bookingDetails ? (
+                        <>
+                          Giá khách đề xuất:{" "}
+                          <strong className="text-muted">
+                            {currencyVND(bookingDetails?.expected_price)}
+                          </strong>
+                          <br />
+                          Giá sau thương lượng:{" "}
+                          <strong className="text-success">
+                            {bookingDetails?.base_price
+                              ? currencyVND(bookingDetails.base_price)
+                              : "Chưa có"}
+                          </strong>
+                          {(bookingDetails?.unit || quoteDetails?.unit) && (
+                            <span> / {(bookingDetails?.unit || quoteDetails?.unit)}</span>
+                          )}
+                        </>
+                      ) : quoteDetails ? (
+                        <>
+                          Giá hiện tại: <strong className="text-success">
+                            {currencyVND(quoteDetails?.proposed_price)}
+                          </strong>
+                          {quoteDetails?.unit && (
+                            <span> / {quoteDetails.unit}</span>
+                          )}
+                        </>
+                      ) : null}
                     </div>
 
                     <div className="small text-muted mt-1">
