@@ -88,7 +88,7 @@ const TaskerCertificateList = ({ taskerId }) => {
             certList.map((cert, idx) => (
               <div key={cert.cert_id || cert.cert_public_id || idx} className="col-12">
                 <div
-                  className="card shadow-sm border-0 flex-row align-items-stretch position-relative"
+                  className="card shadow-sm border-0 d-flex flex-column flex-md-row align-items-stretch position-relative"
                   style={{
                     borderRadius: '12px',
                     overflow: 'hidden',
@@ -97,20 +97,43 @@ const TaskerCertificateList = ({ taskerId }) => {
                   }}
                 >
                   {/* Status góc phải trên */}
-                  <div style={{position: 'absolute', top: 0, right: 0, zIndex: 2, padding: '8px'}}>
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 8,
+                      right: 8,
+                      zIndex: 2
+                    }}
+                  >
                     {cert.status && (
-                      <span className={`badge px-3 py-2 ${cert.status === 'approved' ? 'bg-success' : cert.status === 'pending' ? 'bg-warning text-dark' : 'bg-secondary'}`}
-                        style={{fontSize: '0.95rem', fontWeight: 500}}>
-                        {cert.status === 'approved' ? 'Đã duyệt' : cert.status === 'pending' ? 'Chờ duyệt' : cert.status}
+                      <span
+                        className={`badge px-3 py-2 ${
+                          cert.status === 'approved'
+                            ? 'bg-success'
+                            : cert.status === 'pending'
+                            ? 'bg-warning text-dark'
+                            : 'bg-secondary'
+                        }`}
+                        style={{ fontSize: '0.9rem', fontWeight: 500 }}
+                      >
+                        {cert.status === 'approved'
+                          ? 'Đã duyệt'
+                          : cert.status === 'pending'
+                          ? 'Chờ duyệt'
+                          : cert.status}
                       </span>
                     )}
                   </div>
+
                   {/* Ảnh chứng chỉ */}
                   <div
-                    className="flex-shrink-0"
+                    className="flex-shrink-0 bg-light d-flex align-items-center justify-content-center"
                     style={{
-                      width: '180px',
-                      backgroundColor: '#f8f9fa'
+                      width: '100%',
+                      maxWidth: '220px',
+                      height: 'auto',
+                      aspectRatio: '4 / 3',
+                      borderBottom: '1px solid #eee'
                     }}
                   >
                     {cert.cert_file_url ? (
@@ -120,16 +143,12 @@ const TaskerCertificateList = ({ taskerId }) => {
                         style={{
                           width: '100%',
                           height: '100%',
-                          objectFit: 'cover'
+                          objectFit: 'contain', // giúp giữ tỉ lệ hình
+                          backgroundColor: '#f8f9fa'
                         }}
                       />
                     ) : (
-                      <div
-                        className="d-flex align-items-center justify-content-center h-100 text-muted small"
-                        style={{ borderRight: '1px solid #eee' }}
-                      >
-                        Không có ảnh
-                      </div>
+                      <div className="text-muted small py-4">Không có ảnh</div>
                     )}
                   </div>
 
@@ -176,7 +195,6 @@ const TaskerCertificateList = ({ taskerId }) => {
       </div>
     </div>
   );
-
 };
 
 const API_BASE_URL = "http://localhost:3001/api";
@@ -1094,14 +1112,14 @@ const CertificationRegisterSection = () => {
   const { id } = useParams();
   useEffect(() => {
     if (!id) return;
-    // Fetch registered service_ids
-    fetch(`${API_BASE_URL}/tasker/${id}/service-variants`)
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) setExcludeServiceIds(data.map(sid => String(sid)));
-        else if (Array.isArray(data.data)) setExcludeServiceIds(data.data.map(sid => String(sid)));
-      })
-      .catch(() => setExcludeServiceIds([]));
+    // // Fetch registered service_ids
+    // fetch(`${API_BASE_URL}/tasker/${id}/service-variants`)
+    //   .then(res => res.json())
+    //   .then(data => {
+    //     if (Array.isArray(data)) setExcludeServiceIds(data.map(sid => String(sid)));
+    //     else if (Array.isArray(data.data)) setExcludeServiceIds(data.data.map(sid => String(sid)));
+    //   })
+    //   .catch(() => setExcludeServiceIds([]));
     // Fetch registered variant_ids
     fetch(`${API_BASE_URL}/tasker/${id}/registered-variants`)
       .then(res => res.json())

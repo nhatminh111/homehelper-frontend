@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect } from "react";
 
+import React, { useState, useEffect } from "react";
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 const getAuthToken = () => {
@@ -26,9 +26,10 @@ const TaskerCertificateRegister = ({ onSubmit, excludeServiceIds = [], excludeVa
   const [selectedVariants, setSelectedVariants] = useState([]);
   const [serviceCerts, setServiceCerts] = useState({});
   const [uploading, setUploading] = useState(false);
+  const [extracting, setExtracting] = useState(null);
+  const [zoomImgUrl, setZoomImgUrl] = useState(null);
 
   useEffect(() => {
-    // Fetch services and variants from API
     fetch("http://localhost:3001/api/services")
       .then((res) => res.json())
       .then((data) => {
@@ -55,8 +56,6 @@ const TaskerCertificateRegister = ({ onSubmit, excludeServiceIds = [], excludeVa
     );
   };
 
-  const [extracting, setExtracting] = useState(null);
-
   const runAIExtraction = async (service_id, idx) => {
     try {
       setExtracting({ service_id, idx });
@@ -67,7 +66,6 @@ const TaskerCertificateRegister = ({ onSubmit, excludeServiceIds = [], excludeVa
         return;
       }
       const token = getAuthToken();
-      // Đảm bảo endpoint đúng dạng /api/tasker/certifications/:public_id/extract-ai
       const url = `${API_BASE_URL}/tasker/certifications/${cert.cert_public_id}/extract-ai`;
       const res = await fetch(url, {
         method: 'POST',
@@ -93,19 +91,19 @@ const TaskerCertificateRegister = ({ onSubmit, excludeServiceIds = [], excludeVa
       setExtracting(null);
     }
   };
-// Helper: check if certificate code exists anywhere in the system
-const checkCertCodeExists = async (certCode) => {
-  if (!certCode) return false;
-  try {
-    const token = getAuthToken();
-    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-    const res = await fetch(`${API_BASE_URL}/tasker/certifications/check-code?code=${encodeURIComponent(certCode)}`, { headers });
-    const json = await res.json();
-    return json.success && json.exists;
-  } catch {
-    return false;
-  }
-};
+
+  const checkCertCodeExists = async (certCode) => {
+    if (!certCode) return false;
+    try {
+      const token = getAuthToken();
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+      const res = await fetch(`${API_BASE_URL}/tasker/certifications/check-code?code=${encodeURIComponent(certCode)}`, { headers });
+      const json = await res.json();
+      return json.success && json.exists;
+    } catch {
+      return false;
+    }
+  };
 
   const handleCertFileUpload = async (service_id, files) => {
     if (!files || !files.length) return;
@@ -129,7 +127,6 @@ const checkCertCodeExists = async (certCode) => {
         if (!res.ok || !json.success) throw new Error(json.message || 'Upload thất bại');
         const f = (json.data?.files || [])[0];
         if (!f || !f.public_id) continue;
-        // Gọi API tạo chứng chỉ, backend sẽ tự động AI fill
         const certPayload = {
           service_id,
           cert_name: f.cert_name || f.file_name || '',
@@ -163,17 +160,15 @@ const checkCertCodeExists = async (certCode) => {
               holder_name: updated.parsed_holder_name || cert.holder_name,
               parsed_certificate_code: updated.parsed_certificate_code || cert.parsed_certificate_code,
             };
-            // Check code before adding
             const codeToCheck = cert.parsed_certificate_code || '';
             if (codeToCheck) {
               const exists = await checkCertCodeExists(codeToCheck);
               if (exists) {
                 alert(`Mã chứng chỉ ${codeToCheck} đã tồn tại trong hệ thống. Vui lòng kiểm tra lại hoặc sử dụng chứng chỉ khác.`);
-                continue; // skip adding this cert
+                continue;
               }
             }
           } else if (!createRes.ok && createJson) {
-            // Lưu thông tin lỗi vào cert để hiển thị cảnh báo
             cert = {
               ...cert,
               error_type: 'service_mismatch',
@@ -191,7 +186,6 @@ const checkCertCodeExists = async (certCode) => {
         }
         newCerts.push(cert);
       }
-      // Gán vào state
       setServiceCerts(prev => ({
         ...prev,
         [service_id]: [...(prev[service_id] || []), ...newCerts]
@@ -224,20 +218,6 @@ const checkCertCodeExists = async (certCode) => {
           ))}
         </select>
       </div>
-
-      {/* Hiển thị thông tin chứng chỉ cho dịch vụ đã chọn */}
-      {/* {currentService && (
-        <div className="mb-4">
-          <h6 className="fw-semibold">Thông tin dịch vụ đã chọn</h6>
-          <div>
-            <span>{currentService.name}</span>
-            {currentService.requires_certificate && <span className="badge bg-danger ms-2">Bắt buộc chứng chỉ</span>}
-          </div>
-          {!currentService.requires_certificate && (
-            <div className="text-muted small mb-2">Dịch vụ này không bắt buộc chứng chỉ. Bạn vẫn có thể thêm chứng chỉ nếu muốn.</div>
-          )}
-        </div>
-      )} */}
       {currentService && (
         <div className="mb-3">
           <div className="fw-semibold mb-2">Biến thể dịch vụ</div>
@@ -267,8 +247,6 @@ const checkCertCodeExists = async (certCode) => {
           </div>
         </div>
       )}
-      {/* Removed redundant upload button outside card layout */}
-      {/* Card layout for certificate section, matches screenshot */}
       {currentService && (
         <div className="mb-4">
           <h5>Chứng chỉ theo dịch vụ</h5>
@@ -340,7 +318,7 @@ const checkCertCodeExists = async (certCode) => {
                             alt="cert"
                             className="img-fluid d-block mx-auto hover-shadow"
                             style={{maxHeight:'140px', objectFit:'contain', cursor:'zoom-in'}}
-                            onClick={() => window.open(c.cert_file_url, '_blank')}
+                            onClick={() => setZoomImgUrl(c.cert_file_url)}
                           />
                         )
                       ) : (
@@ -425,11 +403,18 @@ const checkCertCodeExists = async (certCode) => {
             })}
           </div>
         </div>
-  )}
+      )}
+      {zoomImgUrl && (
+        <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-dark bg-opacity-75" style={{zIndex:1050}} onClick={() => setZoomImgUrl(null)}>
+          <div className="position-relative p-2 bg-white rounded shadow" onClick={e => e.stopPropagation()} style={{maxWidth:'90%', maxHeight:'90%'}}>
+            <button type="button" className="btn-close position-absolute end-0 top-0 m-2" onClick={() => setZoomImgUrl(null)} />
+            <img src={zoomImgUrl} alt="zoom" style={{maxWidth:'100%', maxHeight:'80vh', objectFit:'contain'}} />
+          </div>
+        </div>
+      )}
       <button
         className="btn btn-success"
         onClick={() => {
-          // Chuẩn hóa object certs để đảm bảo đủ trường cho backend
           const certsRaw = serviceCerts[selectedServiceId];
           const certsFull = Array.isArray(certsRaw) ? certsRaw.map(c => ({
             cert_public_id: c.cert_public_id,
@@ -470,3 +455,4 @@ const checkCertCodeExists = async (certCode) => {
 };
 
 export default TaskerCertificateRegister;
+

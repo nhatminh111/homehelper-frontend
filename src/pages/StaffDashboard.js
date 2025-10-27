@@ -23,7 +23,6 @@ export default function StaffDashboard() {
   return (
     <div className="staff-dashboard-container">
       <aside className="staff-sidebar">
-        <h3 className="sidebar-title">Staff Dashboard</h3>
         <nav>
           {tabs.map((tab) => (
             <Link
