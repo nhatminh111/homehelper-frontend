@@ -112,7 +112,7 @@ export default function TaskerBookingDetail() {
                 <span className="fw-medium text-muted">Giá mong muốn</span>
                 <span className="fw-bold text-success fs-5">
                   {expectedPrice != null && expectedPrice !== ""
-                    ? `${(Number(expectedPrice) * 1000).toLocaleString("vi-VN")}đ`
+                    ? `${(Number(expectedPrice) * 1000).toLocaleString("vi-VN")}đ/giờ`
                     : "Chưa có giá"}
                 </span>
               </div>

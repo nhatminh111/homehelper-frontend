@@ -10,7 +10,7 @@ import {
   faHeart as faHeartSolid,
 } from "@fortawesome/free-solid-svg-icons";
 import { faHeart as faHeartRegular } from "@fortawesome/free-regular-svg-icons";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import TaskerService from "../services/taskerService"; // Import TaskerService
 
 const Home = () => {
@@ -22,6 +22,7 @@ const Home = () => {
   const [error, setError] = useState(null); // Thêm trạng thái error
   const { user, token } = useAuth();
   const [wishlistTaskers, setWishlistTaskers] = useState([]);
+  const navigate = useNavigate();
 
   const createHeaders = (token) => ({
     "Content-Type": "application/json",
@@ -523,7 +524,7 @@ const Home = () => {
                                 return;
                               }
 
-                              window.location.href = `/booking/${t.tasker_id}`;
+                              navigate(`/booking/${t.tasker_id}`);
                             }}
                           >
                             Đặt Lịch Ngay
