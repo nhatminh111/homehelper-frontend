@@ -76,6 +76,15 @@ export default function JobDescription() {
       });
 
       const data = await res.json();
+      
+      // ✅ Xử lý token hết hạn
+      if (res.status === 401 && data.error === "Token đã hết hạn") {
+        alert("⚠️ Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
+        localStorage.removeItem("user");
+        navigate("/login");
+        return;
+      }
+      
       if (!data.success) throw new Error(data.message || "Create booking failed");
 
       alert("✅ Gửi yêu cầu thành công!");
@@ -539,17 +548,21 @@ export default function JobDescription() {
                                 setPhotos([...photos, previewUrl]);
 
                                 const formData = new FormData();
-                                formData.append("file", file);
+                                formData.append("images", file);
 
                                 try {
-                                  const res = await fetch("http://localhost:5000/upload", {
+                                  const user = JSON.parse(localStorage.getItem("user") || "{}");
+                                  const res = await fetch("http://localhost:3001/api/uploads/post-images", {
                                     method: "POST",
+                                    headers: {
+                                      'Authorization': `Bearer ${user.token}`
+                                    },
                                     body: formData,
                                   });
                                   const data = await res.json();
-                                  if (data.url) {
+                                  if (data.success && data.data.urls && data.data.urls.length > 0) {
                                     setPhotos((prev) =>
-                                      prev.map((p) => (p === previewUrl ? data.url : p))
+                                      prev.map((p) => (p === previewUrl ? data.data.urls[0] : p))
                                     );
                                     URL.revokeObjectURL(previewUrl);
                                   }

@@ -32,6 +32,7 @@ import Booking from './pages/Booking';
 import JobDescription from './pages/JobDescription';
 import Contract from './pages/Contract';
 import TaskerBookingDetail from "./pages/TaskerBookingDetail";
+import TaskerBookings from "./pages/TaskerBookings";
 
 // Import authentication pages
 import Login from './pages/auth/Login';
@@ -118,6 +119,11 @@ function App() {
               <Route path="/cccd" element={<CCCDExtractor />} />
               <Route path="/booking/:taskerId" element={<Booking />} />
               <Route path="/tasker/bookings/:id" element={<TaskerBookingDetail />} />
+              <Route path="/tasker/bookings" element={
+                <ProtectedRoute requiredRole="Tasker">
+                  <TaskerBookings />
+                </ProtectedRoute>
+              } />
               <Route path="/job-description" element={<JobDescription />} />
               <Route path="/contract" element={<Contract />} />
 
