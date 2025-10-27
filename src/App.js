@@ -78,7 +78,6 @@ function App() {
             <Header />
             <main>
             <Routes>
-              <Route path="/test-negotiate-price" element={<TestNegotiatePrice />} />
               <Route path="/" element={<Home />} />
               <Route path="/about" element={<About />} />
               <Route path="/services" element={<Services />} />

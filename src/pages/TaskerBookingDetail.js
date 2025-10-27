@@ -1,14 +1,84 @@
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { Container, Row, Col, Card, Button, Badge } from "react-bootstrap";
-import api from '../services/api';
+import { useState, useEffect } from "react";
+import { Container, Row, Col, Card, Button, Badge, Spinner, Alert } from "react-bootstrap";
+import NegotiatePriceButton from "../components/negotiation/NegotiatePriceButton";
+import api from "../services/api";
 
 export default function TaskerBookingDetail() {
   const navigate = useNavigate();
   const location = useLocation();
-  const booking = location.state?.booking || {};
+  const { id } = useParams(); // ví dụ: /tasker/bookings/:id
 
-  console.log("🧾 booking nhận được:", booking);
+  const [booking, setBooking] = useState(location.state?.booking || null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
+  useEffect(() => {
+    if (!booking && id) {
+      const fetchBooking = async () => {
+        try {
+          setLoading(true);
+          setError(null);
+          const res = await api.get(`/bookings/${id}`, {
+            headers: { "Cache-Control": "no-cache" },
+          });
+
+          const payload = res?.data;
+          const bookingData =
+            (payload && (payload.booking || payload.data)) || payload;
+
+          if (bookingData && bookingData.booking_id) {
+            setBooking(bookingData);
+          } else {
+            throw new Error("Không tìm thấy thông tin booking");
+          }
+        } catch (err) {
+          console.error("❌ Lỗi fetch booking:", err);
+          setError("Không thể tải thông tin booking. Vui lòng thử lại sau.");
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      fetchBooking();
+    }
+  }, [id, booking]);
+
+  // Đang tải
+  if (loading) {
+    return (
+      <Container className="py-5 text-center">
+        <Spinner animation="border" variant="primary" />
+        <p className="mt-3 text-muted">Đang tải thông tin công việc...</p>
+      </Container>
+    );
+  }
+
+  // Lỗi khi tải
+  if (error) {
+    return (
+      <Container className="py-5 text-center">
+        <Alert variant="danger">{error}</Alert>
+        <Button variant="secondary" onClick={() => navigate(-1)}>
+          ← Quay lại
+        </Button>
+      </Container>
+    );
+  }
+
+  //Không có dữ liệu
+  if (!booking) {
+    return (
+      <Container className="py-5 text-center">
+        <p className="text-muted">Không có dữ liệu booking để hiển thị.</p>
+        <Button variant="secondary" onClick={() => navigate(-1)}>
+          ← Quay lại
+        </Button>
+      </Container>
+    );
+  }
+
+  // 🧾 Giải nén dữ liệu booking
   const {
     booking_id,
     task_description,
@@ -17,6 +87,7 @@ export default function TaskerBookingDetail() {
     final_price,
     photos = [],
     status = "Chờ xử lý",
+    customer_id,
     customer_name,
     customer_email,
     customer_phone,
@@ -25,21 +96,8 @@ export default function TaskerBookingDetail() {
     end_time,
     service_name,
     variant_name,
-    booking_time
   } = booking;
 
-  // Lấy thời gian hiện tại
-  const now = new Date();
-  const dateStr = now.toLocaleDateString("vi-VN", {
-    weekday: "long",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-  const timeStr = now.toLocaleTimeString("vi-VN", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
   const formatDateTime = (isoString) => {
     if (!isoString) return "—";
     const date = new Date(isoString);
@@ -56,37 +114,60 @@ export default function TaskerBookingDetail() {
 
   const formatPrice = (price) => {
     if (!price) return "Chưa có giá";
-    return new Intl.NumberFormat('vi-VN').format(price) + 'đ';
+    return new Intl.NumberFormat("vi-VN").format(price) + "đ";
   };
 
   const handleStatusUpdate = async (newStatus) => {
     try {
       const token = api.getStoredToken();
-      const response = await fetch(`http://localhost:3001/api/bookings/${booking_id}/status`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ status: newStatus })
-      });
+      const response = await fetch(
+        `http://localhost:3001/api/bookings/${booking_id}/status`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ status: newStatus }),
+        }
+      );
 
       const data = await response.json();
-      
-      if (data.success) {
-        alert(`Đã ${newStatus === 'Đã chấp nhận' ? 'chấp nhận' : 'từ chối'} booking thành công!`);
-        navigate('/tasker/bookings');
-      } else {
-        alert('Có lỗi xảy ra khi cập nhật trạng thái');
+
+    if (data.success) {
+      let message = "";
+
+      switch (newStatus) {
+        case "Đã chấp nhận":
+          message = "Đã chấp nhận booking thành công!";
+          break;
+        case "Hủy":
+          message = "Đã từ chối booking!";
+          break;
+        case "Đang tiến hành":
+          message = "Đã bắt đầu công việc!";
+          break;
+        case "Hoàn thành":
+          message = "Đã hoàn thành công việc!";
+          break;
+        default:
+          message = `Cập nhật trạng thái: ${newStatus}`;
       }
+
+      alert(message);
+      navigate("/tasker/bookings");
+    } else {
+      alert("Có lỗi xảy ra khi cập nhật trạng thái");
+    }
     } catch (err) {
-      console.error('Lỗi khi cập nhật trạng thái:', err);
-      alert('Có lỗi xảy ra khi cập nhật trạng thái');
+      console.error("Lỗi khi cập nhật trạng thái:", err);
+      alert("Có lỗi xảy ra khi cập nhật trạng thái");
     }
   };
 
   return (
     <Container className="py-5">
+      {/* Tiêu đề */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
           <h3 className="fw-bold mb-2">Chi tiết công việc</h3>
@@ -95,27 +176,41 @@ export default function TaskerBookingDetail() {
           </p>
         </div>
         <div className="text-end">
-          <Badge 
+          <Badge
             bg={
-              status === 'Chờ xử lý' ? 'warning' :
-              status === 'Đã chấp nhận' ? 'info' :
-              status === 'Đang tiến hành' ? 'primary' :
-              status === 'Hoàn thành' ? 'success' :
-              status === 'Hủy' ? 'danger' : 'secondary'
-            } 
+              status === "Chờ xử lý"
+                ? "warning"
+                : status === "Đã chấp nhận"
+                ? "info"
+                : status === "Đang tiến hành"
+                ? "primary"
+                : status === "Hoàn thành"
+                ? "success"
+                : status === "Hủy"
+                ? "danger"
+                : "secondary"
+            }
             className="px-3 py-2 fs-6"
           >
-            {status === 'Chờ xử lý' ? '⏳' :
-             status === 'Đã chấp nhận' ? '✅' :
-             status === 'Đang tiến hành' ? '🔄' :
-             status === 'Hoàn thành' ? '🎉' :
-             status === 'Hủy' ? '❌' : '❓'} {status}
+            {status === "Chờ xử lý"
+              ? "⏳"
+              : status === "Đã chấp nhận"
+              ? "✅"
+              : status === "Đang tiến hành"
+              ? "🔄"
+              : status === "Hoàn thành"
+              ? "🎉"
+              : status === "Hủy"
+              ? "❌"
+              : "❓"}{" "}
+            {status}
           </Badge>
         </div>
       </div>
 
+      {/* Nội dung chi tiết */}
       <Row className="g-4 align-items-stretch">
-        {/* CỘT TRÁI - Thông tin khách hàng */}
+        {/* Thông tin khách hàng */}
         <Col md={5}>
           <Card className="shadow-sm border-0 h-100" style={{ borderRadius: "14px" }}>
             <Card.Body>
@@ -157,7 +252,6 @@ export default function TaskerBookingDetail() {
                     <i className="bi bi-clock text-primary me-2"></i>
                     {formatDateTime(start_time)} → {formatDateTime(end_time)}
                     <br />
-                    <small className="text-muted">Thời gian đặt lịch</small>
                   </div>
                 )}
               </div>
@@ -166,39 +260,37 @@ export default function TaskerBookingDetail() {
 
               <div>
                 <span className="fw-medium text-muted">Giá mong muốn</span>
-                <span className="fw-bold text-success fs-5">
+                <span className="fw-bold text-success fs-5 ms-2">
                   {formatPrice(expected_price || final_price)}
                 </span>
               </div>
 
-              {final_price != null && final_price !== "" && Number(final_price) !== 0 && (
-                <div className="mt-2">
-                  <span className="fw-medium text-muted">Giá sau khi thương lượng</span>
-                  <span className="fw-bold text-primary fs-5 ms-2">
-                    {`${(Number(final_price) * 1000).toLocaleString("vi-VN")}đ`}
-                  </span>
-                </div>
-              )}
-
+              {final_price != null &&
+                final_price !== "" &&
+                Number(final_price) !== 0 && (
+                  <div className="mt-2">
+                    <span className="fw-medium text-muted">Giá sau thương lượng</span>
+                    <span className="fw-bold text-primary fs-5 ms-2">
+                      {`${(Number(final_price)).toLocaleString("vi-VN")}đ`}
+                    </span>
+                  </div>
+                )}
             </Card.Body>
           </Card>
         </Col>
 
-        {/* CỘT PHẢI - Chi tiết công việc */}
+        {/* Chi tiết công việc */}
         <Col md={7}>
-          <Card
-            className="shadow-sm border-0 h-100"
-            style={{ borderRadius: "14px" }}
-          >
+          <Card className="shadow-sm border-0 h-100" style={{ borderRadius: "14px" }}>
             <Card.Body>
-              {/* Tiêu đề & mô tả */}
-              <h5 className="fw-bold mb-2">{task_description || "Chưa có tiêu đề"}</h5>
+              <h5 className="fw-bold mb-2">
+                {task_description || "Chưa có tiêu đề"}
+              </h5>
               <h6 className="text-primary fw-semibold mb-2">
-                <i className="bi bi-file-text me-2"></i>Tóm tắt công việc
+                <i className="bi bi-file-text me-2"></i>Tóm tắt công việc :
               </h6>
               <p className="text-muted">{task_checklist || "Không có mô tả."}</p>
 
-              {/* Ảnh đính kèm */}
               {photos.length > 0 && (
                 <>
                   <h6 className="mt-4 mb-2">
@@ -224,35 +316,31 @@ export default function TaskerBookingDetail() {
                 </>
               )}
 
-              {/* Dịch vụ và giá */}
               {(service_name || variant_name) && (
                 <>
-                  <h5 className="fw-bold mb-2">
-                    {service_name || "Dịch vụ"} – {variant_name || ""}
-                  </h5>
-                  <div className="text-muted mb-1">
-                    Dịch vụ đã chọn
+                  <div className="d-flex align-items-center mt-2">
+                    <p className="text-muted mb-0 me-2">Dịch vụ đã chọn:</p>
+                    <span className="fw-semibold text-dark">
+                      {service_name || "Dịch vụ"} – {variant_name || ""}
+                    </span>
                   </div>
-                  <div className="fw-bold text-primary fs-6">
-                    {formatPrice(expected_price || final_price)}
-                  </div>
-                  </>
-                )}
+                </>
+              )}
             </Card.Body>
           </Card>
         </Col>
       </Row>
 
-      {/* Các nút hành động */}
+      {/* Nút hành động */}
       <div className="d-flex justify-content-center gap-4 mt-5 flex-wrap">
-        {status === 'Chờ xử lý' && (
+        {status === "Chờ xử lý" && (
           <>
             <Button
               variant="danger"
               size="lg"
               className="px-5 fw-semibold"
               style={{ borderRadius: "10px", minWidth: "160px" }}
-              onClick={() => handleStatusUpdate('Hủy')}
+              onClick={() => handleStatusUpdate("Hủy")}
             >
               ❌ Từ chối công việc
             </Button>
@@ -262,47 +350,47 @@ export default function TaskerBookingDetail() {
               size="lg"
               className="px-5 fw-semibold"
               style={{ borderRadius: "10px", minWidth: "160px" }}
-              onClick={() => handleStatusUpdate('Đã chấp nhận')}
+              onClick={() => handleStatusUpdate("Đã chấp nhận")}
             >
               ✅ Chấp nhận công việc
             </Button>
           </>
         )}
 
-        {status === 'Đã chấp nhận' && (
+        {status === "Đã chấp nhận" && (
           <Button
             variant="info"
             size="lg"
             className="px-5 fw-semibold"
             style={{ borderRadius: "10px", minWidth: "160px" }}
-            onClick={() => handleStatusUpdate('Đang tiến hành')}
+            onClick={() => handleStatusUpdate("Đang tiến hành")}
           >
             ▶ Bắt đầu công việc
           </Button>
         )}
 
-        {status === 'Đang tiến hành' && (
+        {status === "Đang tiến hành" && (
           <Button
             variant="primary"
             size="lg"
             className="px-5 fw-semibold"
             style={{ borderRadius: "10px", minWidth: "160px" }}
-            onClick={() => handleStatusUpdate('Hoàn thành')}
+            onClick={() => handleStatusUpdate("Hoàn thành")}
           >
             ✅ Hoàn thành
           </Button>
         )}
 
-        {status !== 'Hủy' && status !== 'Hoàn thành' && (
-          <Button
-            variant="outline-primary"
-            size="lg"
-            className="px-5 fw-semibold"
-            style={{ borderRadius: "10px", minWidth: "180px" }}
-            onClick={() => navigate("/chat")}
-          >
-            💬 Chat thương lượng
-          </Button>
+        {status !== "Hủy" && status !== "Hoàn thành" && (
+          <NegotiatePriceButton
+            peerId={customer_id}
+            bookingId={booking_id}
+            label="Thương lượng giá"
+            size="md"
+            onClick={() => {
+              window.location.href = `/chat?bookingId=${booking_id}&negotiation=1&peer=${customer_id}`;
+            }}
+          />
         )}
       </div>
     </Container>
