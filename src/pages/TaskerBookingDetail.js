@@ -1,65 +1,31 @@
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Container, Row, Col, Card, Button, Badge } from "react-bootstrap";
-import NegotiatePriceButton from '../components/negotiation/NegotiatePriceButton';
-import { useEffect, useState } from "react";
-import bookingService from '../services/bookingService';
+import api from '../services/api';
 
 export default function TaskerBookingDetail() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { id } = useParams();
-  const [booking, setBooking] = useState(location.state || null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const booking = location.state?.booking || {};
 
-  useEffect(() => {
-    // Nếu không có booking trong state, gọi API lấy theo id
-    if (!booking && id) {
-      setLoading(true);
-      bookingService.getBookingDetails(id)
-        .then(data => {
-          setBooking(data);
-          setError(null);
-        })
-        .catch(err => {
-          setError(err.message || 'Không thể tải thông tin booking');
-        })
-        .finally(() => setLoading(false));
-    }
-  }, [id, booking]);
-
-  if (loading) return <Container className="py-5 text-center"><div>Đang tải thông tin booking...</div></Container>;
-  if (error) return <Container className="py-5 text-center text-danger"><div>{error}</div></Container>;
-  if (!booking) return <Container className="py-5 text-center"><div>Không tìm thấy thông tin booking.</div></Container>;
+  console.log("🧾 booking nhận được:", booking);
 
   const {
     booking_id,
-    customer_id,
-    tasker_id,
-    service_id,
-    variant_id,
-    booking_time,
-    start_time,
-    end_time,
-    location: bookingAddress,
-    status = "Chờ xác nhận",
-    base_price,
-    surcharge,
+    task_description,
+    task_checklist,
+    expected_price,
     final_price,
-    tasker_status,
-    tasker_rating,
-    service_name,
-    variant_name,
-    pricing_type,
-    unit,
-    price_min,
-    price_max,
+    photos = [],
+    status = "Chờ xử lý",
     customer_name,
     customer_email,
     customer_phone,
-    photos = [],
-    chosenVariants = [],
-    expected_price,
+    location: bookingAddress,
+    start_time,
+    end_time,
+    service_name,
+    variant_name,
+    booking_time
   } = booking;
 
   // Lấy thời gian hiện tại
@@ -88,12 +54,65 @@ export default function TaskerBookingDetail() {
     })}`;
   };
 
+  const formatPrice = (price) => {
+    if (!price) return "Chưa có giá";
+    return new Intl.NumberFormat('vi-VN').format(price) + 'đ';
+  };
+
+  const handleStatusUpdate = async (newStatus) => {
+    try {
+      const token = api.getStoredToken();
+      const response = await fetch(`http://localhost:3001/api/bookings/${booking_id}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        alert(`Đã ${newStatus === 'Đã chấp nhận' ? 'chấp nhận' : 'từ chối'} booking thành công!`);
+        navigate('/tasker/bookings');
+      } else {
+        alert('Có lỗi xảy ra khi cập nhật trạng thái');
+      }
+    } catch (err) {
+      console.error('Lỗi khi cập nhật trạng thái:', err);
+      alert('Có lỗi xảy ra khi cập nhật trạng thái');
+    }
+  };
+
   return (
     <Container className="py-5">
-      <h3 className="fw-bold mb-2">Chi tiết công việc</h3>
-      <p className="text-muted mb-4">
-        Xem thông tin khách hàng và yêu cầu công việc
-      </p>
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h3 className="fw-bold mb-2">Chi tiết công việc</h3>
+          <p className="text-muted mb-0">
+            Xem thông tin khách hàng và yêu cầu công việc
+          </p>
+        </div>
+        <div className="text-end">
+          <Badge 
+            bg={
+              status === 'Chờ xử lý' ? 'warning' :
+              status === 'Đã chấp nhận' ? 'info' :
+              status === 'Đang tiến hành' ? 'primary' :
+              status === 'Hoàn thành' ? 'success' :
+              status === 'Hủy' ? 'danger' : 'secondary'
+            } 
+            className="px-3 py-2 fs-6"
+          >
+            {status === 'Chờ xử lý' ? '⏳' :
+             status === 'Đã chấp nhận' ? '✅' :
+             status === 'Đang tiến hành' ? '🔄' :
+             status === 'Hoàn thành' ? '🎉' :
+             status === 'Hủy' ? '❌' : '❓'} {status}
+          </Badge>
+        </div>
+      </div>
 
       <Row className="g-4 align-items-stretch">
         {/* CỘT TRÁI - Thông tin khách hàng */}
@@ -147,16 +166,8 @@ export default function TaskerBookingDetail() {
 
               <div>
                 <span className="fw-medium text-muted">Giá mong muốn</span>
-                <span
-                  className={`fw-bold fs-5 ms-2 ${
-                    final_price != null && final_price !== "" && Number(final_price) !== 0
-                      ? "text-secondary"  
-                      : "text-success"     
-                  }`}
-                >
-                  {expected_price != null && expected_price !== ""
-                    ? `${(Number(expected_price) * 1000).toLocaleString("vi-VN")}đ`
-                    : "Chưa có giá"}
+                <span className="fw-bold text-success fs-5">
+                  {formatPrice(expected_price || final_price)}
                 </span>
               </div>
 
@@ -181,11 +192,11 @@ export default function TaskerBookingDetail() {
           >
             <Card.Body>
               {/* Tiêu đề & mô tả */}
-              <h5 className="fw-bold mb-2">{service_name || "Chưa có tiêu đề"}</h5>
+              <h5 className="fw-bold mb-2">{task_description || "Chưa có tiêu đề"}</h5>
               <h6 className="text-primary fw-semibold mb-2">
                 <i className="bi bi-file-text me-2"></i>Tóm tắt công việc
               </h6>
-              <p className="text-muted">{variant_name || "Không có mô tả."}</p>
+              <p className="text-muted">{task_checklist || "Không có mô tả."}</p>
 
               {/* Ảnh đính kèm */}
               {photos.length > 0 && (
@@ -214,36 +225,18 @@ export default function TaskerBookingDetail() {
               )}
 
               {/* Dịch vụ và giá */}
-              {(Array.isArray(chosenVariants) && chosenVariants.length > 0)
-                ? chosenVariants.map((variant, idx) => (
-                    <div key={idx} className="mb-3">
-                      <h5 className="fw-bold mb-2">
-                        {service_name || "Dịch vụ"} – {variant.variant_name || ""}
-                      </h5>
-                      <div className="text-muted mb-1">
-                        Theo {variant.unit || "giờ"}
-                      </div>
-                      <div className="fw-bold text-primary fs-6">
-                        {variant.price_min && variant.price_max
-                          ? `${(variant.price_min * 1000).toLocaleString("vi-VN")}đ – ${(variant.price_max * 1000).toLocaleString("vi-VN")}đ/${variant.unit || ""}`
-                          : "—"}
-                      </div>
-                    </div>
-                  ))
-                : (
-                  <div className="mb-3">
-                    <h5 className="fw-bold mb-2">
-                      {service_name || "Dịch vụ"} – {variant_name || ""}
-                    </h5>
-                    <div className="text-muted mb-1">
-                      Theo {unit || "giờ"}
-                    </div>
-                    <div className="fw-bold text-primary fs-6">
-                      {price_min && price_max
-                        ? `${(price_min * 1000).toLocaleString("vi-VN")}đ – ${(price_max * 1000).toLocaleString("vi-VN")}đ/${unit || ""}`
-                        : "—"}
-                    </div>
+              {(service_name || variant_name) && (
+                <>
+                  <h5 className="fw-bold mb-2">
+                    {service_name || "Dịch vụ"} – {variant_name || ""}
+                  </h5>
+                  <div className="text-muted mb-1">
+                    Dịch vụ đã chọn
                   </div>
+                  <div className="fw-bold text-primary fs-6">
+                    {formatPrice(expected_price || final_price)}
+                  </div>
+                  </>
                 )}
             </Card.Body>
           </Card>
@@ -252,39 +245,65 @@ export default function TaskerBookingDetail() {
 
       {/* Các nút hành động */}
       <div className="d-flex justify-content-center gap-4 mt-5 flex-wrap">
-        <Button
-          variant="danger"
-          size="lg"
-          className="px-5 fw-semibold"
-          style={{ borderRadius: "10px", minWidth: "160px" }}
-        >
-          ❌ Từ chối công việc
-        </Button>
+        {status === 'Chờ xử lý' && (
+          <>
+            <Button
+              variant="danger"
+              size="lg"
+              className="px-5 fw-semibold"
+              style={{ borderRadius: "10px", minWidth: "160px" }}
+              onClick={() => handleStatusUpdate('Hủy')}
+            >
+              ❌ Từ chối công việc
+            </Button>
 
-        <Button
-          variant="success"
-          size="lg"
-          className="px-5 fw-semibold"
-          style={{ borderRadius: "10px", minWidth: "160px" }}
-        >
-          ▶ Bắt đầu công việc
-        </Button>
-        
-        <NegotiatePriceButton
-          peerId={customer_id}
-          bookingId={booking_id}
-          label="Thương lượng giá"
-          size="md"
-          onClick={() => {
-            window.location.href = `/chat?bookingId=${booking_id}&negotiation=1&peer=${customer_id}`;
-          }}
-        />
-      </div>
+            <Button
+              variant="success"
+              size="lg"
+              className="px-5 fw-semibold"
+              style={{ borderRadius: "10px", minWidth: "160px" }}
+              onClick={() => handleStatusUpdate('Đã chấp nhận')}
+            >
+              ✅ Chấp nhận công việc
+            </Button>
+          </>
+        )}
 
-      <div className="text-center mt-3">
-        <Badge bg="secondary" className="px-3 py-2">
-          {status}
-        </Badge>
+        {status === 'Đã chấp nhận' && (
+          <Button
+            variant="info"
+            size="lg"
+            className="px-5 fw-semibold"
+            style={{ borderRadius: "10px", minWidth: "160px" }}
+            onClick={() => handleStatusUpdate('Đang tiến hành')}
+          >
+            ▶ Bắt đầu công việc
+          </Button>
+        )}
+
+        {status === 'Đang tiến hành' && (
+          <Button
+            variant="primary"
+            size="lg"
+            className="px-5 fw-semibold"
+            style={{ borderRadius: "10px", minWidth: "160px" }}
+            onClick={() => handleStatusUpdate('Hoàn thành')}
+          >
+            ✅ Hoàn thành
+          </Button>
+        )}
+
+        {status !== 'Hủy' && status !== 'Hoàn thành' && (
+          <Button
+            variant="outline-primary"
+            size="lg"
+            className="px-5 fw-semibold"
+            style={{ borderRadius: "10px", minWidth: "180px" }}
+            onClick={() => navigate("/chat")}
+          >
+            💬 Chat thương lượng
+          </Button>
+        )}
       </div>
     </Container>
   );

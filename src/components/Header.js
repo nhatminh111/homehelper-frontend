@@ -223,10 +223,16 @@ const Header = () => {
                       </Link>
 
                       {isTasker() && (
-                        <Link className="dropdown-item" to="/tasker">
-                          <FontAwesomeIcon icon={faTools} className="mr-2" />
-                          Bảng điều khiển Tasker
-                        </Link>
+                        <>
+                          <Link className="dropdown-item" to="/tasker">
+                            <FontAwesomeIcon icon={faTools} className="mr-2" />
+                            Bảng điều khiển Tasker
+                          </Link>
+                          <Link className="dropdown-item" to="/tasker/bookings">
+                            <FontAwesomeIcon icon={faTasks} className="mr-2" />
+                            Xem Booking
+                          </Link>
+                        </>
                       )}
 
                     {isAdmin() && (
@@ -436,10 +442,16 @@ const Header = () => {
                   Blog của tôi
                 </Link>
                 {isTasker() && (
-                  <Link to="/tasker" onClick={() => setIsSidebarOpen(false)}>
-                    <FontAwesomeIcon icon={faTools} className="mr-2" />
-                    Bảng điều khiển Tasker
-                  </Link>
+                  <>
+                    <Link to="/tasker" onClick={() => setIsSidebarOpen(false)}>
+                      <FontAwesomeIcon icon={faTools} className="mr-2" />
+                      Bảng điều khiển Tasker
+                    </Link>
+                    <Link to="/tasker/bookings" onClick={() => setIsSidebarOpen(false)}>
+                      <FontAwesomeIcon icon={faTasks} className="mr-2" />
+                      Xem Booking
+                    </Link>
+                  </>
                 )}
                 {isAdmin() && (
                   <Link to="/admin" onClick={() => setIsSidebarOpen(false)}>
