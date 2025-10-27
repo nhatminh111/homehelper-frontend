@@ -1,12 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faFacebook,
-  faTwitter,
-  faInstagram,
-  faDribbble,
-} from "@fortawesome/free-brands-svg-icons";
+import { faFacebook, faTwitter, faInstagram, faDribbble } from "@fortawesome/free-brands-svg-icons";
 import {
   faBars,
   faUser as faUserSolid,
@@ -22,6 +17,7 @@ import {
   faHome,
   faInfoCircle,
   faTools,
+  faCertificate,
   faProjectDiagram,
   faNewspaper,
   faEnvelope,
@@ -153,9 +149,11 @@ const Header = () => {
                 </Link>
               </li> */}
 
-              <li className={`nav-item ${isActive('/become-tasker')}`}>
-                <Link to="/become-tasker" className="nav-link">Become a Tasker</Link>
-              </li>
+              {!(isStaff() || isAdmin() || isTasker()) && (
+                <li className={`nav-item ${isActive('/become-tasker')}`}>
+                  <Link to="/become-tasker" className="nav-link">Become a Tasker</Link>
+                </li>
+              )}
 
               {/* Auth Menu */}
               {isAuthenticated() ? (
@@ -225,10 +223,16 @@ const Header = () => {
                       </Link>
 
                       {isTasker() && (
-                        <Link className="dropdown-item" to="/tasker">
-                          <FontAwesomeIcon icon={faTools} className="mr-2" />
-                          Bảng điều khiển Tasker
-                        </Link>
+                        <>
+                          <Link className="dropdown-item" to="/tasker">
+                            <FontAwesomeIcon icon={faTools} className="mr-2" />
+                            Bảng điều khiển Tasker
+                          </Link>
+                          <Link className="dropdown-item" to="/tasker/bookings">
+                            <FontAwesomeIcon icon={faTasks} className="mr-2" />
+                            Xem Booking
+                          </Link>
+                        </>
                       )}
 
                     {isAdmin() && (
@@ -243,10 +247,16 @@ const Header = () => {
                         Approve Taskers
                       </Link>
                     )}
-                    {(isStaff() || isAdmin()) && (
-                      <Link className="dropdown-item" to="/staff/applications">
+                    {isStaff() && (
+                      <Link className="dropdown-item" to="/staff/dashboard/applications">
                         <FontAwesomeIcon icon={faCog} className="mr-2" />
-                        Đơn Tasker (mới)
+                        Đơn Tasker
+                      </Link>
+                    )}
+                    {isStaff() && (
+                      <Link className="dropdown-item" to="/staff/dashboard/certifications">
+                        <FontAwesomeIcon icon={faCertificate} className="mr-2" />
+                        Duyệt chứng chỉ
                       </Link>
                     )}
 
@@ -256,10 +266,17 @@ const Header = () => {
                         <FontAwesomeIcon icon={faWallet} className="mr-2" />
                         Ví tiền
                       </Link>
-                      <Link className="dropdown-item" to="/account">
-                        <FontAwesomeIcon icon={faUserSolid} className="mr-2" />
-                        Hồ sơ của tôi
-                      </Link>
+                      {!isTasker() ? (
+                        <Link className="dropdown-item" to="/account">
+                          <FontAwesomeIcon icon={faUserSolid} className="mr-2" />
+                          Hồ sơ của tôi
+                        </Link>
+                      ) : (
+                        <Link className="dropdown-item" to={user ? `/tasker-profile/${user.user_id}` : "/account"}>
+                          <FontAwesomeIcon icon={faUserSolid} className="mr-2" />
+                          Hồ sơ của tôi
+                        </Link>
+                      )}
                       <Link className="dropdown-item" to="/tasks">
                         <FontAwesomeIcon icon={faTasks} className="mr-2" />
                         Công việc của tôi
@@ -425,10 +442,16 @@ const Header = () => {
                   Blog của tôi
                 </Link>
                 {isTasker() && (
-                  <Link to="/tasker" onClick={() => setIsSidebarOpen(false)}>
-                    <FontAwesomeIcon icon={faTools} className="mr-2" />
-                    Bảng điều khiển Tasker
-                  </Link>
+                  <>
+                    <Link to="/tasker" onClick={() => setIsSidebarOpen(false)}>
+                      <FontAwesomeIcon icon={faTools} className="mr-2" />
+                      Bảng điều khiển Tasker
+                    </Link>
+                    <Link to="/tasker/bookings" onClick={() => setIsSidebarOpen(false)}>
+                      <FontAwesomeIcon icon={faTasks} className="mr-2" />
+                      Xem Booking
+                    </Link>
+                  </>
                 )}
                 {isAdmin() && (
                   <Link to="/admin" onClick={() => setIsSidebarOpen(false)}>

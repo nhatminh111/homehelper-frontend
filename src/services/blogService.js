@@ -214,7 +214,7 @@ class BlogService {
   // Lấy bookings của user hiện tại (để chọn liên kết post)
   async getMyBookings(params = {}) {
     try {
-      const response = await api.get('/bookings/my', { params });
+      const response = await api.get('/bookings/mybookings', { params });
       return response.data;
     } catch (error) {
       console.error('Error fetching my bookings:', error);
