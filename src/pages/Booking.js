@@ -1453,11 +1453,11 @@ export default function Booking() {
                                             className="nav-btn"
                                             onClick={() => {
                                                 const startISO = selection.date && selection.startTime
-                                                    ? new Date(`${selection.date}T${selection.startTime}`).toISOString()
+                                                    ? new Date(`${selection.date}T${selection.startTime}:00`).toISOString()
                                                     : null;
 
                                                 const endISO = selection.date && selection.endTime
-                                                    ? new Date(`${selection.date}T${selection.endTime}`).toISOString()
+                                                    ? new Date(`${selection.date}T${selection.endTime}:00`).toISOString()
                                                     : null;
 
                                                 const payload = {
