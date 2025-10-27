@@ -64,10 +64,11 @@ import CustomerHome from './pages/customer/CustomerHome';
 import ChatPage from './pages/Chat';
 import CCCDExtractor from './pages/CCCDExtractor';
 import BecomeTasker from './pages/BecomeTasker';
-import TaskerApprovals from './pages/admin/TaskerApprovals';
 import Wishlist from "./pages/Wishlist";
-import StaffApplications from './pages/StaffApplications';
 import { Navigate } from 'react-router-dom';
+import StaffApplications from './pages/StaffApplications';
+import StaffCertifications from './pages/StaffCertifications';
+import StaffDashboard from './pages/StaffDashboard';
 function App() {
   return (
     <AuthProvider>
@@ -225,16 +226,14 @@ function App() {
                   <AdminHome />
                 </ProtectedRoute>
               } />
-              <Route path="/tasker-approvals" element={
+              <Route path="/staff/dashboard" element={
                 <ProtectedRoute requiredRole="Staff">
-                  <TaskerApprovals />
+                  <StaffDashboard />
                 </ProtectedRoute>
-              } />
-              <Route path="/staff/applications" element={
-                <ProtectedRoute requiredRole="Staff">
-                  <StaffApplications />
-                </ProtectedRoute>
-              } />
+              }>
+                <Route path="applications" element={<StaffApplications />} />
+                <Route path="certifications" element={<StaffCertifications />} />
+              </Route>
               <Route path="/staff" element={<Navigate to="/staff/applications" replace />} />
             </Routes>
             </main>
