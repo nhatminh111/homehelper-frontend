@@ -43,20 +43,21 @@ import ResetPassword from "./pages/auth/ResetPassword";
 import AuthDemo from "./pages/auth/AuthDemo";
 
 // Import new pages for functional objectives
-import Dashboard from "./pages/Dashboard";
-import TaskerSearch from "./pages/TaskerSearch";
-import TaskerProfile from "./pages/TaskerProfile";
-import AccountManagement from "./pages/AccountManagement";
-import TaskManagement from "./pages/TaskManagement";
-import PaymentInvoicing from "./pages/PaymentInvoicing";
-import RatingComplaints from "./pages/RatingComplaints";
-import ContentManagement from "./pages/ContentManagement";
-import VideoUpload from "./pages/VideoUpload";
-import TaskerManagement from "./pages/TaskerManagement";
-import AIInteraction from "./pages/AIInteraction";
-import SystemManagement from "./pages/SystemManagement";
-import QuotesPage from "./pages/QuotesPage";
-import VideoManager from "./pages/VideoManager";
+import Dashboard from './pages/Dashboard';
+import TaskerSearch from './pages/TaskerSearch';
+import TaskerProfile from './pages/TaskerProfile';
+import AccountManagement from './pages/AccountManagement';
+import TaskManagement from './pages/TaskManagement';
+import PaymentInvoicing from './pages/PaymentInvoicing';
+import RatingComplaints from './pages/RatingComplaints';
+import ContentManagement from './pages/ContentManagement';
+import VideoUpload from './pages/VideoUpload';
+import TaskerManagement from './pages/TaskerManagement';
+import AIInteraction from './pages/AIInteraction';
+import SystemManagement from './pages/SystemManagement';
+import QuotesPage from './pages/QuotesPage';
+import VideoManager from './pages/VideoManager';
+
 // import NegotiateSessionTest from './pages/NegotiateSessionTest';
 // Role landing pages
 import TaskerHome from "./pages/tasker/TaskerHome";
@@ -188,107 +189,72 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
-                <Route
-                  path="/content"
-                  element={
-                    <ProtectedRoute requiredRole="Admin">
-                      <ContentManagement />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/videostaff"
-                  element={
-                    <ProtectedRoute requiredRole="Staff">
-                      <VideoUpload />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/tasker-management"
-                  element={
-                    <ProtectedRoute requiredRole="Admin">
-                      <TaskerManagement />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/ai-chat"
-                  element={
-                    <ProtectedRoute>
-                      <AIInteraction />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/system"
-                  element={
-                    <ProtectedRoute requiredRole="Admin">
-                      <SystemManagement />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/chat"
-                  element={
-                    <ProtectedRoute>
-                      <ChatPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/chat/:conversationId"
-                  element={
-                    <ProtectedRoute>
-                      <ChatPage />
-                    </ProtectedRoute>
-                  }
-                />
-                {/* Role landing */}
-                <Route
-                  path="/tasker"
-                  element={
-                    <ProtectedRoute requiredRole="Tasker">
-                      <TaskerHome />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/customer"
-                  element={
-                    <ProtectedRoute requiredRole="Customer">
-                      <CustomerHome />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/admin"
-                  element={
-                    <ProtectedRoute requiredRole="Admin">
-                      <AdminHome />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/staff/dashboard"
-                  element={
-                    <ProtectedRoute requiredRole="Staff">
-                      <StaffDashboard />
-                    </ProtectedRoute>
-                  }
-                >
-                  <Route path="applications" element={<StaffApplications />} />
-                  <Route
-                    path="certifications"
-                    element={<StaffCertifications />}
-                  />
-                  <Route path="blogs" element={<StaffBlogs />} />
-                </Route>
-                <Route
-                  path="/staff"
-                  element={<Navigate to="/staff/applications" replace />}
-                />
-              </Routes>
+              <Route path="/content" element={
+                <ProtectedRoute requiredRole="Admin">
+                  <ContentManagement />
+                </ProtectedRoute>
+              } />
+              <Route path="/videostaff" element={
+                <ProtectedRoute requiredRole="Staff">
+                  <VideoUpload />
+                </ProtectedRoute>
+              } />
+              <Route path="/tasker-management" element={
+                <ProtectedRoute requiredRole="Admin">
+                  <TaskerManagement />
+                </ProtectedRoute>
+              } />
+              <Route path="/ai-chat" element={
+                <ProtectedRoute>
+                  <AIInteraction />
+                </ProtectedRoute>
+              } />
+              <Route path="/system" element={
+                <ProtectedRoute requiredRole="Admin">
+                  <SystemManagement />
+                </ProtectedRoute>
+              } />
+              <Route path="/chat" element={
+                <ProtectedRoute>
+                  <ChatPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/chat/:conversationId" element={
+                <ProtectedRoute>
+                  <ChatPage />
+                </ProtectedRoute>
+              } />
+              {/* <Route path="/negotiate-session-test" element={
+                <ProtectedRoute>
+                  <NegotiateSessionTest />
+                </ProtectedRoute>
+              } /> */}
+              {/* Role landing */}
+              <Route path="/tasker" element={
+                <ProtectedRoute requiredRole="Tasker">
+                  <TaskerHome />
+                </ProtectedRoute>
+              } />
+              <Route path="/customer" element={
+                <ProtectedRoute requiredRole="Customer">
+                  <CustomerHome />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin" element={
+                <ProtectedRoute requiredRole="Admin">
+                  <AdminHome />
+                </ProtectedRoute>
+              } />
+              <Route path="/staff/dashboard" element={
+                <ProtectedRoute requiredRole="Staff">
+                  <StaffDashboard />
+                </ProtectedRoute>
+              }>
+                <Route path="applications" element={<StaffApplications />} />
+                <Route path="certifications" element={<StaffCertifications />} />
+              </Route>
+              <Route path="/staff" element={<Navigate to="/staff/applications" replace />} />
+            </Routes>
             </main>
             <Footer />
           </div>
