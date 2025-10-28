@@ -103,17 +103,24 @@ export default function TaskerBookings() {
     return <Badge bg={statusInfo.variant}>{statusInfo.text}</Badge>;
   };
 
-  const formatDateTime = (dateTime) => {
-    if (!dateTime) return '—';
-    const date = new Date(dateTime);
-    return date.toLocaleString('vi-VN', {
-      weekday: 'long',
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const endsWithZ = /z$/i.test(String(dateString)); // ISO UTC like 2025-09-20T12:07:00Z
+    const options = {
       year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
+      month: 'long',
+      day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
-    });
+      minute: '2-digit',
+      hour12: false,
+    };
+    // If the input is explicitly UTC (ends with 'Z'), format in UTC to avoid +7h shift
+    if (endsWithZ) {
+      return new Intl.DateTimeFormat('vi-VN', { ...options, timeZone: 'UTC' }).format(date);
+    }
+    // Otherwise, render with default locale settings
+    return new Intl.DateTimeFormat('vi-VN', options).format(date);
   };
 
   const formatPrice = (price) => {
@@ -281,7 +288,7 @@ export default function TaskerBookings() {
                         <h5 className="fw-bold mb-1 text-primary">#{booking.booking_id}</h5>
                         <small className="text-muted">
                           <i className="bi bi-calendar-event me-1"></i>
-                          {formatDateTime(booking.booking_time)}
+                          {formatDate(booking.booking_time)}
                         </small>
                       </div>
                       {getStatusBadge(booking.status)}
@@ -334,7 +341,7 @@ export default function TaskerBookings() {
                     <div className="mb-3">
                       <div className="d-flex align-items-center text-muted small">
                         <i className="bi bi-calendar me-2"></i>
-                        <span>{formatDateTime(booking.start_time)}</span>
+                        <span>{formatDate(booking.start_time)}</span>
                       </div>
                     </div>
 
