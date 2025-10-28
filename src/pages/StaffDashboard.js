@@ -1,7 +1,11 @@
 import React from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faClipboardList, faCertificate } from "@fortawesome/free-solid-svg-icons";
+import {
+  faClipboardList,
+  faCertificate,
+  faNewspaper,
+} from "@fortawesome/free-solid-svg-icons";
 import "../css/StaffDashboard.css";
 
 const tabs = [
@@ -14,6 +18,11 @@ const tabs = [
     name: "Duyệt chứng chỉ",
     path: "/staff/dashboard/certifications",
     icon: faCertificate,
+  },
+  {
+    name: "Duyệt bài viết",
+    path: "/staff/dashboard/blogs",
+    icon: faNewspaper,
   },
 ];
 
@@ -28,7 +37,9 @@ export default function StaffDashboard() {
             <Link
               key={tab.path}
               to={tab.path}
-              className={`sidebar-link${location.pathname.startsWith(tab.path) ? " active" : ""}`}
+              className={`sidebar-link${
+                location.pathname.startsWith(tab.path) ? " active" : ""
+              }`}
             >
               <FontAwesomeIcon icon={tab.icon} className="mr-2" />
               {tab.name}
