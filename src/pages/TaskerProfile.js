@@ -207,7 +207,13 @@ const createHeaders = (token = null) => {
 
 const TaskerProfile = () => {
   const { id } = useParams();
-  const { user, token, loading: authLoading, isAuthenticated } = useAuth();
+  const {
+    user,
+    token,
+    loading: authLoading,
+    isAuthenticated,
+    isStaff,
+  } = useAuth();
   const [tasker, setTasker] = useState(null);
   const [reviewsData, setReviewsData] = useState({
     reviews: [],
@@ -412,12 +418,15 @@ const TaskerProfile = () => {
   useEffect(() => {
     if (skipFetch) return;
     if (activeTab === "reviews" && id) {
-      fetch(`${API_BASE_URL}/ratings/${id}`)
+      const userIdParam = user?.user_id ? `?userId=${user.user_id}` : "";
+      fetch(`${API_BASE_URL}/ratings/${id}${userIdParam}`, {
+        headers: createHeaders(token),
+      })
         .then((res) => res.json())
         .then((data) => setReviewsData(data || { reviews: [] }))
         .catch((err) => console.error(err));
     }
-  }, [activeTab, id, skipFetch]);
+  }, [activeTab, id, skipFetch, user, token]);
 
   // reset flag mỗi khi đổi tab
   useEffect(() => setSkipFetch(false), [activeTab]);
@@ -486,13 +495,8 @@ const TaskerProfile = () => {
 
       const status = data.status ?? data.rating?.status;
 
-      if (status === 1 || status === 0) {
-        alert(
-          data.message ||
-            (status === 1
-              ? "Đánh giá đã được đăng thành công."
-              : "Đánh giá của bạn đang chờ duyệt.")
-        );
+      if (status === 1) {
+        alert(data.message || "Đánh giá đã được đăng thành công.");
 
         // 🟢 Sau khi submit thành công -> Fetch lại toàn bộ danh sách review từ server
         await fetch(`${API_BASE_URL}/ratings/${id}`)
@@ -846,40 +850,197 @@ const TaskerProfile = () => {
                                 <span className="badge bg-primary me-2">
                                   Verified
                                 </span>
-                                {review.status === 0 && (
-                                  <span className="badge bg-secondary ms-2">
-                                    Pending
-                                  </span>
-                                )}
-                                <div>
-                                  {[1, 2, 3, 4, 5].map((star) => (
-                                    <FontAwesomeIcon
-                                      key={star}
-                                      icon={faStar}
-                                      className={
-                                        star <= (review?.rating || 0)
-                                          ? "text-warning"
-                                          : "text-muted"
-                                      }
-                                    />
-                                  ))}
-                                </div>
                               </div>
 
                               {/* Date */}
                               <small className="text-muted d-block mb-2">
                                 {review.date ? review.date.split("T")[0] : ""}
                               </small>
+                              <div>
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                  <FontAwesomeIcon
+                                    key={star}
+                                    icon={faStar}
+                                    className={
+                                      star <= (review?.rating || 0)
+                                        ? "text-warning"
+                                        : "text-muted"
+                                    }
+                                  />
+                                ))}
+                              </div>
 
                               {/* Comment */}
                               <p className="mb-2">
                                 {review?.text || "Không có nhận xét."}
                               </p>
+                              {/* Staff Reply */}
+                              {review.staff_reply && (
+                                <div className="mt-2 ms-4 p-2 bg-light border-start border-primary rounded">
+                                  <strong>Phản hồi từ tasker:</strong>{" "}
+                                  <span>{review.staff_reply}</span>
+                                </div>
+                              )}
+                              {/* ✅ Nếu người dùng hiện tại chính là tasker (người được đánh giá) */}
+                              {user?.user_id === review.reviewee_id &&
+                                !review.staff_reply && (
+                                  <div className="mt-3 ms-4 p-2 border rounded bg-light">
+                                    <label className="form-label fw-semibold">
+                                      Phản hồi:
+                                    </label>
+                                    <textarea
+                                      className="form-control mb-2"
+                                      rows="2"
+                                      placeholder="Nhập phản hồi của bạn..."
+                                      value={review.replyDraft || ""}
+                                      onChange={(e) => {
+                                        const updatedReviews =
+                                          reviewsData.reviews.map((r) =>
+                                            r.id === review.id
+                                              ? {
+                                                  ...r,
+                                                  replyDraft: e.target.value,
+                                                }
+                                              : r
+                                          );
+                                        setReviewsData({
+                                          ...reviewsData,
+                                          reviews: updatedReviews,
+                                        });
+                                      }}
+                                    />
+                                    <button
+                                      className="btn btn-sm btn-primary"
+                                      onClick={async () => {
+                                        try {
+                                          const res = await fetch(
+                                            `${API_BASE_URL}/ratings/${review.id}/reply`,
+                                            {
+                                              method: "POST",
+                                              headers: {
+                                                "Content-Type":
+                                                  "application/json",
+                                                Authorization: `Bearer ${token}`,
+                                              },
+                                              body: JSON.stringify({
+                                                reply: review.replyDraft,
+                                              }),
+                                            }
+                                          );
+
+                                          if (res.ok) {
+                                            alert("Phản hồi đã được gửi!");
+
+                                            // 🟢 Cập nhật trực tiếp vào state để hiển thị ngay lập tức
+                                            const updatedReviews =
+                                              reviewsData.reviews.map((r) =>
+                                                r.id === review.id
+                                                  ? {
+                                                      ...r,
+                                                      staff_reply:
+                                                        review.replyDraft,
+                                                    }
+                                                  : r
+                                              );
+
+                                            setReviewsData({
+                                              ...reviewsData,
+                                              reviews: updatedReviews,
+                                            });
+
+                                            // (Tuỳ chọn) nếu muốn load lại từ server:
+                                            // const refreshed = await fetch(`${API_BASE_URL}/ratings/${id}`);
+                                            // const updated = await refreshed.json();
+                                            // setReviewsData(updated || { reviews: [] });
+                                          } else {
+                                            const err = await res.json();
+                                            alert(
+                                              `❌ Không thể gửi phản hồi: ${
+                                                err.message ||
+                                                "Lỗi không xác định."
+                                              }`
+                                            );
+                                          }
+                                        } catch (error) {
+                                          console.error(
+                                            "❌ Lỗi khi gửi phản hồi:",
+                                            error
+                                          );
+                                          alert(
+                                            "Lỗi kết nối hoặc máy chủ. Vui lòng thử lại."
+                                          );
+                                        }
+                                      }}
+                                    >
+                                      Gửi phản hồi
+                                    </button>
+                                  </div>
+                                )}
 
                               {/* Helpful button */}
-                              <button className="btn btn-sm btn-outline-secondary">
-                                👍 Helpful ({review.helpful || 0})
-                              </button>
+                              {user?.user_id !== review.reviewer_id && (
+                                <div className="mt-3 d-flex justify-content-start">
+                                  <button
+                                    className={`btn btn-sm ${
+                                      review.userLiked
+                                        ? "btn-success"
+                                        : "btn-outline-secondary"
+                                    }`}
+                                    style={{
+                                      borderRadius: "20px",
+                                      padding: "4px 12px",
+                                      marginTop: "6px",
+                                    }}
+                                    onClick={async () => {
+                                      try {
+                                        const res = await fetch(
+                                          `${API_BASE_URL}/ratings/${review.id}/helpful`,
+                                          {
+                                            method: "POST",
+                                            headers: createHeaders(token),
+                                          }
+                                        );
+
+                                        if (!res.ok) {
+                                          const err = await res.json();
+                                          alert(
+                                            err.message ||
+                                              "Không thể cập nhật lượt hữu ích."
+                                          );
+                                          return;
+                                        }
+
+                                        const data = await res.json();
+
+                                        // Update trực tiếp theo backend
+                                        const updatedReviews =
+                                          reviewsData.reviews.map((r) =>
+                                            r.id === review.id
+                                              ? {
+                                                  ...r,
+                                                  helpful: data.helpful,
+                                                  userLiked: data.liked,
+                                                }
+                                              : r
+                                          );
+
+                                        setReviewsData({
+                                          ...reviewsData,
+                                          reviews: updatedReviews,
+                                        });
+                                      } catch (error) {
+                                        console.error(
+                                          "❌ Lỗi khi bấm hữu ích:",
+                                          error
+                                        );
+                                        alert("Lỗi kết nối hoặc máy chủ.");
+                                      }
+                                    }}
+                                  >
+                                    👍 Hữu ích ({review.helpful || 0})
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
