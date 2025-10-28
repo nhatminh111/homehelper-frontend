@@ -31,6 +31,8 @@ import Wallet from './pages/Wallet';
 import Booking from './pages/Booking';
 import JobDescription from './pages/JobDescription';
 import Contract from './pages/Contract';
+import TaskerBookingDetail from "./pages/TaskerBookingDetail";
+import TaskerBookings from "./pages/TaskerBookings";
 
 // Import authentication pages
 import Login from './pages/auth/Login';
@@ -62,10 +64,11 @@ import CustomerHome from './pages/customer/CustomerHome';
 import ChatPage from './pages/Chat';
 import CCCDExtractor from './pages/CCCDExtractor';
 import BecomeTasker from './pages/BecomeTasker';
-import TaskerApprovals from './pages/admin/TaskerApprovals';
 import Wishlist from "./pages/Wishlist";
-import StaffApplications from './pages/StaffApplications';
 import { Navigate } from 'react-router-dom';
+import StaffApplications from './pages/StaffApplications';
+import StaffCertifications from './pages/StaffCertifications';
+import StaffDashboard from './pages/StaffDashboard';
 function App() {
   return (
     <AuthProvider>
@@ -115,7 +118,13 @@ function App() {
               <Route path="/payment-result" element={<PaymentResult />} />
               <Route path="/wallet" element={<Wallet />} />
               <Route path="/cccd" element={<CCCDExtractor />} />
-              <Route path="/booking" element={<Booking />} />
+              <Route path="/booking/:taskerId" element={<Booking />} />
+              <Route path="/tasker/bookings/:id" element={<TaskerBookingDetail />} />
+              <Route path="/tasker/bookings" element={
+                <ProtectedRoute requiredRole="Tasker">
+                  <TaskerBookings />
+                </ProtectedRoute>
+              } />
               <Route path="/job-description" element={<JobDescription />} />
               <Route path="/contract" element={<Contract />} />
 
@@ -171,8 +180,8 @@ function App() {
                   <ContentManagement />
                 </ProtectedRoute>
               } />
-              <Route path="/video-upload" element={
-                <ProtectedRoute requiredRole="Tasker">
+              <Route path="/videostaff" element={
+                <ProtectedRoute requiredRole="Staff">
                   <VideoUpload />
                 </ProtectedRoute>
               } />
@@ -201,11 +210,6 @@ function App() {
                   <ChatPage />
                 </ProtectedRoute>
               } />
-              {/* <Route path="/negotiate-session-test" element={
-                <ProtectedRoute>
-                  <NegotiateSessionTest />
-                </ProtectedRoute>
-              } /> */}
               {/* Role landing */}
               <Route path="/tasker" element={
                 <ProtectedRoute requiredRole="Tasker">
@@ -222,16 +226,14 @@ function App() {
                   <AdminHome />
                 </ProtectedRoute>
               } />
-              <Route path="/tasker-approvals" element={
+              <Route path="/staff/dashboard" element={
                 <ProtectedRoute requiredRole="Staff">
-                  <TaskerApprovals />
+                  <StaffDashboard />
                 </ProtectedRoute>
-              } />
-              <Route path="/staff/applications" element={
-                <ProtectedRoute requiredRole="Staff">
-                  <StaffApplications />
-                </ProtectedRoute>
-              } />
+              }>
+                <Route path="applications" element={<StaffApplications />} />
+                <Route path="certifications" element={<StaffCertifications />} />
+              </Route>
               <Route path="/staff" element={<Navigate to="/staff/applications" replace />} />
             </Routes>
             </main>

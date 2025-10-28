@@ -93,7 +93,12 @@ const Login = () => {
 
     try {
       // Gọi login từ AuthContext
+
       const response = await login(formData);
+
+      // ✅ Lấy user có token từ AuthContext (đã gắn sẵn)
+      const storedUser = JSON.parse(localStorage.getItem("user"));
+      console.log("✅ [Login.js] Stored user from AuthContext:", storedUser);
 
       // Lưu user info + token vào localStorage
       const userData = {
@@ -103,8 +108,6 @@ const Login = () => {
         role: response.user.role,
         token: response.token, // bắt buộc token để gọi API bảo mật
       };
-      localStorage.setItem("user", JSON.stringify(userData));
-      localStorage.setItem("role", response.user.role);
 
       console.log("Login successful, stored user:", userData);
 
@@ -126,9 +129,8 @@ const Login = () => {
 
   return (
     <div
-      className={`auth-container ${
-        userType === "tasker" ? "yellow-theme" : ""
-      }`}
+      className={`auth-container ${userType === "tasker" ? "yellow-theme" : ""
+        }`}
     >
       <div className="auth-background">
         {/* Background decorative shapes */}

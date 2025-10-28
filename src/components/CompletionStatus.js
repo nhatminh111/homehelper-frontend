@@ -1,11 +1,12 @@
 import { Card } from "react-bootstrap";
 
-export default function CompletionStatus({ jobTitle, description, photos }) {
+export default function CompletionStatus({ jobTitle, description, photos, expectedPrice  }) {
   // kiểm tra dữ liệu form
   const status = {
     jobTitle: jobTitle?.trim() !== "",
     description: description?.trim() !== "",
     photos: photos && photos.length > 0,
+    expectedPrice: expectedPrice?.trim() !== "",
   };
 
   // render icon tick hoặc vòng tròn xám
@@ -19,6 +20,7 @@ export default function CompletionStatus({ jobTitle, description, photos }) {
         border: `2px solid ${done ? "#4caf50" : "#ccc"}`,
         backgroundColor: done ? "#4caf50" : "transparent",
         flexShrink: 0,
+        transition: "all 0.2s ease-in-out",
       }}
     >
       {done && (
@@ -43,9 +45,13 @@ export default function CompletionStatus({ jobTitle, description, photos }) {
             <span className="text-dark fw-medium">Mô tả</span>
             {renderStatusIcon(status.description)}
           </li>
-          <li className="d-flex justify-content-between align-items-center">
+          <li className="d-flex justify-content-between align-items-center mb-3">
             <span className="text-dark fw-medium">Ảnh</span>
             {renderStatusIcon(status.photos)}
+          </li>
+          <li className="d-flex justify-content-between align-items-center">
+            <span className="text-dark fw-medium">Giá mong muốn</span>
+            {renderStatusIcon(status.expectedPrice)}
           </li>
         </ul>
       </Card.Body>

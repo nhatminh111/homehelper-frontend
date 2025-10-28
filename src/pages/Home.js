@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
 import { useAuth } from "../contexts/AuthContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -11,20 +10,25 @@ import {
   faHeart as faHeartSolid,
 } from "@fortawesome/free-solid-svg-icons";
 import { faHeart as faHeartRegular } from "@fortawesome/free-regular-svg-icons";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import TaskerService from "../services/taskerService"; // Import TaskerService
 
 const Home = () => {
   const [services, setServices] = useState([]);
   const [searchName, setSearchName] = useState("");
   const [selectedService, setSelectedService] = useState("");
   const [taskers, setTaskers] = useState([]);
+  const [loading, setLoading] = useState(false); // Thêm trạng thái loading
+  const [error, setError] = useState(null); // Thêm trạng thái error
   const { user, token } = useAuth();
   const [wishlistTaskers, setWishlistTaskers] = useState([]);
+  const navigate = useNavigate();
 
   const createHeaders = (token) => ({
     "Content-Type": "application/json",
     Authorization: `Bearer ${token}`,
   });
+
   // Load wishlist for current user
   useEffect(() => {
     if (user && token) {
@@ -94,31 +98,67 @@ const Home = () => {
     fetch("http://localhost:3001/api/services/servicebasic")
       .then((res) => res.json())
       .then((resData) => {
-        setServices(resData.data || []); // <-- lấy data bên trong
+        setServices(resData.data || []);
       })
       .catch((err) => console.error("Error loading services:", err));
   }, []);
 
   const handleSearch = async () => {
+    setLoading(true);
+    setError(null);
     try {
+      // 1. Gọi API tìm kiếm Tasker (giữ nguyên logic cũ)
       const res = await fetch(
         `http://localhost:3001/api/tasker?search=${searchName}&serviceId=${selectedService}`
       );
-
-      if (!res.ok)
-        throw new Error(`Network response was not ok: ${res.status}`);
-
+      if (!res.ok) throw new Error(`Phản hồi mạng không ổn: ${res.status}`);
       const result = await res.json();
-      // Lấy mảng taskers thực sự từ data.data
-      setTaskers(Array.isArray(result.data) ? result.data : []);
-      console.log("Taskers fetched:", result.data);
+      const taskersData = Array.isArray(result.data) ? result.data : [];
+
+      if (!user || !token) {
+        // Nếu chưa đăng nhập, hiển thị taskers mà không có khoảng cách mới
+        setTaskers(taskersData.map(t => ({
+          ...t,
+          tasker_id: t.tasker_id || t.user_id,
+          distance_km: null
+        })));
+        setLoading(false);
+        return;
+      }
+
+      // 2. Gọi API lấy khoảng cách
+      let distanceResult = [];
+      try {
+        distanceResult = await TaskerService.getTaskersWithDistance();
+      } catch (distanceError) {
+        console.warn('Không thể lấy dữ liệu khoảng cách, tiếp tục mà không có dữ liệu khoảng cách:', distanceError);
+        setTaskers(taskersData.map(t => ({
+          ...t,
+          tasker_id: t.tasker_id || t.user_id,
+          distance_km: null
+        })));
+        setLoading(false);
+        return;
+      }
+
+      const distanceMap = new Map(distanceResult.map(t => [t.user_id, t.distance_km]));
+
+      // 3. Kết hợp khoảng cách vào taskers
+      const taskersWithDistance = taskersData.map(tasker => ({
+        ...tasker,
+        tasker_id: tasker.tasker_id || tasker.user_id, // Chuẩn hóa ID
+        distance_km: distanceMap.get(tasker.tasker_id || tasker.user_id) || null
+      }));
+
+      setTaskers(taskersWithDistance);
     } catch (err) {
-      console.error("Error loading taskers:", err);
-      setTaskers([]); // tránh crash
+      console.error("Lỗi khi tải danh sách Tasker:", err);
+      setError("Không thể tải danh sách Tasker. Vui lòng thử lại.");
+      setTaskers([]);
+    } finally {
+      setLoading(false);
     }
   };
-
-  // ...existing code...
 
   const cleaners = [
     {
@@ -264,6 +304,8 @@ const Home = () => {
         <div className="container">
           <h2 className="h1 mb-3">Tìm người giúp việc chuyên nghiệp gần bạn</h2>
           <p className="text-muted mb-4">Tìm kiếm nâng cao</p>
+          {error && <div className="alert alert-danger">{error}</div>}
+          {loading && <div className="text-center my-4">Đang tải...</div>}
           <div className="row justify-content-center">
             <div className="col-lg-12">
               <div className="input-group input-group-lg d-flex align-items-center">
@@ -288,6 +330,7 @@ const Home = () => {
                 <button
                   className="btn btn-primary btn-lg"
                   onClick={handleSearch}
+                  disabled={loading}
                 >
                   Tìm kiếm
                 </button>
@@ -367,8 +410,7 @@ const Home = () => {
                             />
                           ))}
                           <span className="text-muted ms-2">
-                            {(t.rating || 0).toFixed(1)} ({t.reviewsCount || 0}{" "}
-                            reviews)
+                            {(t.rating || 0).toFixed(1)} ({t.reviewsCount || 0} reviews)
                           </span>
                         </div>
                       </div>
@@ -381,6 +423,15 @@ const Home = () => {
                           className="me-1"
                         />
                         {t.location} • {t.distance} km away
+                      </p>
+                    )}
+                    {t.distance_km !== null && (
+                      <p className="text-muted mb-1">
+                        <FontAwesomeIcon
+                          icon={faMapMarkerAlt}
+                          className="me-1"
+                        />
+                        Khoảng cách: {t.distance_km.toFixed(2)} km
                       </p>
                     )}
 
@@ -459,9 +510,26 @@ const Home = () => {
                           <FontAwesomeIcon icon={faComments} className="mr-1" />
                           Start Chat
                         </button>
-                        <button className="btn btn-primary btn-sm">
-                          Đặt Lịch Ngay
-                        </button>
+                        <div className="d-flex justify-content-end">
+                          <button
+                            className="btn btn-primary btn-sm"
+                            onClick={() => {
+                              if (!user || !token) {
+                                alert("⚠️ Vui lòng đăng nhập để đặt dịch vụ!");
+                                return;
+                              }
+
+                              if (user.role !== "Customer") {
+                                alert("❌ Chỉ khách hàng mới có thể đặt lịch!");
+                                return;
+                              }
+
+                              navigate(`/booking/${t.tasker_id}`);
+                            }}
+                          >
+                            Đặt Lịch Ngay
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -563,9 +631,8 @@ const Home = () => {
             {tiers.map((t) => (
               <div key={t.name} className="col-md-6 col-lg-3 mb-4 d-flex">
                 <div
-                  className={`card shadow-sm border-0 w-100 ${
-                    t.popular ? "position-relative" : ""
-                  }`}
+                  className={`card shadow-sm border-0 w-100 ${t.popular ? "position-relative" : ""
+                    }`}
                   style={{
                     boxShadow: t.popular
                       ? "0 0 0 3px #ffe58f inset"
@@ -615,9 +682,8 @@ const Home = () => {
                       ))}
                     </ul>
                     <button
-                      className={`btn ${
-                        t.popular ? "btn-warning" : "btn-primary"
-                      }`}
+                      className={`btn ${t.popular ? "btn-warning" : "btn-primary"
+                        }`}
                     >
                       Unlock Rewards
                     </button>
