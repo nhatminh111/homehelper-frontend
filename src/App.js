@@ -54,7 +54,7 @@ import AIInteraction from './pages/AIInteraction';
 import SystemManagement from './pages/SystemManagement';
 import QuotesPage from './pages/QuotesPage';
 import VideoManager from './pages/VideoManager';
-import NegotiateSessionTest from './pages/NegotiateSessionTest';
+// import NegotiateSessionTest from './pages/NegotiateSessionTest';
 // Role landing pages
 import TaskerHome from './pages/tasker/TaskerHome';
 import AdminHome from './pages/admin/AdminHome';
@@ -201,11 +201,11 @@ function App() {
                   <ChatPage />
                 </ProtectedRoute>
               } />
-              <Route path="/negotiate-session-test" element={
+              {/* <Route path="/negotiate-session-test" element={
                 <ProtectedRoute>
                   <NegotiateSessionTest />
                 </ProtectedRoute>
-              } />
+              } /> */}
               {/* Role landing */}
               <Route path="/tasker" element={
                 <ProtectedRoute requiredRole="Tasker">
