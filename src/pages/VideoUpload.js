@@ -55,10 +55,90 @@ const VideoUpload = () => {
     ]
   };
 
+<<<<<<< Updated upstream
   const tabs = [
     { id: 'overview', label: 'Overview', icon: faEye },
     { id: 'images', label: 'Images', icon: faFileAlt }
   ];
+=======
+  // Xử lý tìm kiếm và lọc trạng thái
+  const filteredVideos = videos.filter(
+    (video) =>
+      (statusFilter === 'All' || video.status === statusFilter) &&
+      (video.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        video.expert.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
+  // Xử lý sắp xếp
+  const sortedVideos = [...filteredVideos].sort((a, b) => {
+    const dateA = new Date(a.uploaded_at);
+    const dateB = new Date(b.uploaded_at);
+    return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+  });
+
+  // Xử lý phân trang
+  const indexOfLastVideo = currentPage * videosPerPage;
+  const indexOfFirstVideo = indexOfLastVideo - videosPerPage;
+  const currentVideos = sortedVideos.slice(indexOfFirstVideo, indexOfLastVideo);
+  const totalPages = Math.ceil(sortedVideos.length / videosPerPage);
+
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
+  const handleOpenModal = (videoId, action) => {
+    setModal({ show: true, videoId, action });
+  };
+
+  const handleCloseModal = () => {
+    setModal({ show: false, videoId: null, action: null });
+  };
+
+  const handleConfirmAction = async () => {
+    const { videoId, action } = modal;
+    try {
+      if (action === 'Delete') {
+      await VideoService.deleteVideoByStaff(videoId); 
+      setVideos(videos.filter((video) => video.video_id !== videoId));
+        toast.success('Xóa nội dung thành công!', {
+          position: 'top-right',
+          autoClose: 3000,
+          className: 'minimal-toast',
+        });
+      } else {
+        await VideoService.updateVideoStatus(videoId, action);
+        setVideos(videos.filter((video) => video.video_id !== videoId));
+        toast.success(`Nội dung đã được ${action === 'Approved' ? 'chấp thuận' : 'loại bỏ'} thành công!`, {
+          position: 'top-right',
+          autoClose: 3000,
+          className: 'minimal-toast',
+        });
+      }
+    } catch (err) {
+      setError(err.message);
+      toast.error(err.message, {
+        position: 'top-right',
+        autoClose: 3000,
+        className: 'minimal-toast',
+      });
+    } finally {
+      handleCloseModal();
+    }
+  };
+
+  const handleSearch = (e) => {
+    setSearchQuery(e.target.value);
+    setCurrentPage(1);
+  };
+
+  const handleStatusFilter = (e) => {
+    setStatusFilter(e.target.value);
+    setCurrentPage(1);
+  };
+
+  const handleSort = (e) => {
+    setSortOrder(e.target.value);
+    setCurrentPage(1);
+  };
+>>>>>>> Stashed changes
 
   return (
     <div className="video-upload-container">

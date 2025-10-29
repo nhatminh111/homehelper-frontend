@@ -37,8 +37,41 @@ class VideoService {
       });
       return response.data;
     } catch (error) {
+<<<<<<< Updated upstream
       console.error('Error uploading video:', error);
       throw error;
+=======
+      console.error( error);
+      throw new Error(error.response?.data?.error || error.message);
+    }
+  }
+
+  async updateVideo(videoId, videoData) {
+    try {
+      const formData = new FormData();
+      formData.append('title', videoData.title);
+      if (videoData.description) {
+        formData.append('description', videoData.description);
+      }
+      if (videoData.video) {
+        formData.append('video', videoData.video);
+      }
+
+      const response = await api.put(`/videos/${videoId}`, formData, {
+        headers: {
+          Authorization: api.getStoredToken() ? `Bearer ${api.getStoredToken()}` : undefined,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Lỗi khi cập nhật video:', error);
+      throw new Error(
+        error.response?.data?.error ||
+        (error.response?.status === 401 || error.response?.status === 403
+          ? 'Không có quyền: Vui lòng đăng nhập lại'
+          : `Lỗi khi cập nhật video: ${error.message}`)
+      );
+>>>>>>> Stashed changes
     }
   }
 
@@ -207,6 +240,18 @@ class VideoService {
       throw error;
     }
   }
+<<<<<<< Updated upstream
+=======
+// Xóa video bởi Staff
+async deleteVideoByStaff(videoId) {
+  try {
+    const response = await api.delete(`/videos/staff/${videoId}`);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.error || 'Lỗi khi xóa video');
+  }
+>>>>>>> Stashed changes
+}
 }
 
 export default new VideoService();
