@@ -8,18 +8,27 @@ import {
   faEye,
   faComments,
   faHeart as faHeartSolid,
+  faSearch,
+  faUsers,
+  faBriefcase,
+  faClock,
 } from "@fortawesome/free-solid-svg-icons";
 import { faHeart as faHeartRegular } from "@fortawesome/free-regular-svg-icons";
-import { Link, useNavigate } from "react-router-dom";
-import TaskerService from "../services/taskerService"; // Import TaskerService
+import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
+import { toast, ToastContainer } from "react-toastify";
+import TaskerService from "../services/taskerService";
+import '../css/Home.css';
+import 'react-toastify/dist/ReactToastify.css';
 
 const Home = () => {
   const [services, setServices] = useState([]);
   const [searchName, setSearchName] = useState("");
   const [selectedService, setSelectedService] = useState("");
   const [taskers, setTaskers] = useState([]);
-  const [loading, setLoading] = useState(false); // Thêm trạng thái loading
-  const [error, setError] = useState(null); // Thêm trạng thái error
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [showResults, setShowResults] = useState(false);
   const { user, token } = useAuth();
   const [wishlistTaskers, setWishlistTaskers] = useState([]);
   const navigate = useNavigate();
@@ -33,10 +42,7 @@ const Home = () => {
   useEffect(() => {
     if (user && token) {
       fetch(`http://localhost:3001/api/wishlists/${user.user_id}`, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: createHeaders(token),
       })
         .then((res) => res.json())
         .then((data) => {
@@ -49,14 +55,17 @@ const Home = () => {
   }, [user, token]);
 
   const handleAddWishlist = async (taskerId) => {
-    if (!user) return alert("Vui lòng đăng nhập để thêm vào wishlist!");
+    if (!user) {
+      toast.error("Vui lòng đăng nhập để thêm vào wishlist!", {
+        position: "top-right",
+        autoClose: 3000,
+      });
+      return;
+    }
     try {
       const res = await fetch(`http://localhost:3001/api/wishlists/`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: createHeaders(token),
         body: JSON.stringify({
           customer_id: user.user_id,
           favorite_taskers: [taskerId],
@@ -65,19 +74,26 @@ const Home = () => {
       const data = await res.json();
       if (res.ok) {
         setWishlistTaskers((prev) => [...prev, Number(taskerId)]);
-        alert("Đã thêm vào wishlist!");
+        toast.success("Đã thêm vào wishlist!", {
+          position: "top-right",
+          autoClose: 3000,
+        });
       } else {
-        alert(data.error || "Có lỗi xảy ra");
+        toast.error(data.error || "Có lỗi xảy ra", {
+          position: "top-right",
+          autoClose: 3000,
+        });
       }
     } catch (err) {
-      alert("Có lỗi xảy ra khi thêm vào wishlist!");
+      toast.error("Có lỗi xảy ra khi thêm vào wishlist!", {
+        position: "top-right",
+        autoClose: 3000,
+      });
       console.error(err);
     }
   };
 
   const removeTasker = async (taskerId) => {
-    if (!window.confirm("Bạn có chắc muốn xóa tasker này khỏi wishlist?"))
-      return;
     try {
       const res = await fetch(`http://localhost:3001/api/wishlists/remove`, {
         method: "POST",
@@ -88,8 +104,24 @@ const Home = () => {
         setWishlistTaskers((prev) =>
           prev.filter((id) => id !== Number(taskerId))
         );
+        toast.error("Đã xóa khỏi wishlist!", {
+          position: "top-right",
+          autoClose: 3000,
+          style: { background: '#ef4444', color: '#ffffff' },
+        });
+      } else {
+        toast.error("Có lỗi xảy ra khi xóa khỏi wishlist!", {
+          position: "top-right",
+          autoClose: 3000,
+          style: { background: '#ef4444', color: '#ffffff' },
+        });
       }
     } catch (err) {
+      toast.error("Có lỗi xảy ra khi xóa khỏi wishlist!", {
+        position: "top-right",
+        autoClose: 3000,
+        style: { background: '#ef4444', color: '#ffffff' },
+      });
       console.error(err);
     }
   };
@@ -104,10 +136,19 @@ const Home = () => {
   }, []);
 
   const handleSearch = async () => {
+    if (!searchName && !selectedService) {
+      toast.warn("Vui lòng nhập tên hoặc chọn dịch vụ để tìm kiếm!", {
+        position: "top-right",
+        autoClose: 3000,
+      });
+      return;
+    }
+    
     setLoading(true);
     setError(null);
+    setShowResults(true);
+    
     try {
-      // 1. Gọi API tìm kiếm Tasker (giữ nguyên logic cũ)
       const res = await fetch(
         `http://localhost:3001/api/tasker?search=${searchName}&serviceId=${selectedService}`
       );
@@ -116,7 +157,6 @@ const Home = () => {
       const taskersData = Array.isArray(result.data) ? result.data : [];
 
       if (!user || !token) {
-        // Nếu chưa đăng nhập, hiển thị taskers mà không có khoảng cách mới
         setTaskers(taskersData.map(t => ({
           ...t,
           tasker_id: t.tasker_id || t.user_id,
@@ -126,12 +166,11 @@ const Home = () => {
         return;
       }
 
-      // 2. Gọi API lấy khoảng cách
       let distanceResult = [];
       try {
         distanceResult = await TaskerService.getTaskersWithDistance();
       } catch (distanceError) {
-        console.warn('Không thể lấy dữ liệu khoảng cách, tiếp tục mà không có dữ liệu khoảng cách:', distanceError);
+        console.warn('Không thể lấy dữ liệu khoảng cách:', distanceError);
         setTaskers(taskersData.map(t => ({
           ...t,
           tasker_id: t.tasker_id || t.user_id,
@@ -142,11 +181,9 @@ const Home = () => {
       }
 
       const distanceMap = new Map(distanceResult.map(t => [t.user_id, t.distance_km]));
-
-      // 3. Kết hợp khoảng cách vào taskers
       const taskersWithDistance = taskersData.map(tasker => ({
         ...tasker,
-        tasker_id: tasker.tasker_id || tasker.user_id, // Chuẩn hóa ID
+        tasker_id: tasker.tasker_id || tasker.user_id,
         distance_km: distanceMap.get(tasker.tasker_id || tasker.user_id) || null
       }));
 
@@ -160,6 +197,7 @@ const Home = () => {
     }
   };
 
+  // Static data
   const cleaners = [
     {
       id: 1,
@@ -273,336 +311,515 @@ const Home = () => {
     },
   ];
 
+  // Function to sort and display all service variants
+  const getDisplayedVariants = (taskerServices) => {
+    if (!taskerServices || taskerServices.length === 0) return [];
+    
+    // Flatten variants and associate with service_id
+    let allVariants = taskerServices.flatMap(service => 
+      (service.variants || []).map(variant => ({
+        ...variant,
+        service_id: service.service_id
+      }))
+    );
+
+    // Sort variants: prioritize those matching selectedService
+    if (selectedService) {
+      allVariants.sort((a, b) => {
+        if (a.service_id === parseInt(selectedService)) return -1;
+        if (b.service_id === parseInt(selectedService)) return 1;
+        return 0;
+      });
+    }
+
+    // Return all variants (no slicing)
+    return allVariants;
+  };
+
+  // Animation variants for the card
+  const cardVariants = {
+    hidden: { opacity: 0, scale: 0.95, y: 20 },
+    visible: { 
+      opacity: 1, 
+      scale: 1, 
+      y: 0, 
+      transition: { 
+        duration: 0.5, 
+        ease: "easeOut",
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const childVariants = {
+    hidden: { opacity: 0, y: 10 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.3 } }
+  };
+
   return (
     <>
-      <section className="container py-5">
-        <div className="row align-items-center">
-          <div className="col-lg-6 mb-4 mb-lg-0">
-            <h1 className="display-4 font-weight-bold mb-3">
-              HomeHelper – Giúp việc dễ dàng, cuộc sống thảnh thơi.
-            </h1>
-            <p className="lead text-muted mb-4">
-              Kết nối nhanh – Dịch vụ chuẩn – Ngôi nhà an tâm.
-              <br />
-              Dọn dẹp, chăm sóc, sửa chữa – Tất cả trong một chạm.
-            </p>
-            <a href="#search" className="btn btn-primary btn-lg">
-              Khám phá ngay
-            </a>
-          </div>
-          <div className="col-lg-6">
-            <img
-              src="/images/bg_3.jpg"
-              alt="cleaners"
-              className="img-fluid rounded shadow"
-            />
+      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} closeOnClick pauseOnHover />
+      
+      {/* Hero Section */}
+      <section style={{ padding: '40px 0' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ flex: '1 1 50%', padding: '20px' }}>
+              <h1 style={{ fontSize: '3rem', fontWeight: 'bold', marginBottom: '1rem' }}>
+                HomeHelper – Giúp việc dễ dàng, cuộc sống thảnh thơi.
+              </h1>
+              <p style={{ fontSize: '1.25rem', color: '#6b7280', marginBottom: '1.5rem' }}>
+                Kết nối nhanh – Dịch vụ chuẩn – Ngôi nhà an tâm.
+                <br />
+                Dọn dẹp, chăm sóc, sửa chữa – Tất cả trong một chạm.
+              </p>
+              <a href="#search" style={{ padding: '12px 24px', background: '#3b82f6', color: 'white', borderRadius: '8px', textDecoration: 'none', fontSize: '1.125rem' }}>
+                Khám phá ngay
+              </a>
+            </div>
+            <div style={{ flex: '1 1 50%', padding: '20px' }}>
+              <img
+                src="/images/bg_3.jpg"
+                alt="cleaners"
+                style={{ width: '100%', borderRadius: '8px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
+              />
+            </div>
           </div>
         </div>
       </section>
 
-      <section id="search" className="py-5 text-center">
-        <div className="container">
-          <h2 className="h1 mb-3">Tìm người giúp việc chuyên nghiệp gần bạn</h2>
-          <p className="text-muted mb-4">Tìm kiếm nâng cao</p>
-          {error && <div className="alert alert-danger">{error}</div>}
-          {loading && <div className="text-center my-4">Đang tải...</div>}
-          <div className="row justify-content-center">
-            <div className="col-lg-12">
-              <div className="input-group input-group-lg d-flex align-items-center">
-                <input
-                  className="form-control form-control-lg"
-                  placeholder="Tìm theo tên người giúp việc..."
-                  value={searchName}
-                  onChange={(e) => setSearchName(e.target.value)}
-                />
-                <select
-                  className="form-select form-select-lg"
-                  value={selectedService}
-                  onChange={(e) => setSelectedService(e.target.value)}
-                >
-                  <option value="">Chọn dịch vụ</option>
-                  {services.map((s) => (
-                    <option key={s.service_id} value={s.service_id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  className="btn btn-primary btn-lg"
-                  onClick={handleSearch}
-                  disabled={loading}
-                >
-                  Tìm kiếm
-                </button>
+      {/* Search Section */}
+      <section id="search" style={{ background: 'linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%)', padding: '40px 0' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          {/* Header */}
+          <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+            <h1 style={{ fontSize: '2.5rem', fontWeight: 'bold', marginBottom: '1rem', color: '#1e293b' }}>
+              <FontAwesomeIcon icon={faSearch} style={{ marginRight: '12px', color: '#3b82f6' }} />
+              Tìm người giúp việc chuyên nghiệp
+            </h1>
+            <p style={{ fontSize: '1.25rem', color: '#64748b', margin: '0' }}>
+              Hơn 10,000+ người giúp việc đã được xác minh
+            </p>
+          </div>
+
+          {/* Error Alert */}
+          {error && (
+            <div style={{ background: '#f8d7da', color: '#721c24', padding: '16px', borderRadius: '8px', boxShadow: '0 2px 10px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center' }}>
+              <FontAwesomeIcon icon={faClock} style={{ marginRight: '8px' }} />
+              {error}
+              <button 
+                type="button" 
+                style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: '1.25rem', cursor: 'pointer' }} 
+                onClick={() => setError(null)}
+              >
+                ×
+              </button>
+            </div>
+          )}
+
+          {/* Search Form */}
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '2.5rem' }}>
+            <div style={{ maxWidth: '960px', width: '100%' }}>
+              <div style={{ background: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(40px)', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '24px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+                <div style={{ 
+                  background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                  color: 'white',
+                  padding: '24px',
+                  borderRadius: '16px 16px 0 0'
+                }}>
+                  <h3 style={{ margin: '0', fontWeight: 'bold' }}>
+                    <FontAwesomeIcon icon={faUsers} style={{ marginRight: '8px' }} />
+                    Tìm kiếm ngay
+                  </h3>
+                  <small style={{ opacity: '0.75' }}>Nhập tên hoặc chọn dịch vụ</small>
+                </div>
+                <div style={{ padding: '24px' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'flex-end' }}>
+                    <div style={{ flex: '1 1 41.66%' }}>
+                      <div style={{ position: 'relative' }}>
+                        <FontAwesomeIcon 
+                          icon={faSearch} 
+                          style={{ position: 'absolute', top: '50%', left: '16px', transform: 'translateY(-50%)', color: '#6b7280', fontSize: '1.25rem', zIndex: '10' }}
+                        />
+                        <input
+                          style={{ 
+                            width: '100%', 
+                            padding: '12px 12px 12px 48px', 
+                            fontSize: '1.125rem', 
+                            borderRadius: '8px', 
+                            border: '1px solid rgba(255, 255, 255, 0.3)', 
+                            background: 'rgba(255, 255, 255, 0.8)', 
+                            backdropFilter: 'blur(20px)' 
+                          }}
+                          placeholder="Tìm theo tên người giúp việc..."
+                          value={searchName}
+                          onChange={(e) => setSearchName(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div style={{ flex: '1 1 33.33%' }}>
+                      <select
+                        style={{ 
+                          width: '100%', 
+                          padding: '12px', 
+                          fontSize: '1.125rem', 
+                          borderRadius: '8px', 
+                          border: '1px solid rgba(255, 255, 255, 0.3)', 
+                          background: 'rgba(255, 255, 255, 0.8)', 
+                          backdropFilter: 'blur(20px)' 
+                        }}
+                        value={selectedService}
+                        onChange={(e) => setSelectedService(e.target.value)}
+                      >
+                        <option value="">Chọn dịch vụ</option>
+                        {services.map((s) => (
+                          <option key={s.service_id} value={s.service_id}>
+                            {s.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div style={{ flex: '1 1 25%' }}>
+                      <button
+                        style={{ 
+                          width: '100%', 
+                          padding: '12px 24px', 
+                          background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)', 
+                          color: 'white', 
+                          border: 'none', 
+                          borderRadius: '8px', 
+                          fontSize: '1.125rem', 
+                          fontWeight: '600', 
+                          height: '56px', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center', 
+                          boxShadow: '0 4px 20px rgba(0,0,0,0.2)' 
+                        }}
+                        onClick={handleSearch}
+                        disabled={loading}
+                      >
+                        {loading ? (
+                          <>
+                            <span style={{ display: 'inline-block', width: '18px', height: '18px', border: '2px solid #ffffff', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite', marginRight: '8px' }}></span>
+                            Tìm kiếm...
+                          </>
+                        ) : (
+                          <>
+                            <FontAwesomeIcon icon={faSearch} style={{ marginRight: '8px' }} />
+                            Tìm Kiếm
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Hiển thị kết quả taskers */}
-          <div className="row mt-5">
-            {taskers.length > 0 ? (
-              taskers.map((t) => (
-                <div key={t.tasker_id} className="col-md-6 col-lg-4 mb-4">
-                  <div className="card h-100 shadow-sm border rounded-3 p-3">
-                    <div className="d-flex align-items-center mb-2 position-relative">
-                      {/* Heart icon top right */}
-                      <div
-                        style={{
-                          position: "absolute",
-                          top: 0,
-                          right: 0,
-                          zIndex: 2,
-                          background: "transparent",
-                          border: "none",
-                          boxShadow: "none",
-                        }}
-                        onClick={() =>
-                          wishlistTaskers.includes(Number(t.tasker_id))
-                            ? removeTasker(t.tasker_id)
-                            : handleAddWishlist(t.tasker_id)
-                        }
-                        title={
-                          wishlistTaskers.includes(Number(t.tasker_id))
-                            ? "Remove from wishlist"
-                            : "Add to wishlist"
-                        }
-                      >
-                        <FontAwesomeIcon
-                          icon={
-                            wishlistTaskers.includes(Number(t.tasker_id))
-                              ? faHeartSolid
-                              : faHeartRegular
-                          }
-                          style={{
-                            cursor: "pointer",
-                            fontSize: "1.7rem",
-                            color: "#dc3545",
-                            background: "transparent",
-                          }}
-                        />
-                      </div>
-                      <img
-                        src={t.profileImage || "/default-avatar.png"}
-                        alt={t.name}
-                        className="rounded-circle me-3"
-                        style={{ width: 50, height: 50, objectFit: "cover" }}
-                      />
-                      <div>
-                        <h5 className="mb-0 d-flex align-items-center">
-                          {t.name}
-                          {t.verified && (
-                            <span className="badge bg-info text-white ms-2">
-                              Verified
-                            </span>
-                          )}
-                        </h5>
-                        <div className="text-warning d-flex align-items-center">
-                          {[...Array(5)].map((_, i) => (
-                            <FontAwesomeIcon
-                              key={i}
-                              icon={faStar}
-                              color={
-                                i < Math.round(t.rating || 0)
-                                  ? "#ffd700"
-                                  : "#ccc"
-                              }
-                              className="me-1"
-                            />
-                          ))}
-                          <span className="text-muted ms-2">
-                            {(t.rating || 0).toFixed(1)} ({t.reviewsCount || 0} reviews)
-                          </span>
-                        </div>
-                      </div>
+          {/* Results Header */}
+          {showResults && (
+            <div style={{ background: 'rgba(255, 255, 255, 0.8)', backdropFilter: 'blur(20px)', padding: '1.5rem 2rem', borderRadius: '20px', border: '1px solid rgba(255, 255, 255, 0.3)', boxShadow: '0 10px 40px rgba(0, 0, 0, 0.1)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
+                <div style={{ flex: '1 1 66.66%' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ background: '#3b82f6', color: 'white', padding: '8px 16px', borderRadius: '24px', fontWeight: '600', display: 'flex', alignItems: 'center', boxShadow: '0 4px 20px rgba(59, 130, 246, 0.4)' }}>
+                      <FontAwesomeIcon icon={faUsers} style={{ marginRight: '4px' }} />
+                      {taskers.length}
                     </div>
-
-                    {t.location && t.distance && (
-                      <p className="text-muted mb-1">
-                        <FontAwesomeIcon
-                          icon={faMapMarkerAlt}
-                          className="me-1"
-                        />
-                        {t.location} • {t.distance} km away
-                      </p>
-                    )}
-                    {t.distance_km !== null && (
-                      <p className="text-muted mb-1">
-                        <FontAwesomeIcon
-                          icon={faMapMarkerAlt}
-                          className="me-1"
-                        />
-                        Khoảng cách: {t.distance_km.toFixed(2)} km
-                      </p>
-                    )}
-
-                    <p className="text-muted mb-2">
-                      {t.experience ? `${t.experience} years experience` : ""}
-                    </p>
-
-                    {t.tags?.length > 0 && (
-                      <div className="mb-2">
-                        {t.tags.map((tag) => (
-                          <span
-                            key={tag}
-                            className="badge bg-light text-dark me-2 mb-1"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="mb-2">
-                      {t.completedJobs !== undefined && (
-                        <p className="mb-1">
-                          <strong>Completed Jobs:</strong> {t.completedJobs}
-                        </p>
-                      )}
-                      {t.languages?.length > 0 && (
-                        <p className="mb-1">
-                          <strong>Languages:</strong> {t.languages.join(", ")}
-                        </p>
-                      )}
-                      <p className="text-muted small">
-                        Usually responds within 1 hour
-                      </p>
+                    <div>
+                      <h2 style={{ marginBottom: '4px', fontWeight: 'bold', color: '#1e293b' }}>
+                        Kết quả phù hợp
+                      </h2>
+                      <small style={{ color: '#6b7280' }}>
+                        "{searchName}" {selectedService && `• ${services.find(s => s.service_id == selectedService)?.name}`}
+                      </small>
                     </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
-                    {/* Dịch vụ và variants */}
-                    {t.services?.length > 0 && (
-                      <div className="mt-3">
-                        <h6>Dịch vụ cung cấp:</h6>
-                        {t.services.map((s) => (
-                          <div key={s.service_id} className="mb-2">
-                            <strong>{s.name}</strong>
-                            <ul className="ps-3 mb-0">
-                              {s.variants?.length > 0 ? (
-                                s.variants.map((v) => (
-                                  <li key={v.variant_id}>
-                                    {v.variant_name} ({v.price_min}-
-                                    {v.price_max} {v.unit})
-                                  </li>
-                                ))
-                              ) : (
-                                <li>Không có gói dịch vụ cụ thể</li>
-                              )}
-                            </ul>
+          {/* Tasker Cards Grid */}
+          {showResults && (
+            <div style={{ marginTop: '2rem' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px', justifyContent: 'center' }}>
+                {loading ? (
+                  <div style={{ width: '100%', maxWidth: '320px' }}>
+                    <div style={{ padding: '40px 0', textAlign: 'center' }}>
+                      <div style={{ width: '100%', height: '380px', background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)', borderRadius: '12px', boxShadow: '0 4px 20px rgba(0,0,0,0.2)', margin: '0 auto', border: '1px solid rgba(0,0,0,0.05)' }}>
+                        <div style={{ height: '140px', background: 'linear-gradient(90deg, #f0f0f0 25%, #e0e0f0 50%, #f0f0f0 75%)', backgroundSize: '200% 100%', animation: 'loading 1.5s infinite', borderRadius: '12px 12px 0 0' }}></div>
+                        <div style={{ padding: '24px' }}>
+                          <div style={{ height: '20px', width: '80%', background: 'linear-gradient(90deg, #f0f0f0 25%, #e0e0f0 50%, #f0f0f0 75%)', backgroundSize: '200% 100%', animation: 'loading 1.5s infinite', borderRadius: '6px', marginBottom: '12px' }}></div>
+                          <div style={{ height: '16px', width: '60%', background: 'linear-gradient(90deg, #f0f0f0 25%, #e0e0f0 50%, #f0f0f0 75%)', backgroundSize: '200% 100%', animation: 'loading 1.5s infinite', borderRadius: '6px', marginBottom: '12px' }}></div>
+                          <div style={{ height: '12px', width: '40%', background: 'linear-gradient(90deg, #f0f0f0 25%, #e0e0f0 50%, #f0f0f0 75%)', backgroundSize: '200% 100%', animation: 'loading 1.5s infinite', borderRadius: '6px', marginBottom: '16px' }}></div>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <div style={{ flex: '1', height: '44px', background: 'linear-gradient(90deg, #f0f0f0 25%, #e0e0f0 50%, #f0f0f0 75%)', backgroundSize: '200% 100%', animation: 'loading 1.5s infinite', borderRadius: '6px' }}></div>
+                            <div style={{ width: '70px', height: '44px', background: 'linear-gradient(90deg, #f0f0f0 25%, #e0e0f0 50%, #f0f0f0 75%)', backgroundSize: '200% 100%', animation: 'loading 1.5s infinite', borderRadius: '6px' }}></div>
                           </div>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="d-flex gap-2 mb-3">
-                      <span className="badge bg-success">Top Rated</span>
-                      <span className="badge bg-success">Quick Response</span>
-                    </div>
-
-                    <div className="col-12 mt-3">
-                      <div className="d-flex justify-content-end">
-                        <Link
-                          to={`/tasker-profile/${t.tasker_id}`}
-                          className="btn btn-outline-primary btn-sm mr-2"
-                        >
-                          <FontAwesomeIcon icon={faEye} className="mr-1" />
-                          Xem Hồ Sơ
-                        </Link>
-                        <button className="btn btn-outline-secondary btn-sm mr-2">
-                          <FontAwesomeIcon icon={faComments} className="mr-1" />
-                          Start Chat
-                        </button>
-                        <div className="d-flex justify-content-end">
-                          <button
-                            className="btn btn-primary btn-sm"
-                            onClick={() => {
-                              if (!user || !token) {
-                                alert("⚠️ Vui lòng đăng nhập để đặt dịch vụ!");
-                                return;
-                              }
-
-                              if (user.role !== "Customer") {
-                                alert("❌ Chỉ khách hàng mới có thể đặt lịch!");
-                                return;
-                              }
-
-                              navigate(`/booking/${t.tasker_id}`);
-                            }}
-                          >
-                            Đặt Lịch Ngay
-                          </button>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))
-            ) : (
-              <div className="col-12 text-center text-muted py-5">
-                Không có tasker nào được tìm thấy.
+                ) : taskers.length > 0 ? (
+                  taskers.map((t) => {
+                    const displayedVariants = getDisplayedVariants(t.services);
+
+                    return (
+                      <motion.div
+                        key={t.tasker_id}
+                        style={{ flex: '1 1 25%', maxWidth: '25%', minWidth: '280px' }}
+                        variants={cardVariants}
+                        initial="hidden"
+                        animate="visible"
+                      >
+                        <div className="tasker-card">
+                          {/* Left: Avatar Section */}
+                          <motion.div className="avatar-section" variants={childVariants}>
+                            <div className="avatar-wrapper">
+                              <img
+                                src={t.profileImage || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop&crop=face"}
+                                alt={t.name}
+                                className="avatar-image"
+                              />
+                              {t.verified && (
+                                <div className="verified-badge">
+                                  <FontAwesomeIcon icon={faCheckCircle} />
+                                </div>
+                              )}
+                              {t.isOnline && (
+                                <div className="status-badge">
+                                  <div className="status-dot"></div>
+                                  Online
+                                </div>
+                              )}
+                            </div>
+                          </motion.div>
+
+                          {/* Right: Info and Actions Section */}
+                          <motion.div className="info-section" variants={childVariants}>
+                            <button
+                              className="favorite-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                wishlistTaskers.includes(Number(t.tasker_id))
+                                  ? removeTasker(t.tasker_id)
+                                  : handleAddWishlist(t.tasker_id);
+                              }}
+                              title={
+                                wishlistTaskers.includes(Number(t.tasker_id))
+                                  ? "Xóa khỏi yêu thích"
+                                  : "Thêm vào yêu thích"
+                              }
+                            >
+                              <FontAwesomeIcon
+                                icon={
+                                  wishlistTaskers.includes(Number(t.tasker_id))
+                                    ? faHeartSolid
+                                    : faHeartRegular
+                                }
+                                className={`favorite-icon ${
+                                  wishlistTaskers.includes(Number(t.tasker_id))
+                                    ? 'text-danger'
+                                    : 'text-gray'
+                                }`}
+                              />
+                            </button>
+
+                            <h4 className="tasker-name">{t.name}</h4>
+                            <div className="rating-container">
+                              <div className="stars-container">
+                                {[...Array(5)].map((_, i) => (
+                                  <FontAwesomeIcon
+                                    key={i}
+                                    icon={faStar}
+                                    className={`star ${i < Math.round(t.rating || 0) ? 'filled' : ''}`}
+                                  />
+                                ))}
+                              </div>
+                              <span className="rating-score">
+                                {t.rating?.toFixed(1)} ({t.reviewsCount || 0})
+                              </span>
+                            </div>
+
+                            {t.distance_km !== null && (
+                              <div className="distance-chip">
+                                <FontAwesomeIcon icon={faMapMarkerAlt} className="icon" />
+                                {t.distance_km.toFixed(1)}km
+                              </div>
+                            )}
+
+                            <div className="stats-row">
+                              {t.completedJobs !== undefined && (
+                                <div className="stat-item">
+                                  <div className="stat-number">{t.completedJobs}</div>
+                                  <small>Công việc</small>
+                                </div>
+                              )}
+                              {t.experience && (
+                                <div className="stat-item">
+                                  <div className="stat-number">{t.experience}</div>
+                                  <small>Năm</small>
+                                </div>
+                              )}
+                            </div>
+
+                            {t.services?.length > 0 && (
+                              <div className="services-preview">
+                                <div className="services-header">
+                                  <FontAwesomeIcon icon={faBriefcase} className="icon" />
+                                  Dịch vụ
+                                </div>
+                                <div className="services-list">
+                                  {displayedVariants.map((variant, idx) => (
+                                    <div key={idx} className="service-chip">
+                                      <div className="service-name">{variant.variant_name}</div>
+                                      <div className="service-price">
+                                        {variant.price_min}-{variant.price_max}{variant.unit}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="action-buttons">
+                              <Link
+                                to={`/tasker-profile/${t.tasker_id}`}
+                                className="btn-profile"
+                              >
+                                <FontAwesomeIcon icon={faEye} className="icon" />
+                                Xem hồ sơ
+                              </Link>
+                              <div className="quick-actions">
+                                <motion.button
+                                  className="btn-chat"
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.95 }}
+                                >
+                                  <FontAwesomeIcon icon={faComments} />
+                                </motion.button>
+                                <motion.button
+                                  className="btn-book"
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.95 }}
+                                  onClick={() => {
+                                    if (!user || !token) {
+                                      toast.error("Vui lòng đăng nhập để đặt dịch vụ!", {
+                                        position: "top-right",
+                                        autoClose: 3000,
+                                      });
+                                      return;
+                                    }
+                                    if (user.role !== "Customer") {
+                                      toast.error("Chỉ khách hàng mới có thể đặt lịch!", {
+                                        position: "top-right",
+                                        autoClose: 3000,
+                                      });
+                                      return;
+                                    }
+                                    window.location.href = `/booking/${t.tasker_id}`;
+                                  }}
+                                >
+                                  Đặt ngay
+                                </motion.button>
+                              </div>
+                            </div>
+                          </motion.div>
+                        </div>
+                      </motion.div>
+                    );
+                  })
+                ) : (
+                  <div style={{ width: '100%' }}>
+                    <div style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)', borderRadius: '24px', border: '2px dashed #cbd5e1', padding: '4rem 2rem', textAlign: 'center' }}>
+                      <div style={{ width: '120px', height: '120px', margin: '0 auto 2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(226, 232, 240, 0.5)', borderRadius: '50%' }}>
+                        <FontAwesomeIcon icon={faUsers} style={{ fontSize: '3rem', color: '#6b7280' }} />
+                      </div>
+                      <h3 style={{ fontWeight: 'bold', marginBottom: '12px', color: '#1e293b' }}>Không tìm thấy kết quả</h3>
+                      <p style={{ color: '#6b7280', marginBottom: '24px', fontSize: '1.25rem' }}>Thử thay đổi từ khóa hoặc chọn dịch vụ khác</p>
+                      <button 
+                        style={{ padding: '12px 24px', background: '#3b82f6', color: 'white', borderRadius: '8px', border: 'none', fontSize: '1.125rem', boxShadow: '0 4px 20px rgba(0,0,0,0.2)' }}
+                        onClick={() => {
+                          setSearchName("");
+                          setSelectedService("");
+                          setShowResults(false);
+                        }}
+                      >
+                        Tìm kiếm mới
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </section>
 
-      <section className="container py-5">
-        <div className="row align-items-center">
-          <div className="col-lg-6 mb-4 mb-lg-0">
-            <img
-              src="/images/about.jpg"
-              alt="about"
-              className="img-fluid rounded shadow"
-            />
-          </div>
-          <div className="col-lg-6">
-            <h2 className="display-5 mb-3">Hãy để bạn tươi mới hơn bao giờ hết</h2>
-            <p className="text-muted mb-4">
-              Đội ngũ vệ sinh chuyên nghiệp sử dụng sản phẩm thân thiện môi trường
-              và kỹ thuật hiện đại để đảm bảo không gian của bạn luôn sạch bóng.
-            </p>
-            <div className="d-flex justify-content-between">
-              <div>
-                <h3 className="text-primary">45</h3>
-                <small className="text-muted">Năm kinh nghiệm</small>
-              </div>
-              <div>
-                <h3 className="text-primary">2,342</h3>
-                <small className="text-muted">Khách hàng hài lòng</small>
-              </div>
-              <div>
-                <h3 className="text-primary">30+</h3>
-                <small className="text-muted">Khu vực dịch vụ</small>
+      {/* About Section */}
+      <section style={{ padding: '40px 0' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ flex: '1 1 50%', padding: '20px' }}>
+              <img src="/images/about.jpg" alt="about" style={{ width: '100%', borderRadius: '8px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }} />
+            </div>
+            <div style={{ flex: '1 1 50%', padding: '20px' }}>
+              <h2 style={{ fontSize: '2.5rem', marginBottom: '12px' }}>Hãy để bạn tươi mới hơn bao giờ hết</h2>
+              <p style={{ color: '#6b7280', marginBottom: '24px' }}>
+                Đội ngũ vệ sinh chuyên nghiệp sử dụng sản phẩm thân thiện môi trường
+                và kỹ thuật hiện đại để đảm bảo không gian của bạn luôn sạch bóng.
+              </p>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <div>
+                  <h3 style={{ color: '#3b82f6', margin: '0' }}>45</h3>
+                  <small style={{ color: '#6b7280' }}>Năm kinh nghiệm</small>
+                </div>
+                <div>
+                  <h3 style={{ color: '#3b82f6', margin: '0' }}>2,342</h3>
+                  <small style={{ color: '#6b7280' }}>Khách hàng hài lòng</small>
+                </div>
+                <div>
+                  <h3 style={{ color: '#3b82f6', margin: '0' }}>30+</h3>
+                  <small style={{ color: '#6b7280' }}>Khu vực dịch vụ</small>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="py-5">
-        <div className="container">
-          <h2 className="h1 text-center mb-2">Tin mới nhất</h2>
-          <p className="text-center text-muted mb-5">
+      {/* News Section */}
+      <section style={{ padding: '40px 0' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          <h2 style={{ fontSize: '2.5rem', textAlign: 'center', marginBottom: '8px' }}>Tin mới nhất</h2>
+          <p style={{ textAlign: 'center', color: '#6b7280', marginBottom: '40px' }}>
             Cập nhật các mẹo và tin tức mới nhất từ chúng tôi
           </p>
-          <div className="row">
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px' }}>
             {news.map((n) => (
-              <div key={n.id} className="col-md-6 col-lg-4 mb-4">
-                <div className="card h-100 shadow-sm border-0">
-                  <img src={n.img} className="card-img-top" alt={n.title} />
-                  <div className="card-body">
+              <div key={n.id} style={{ flex: '1 1 33.33%', padding: '12px' }}>
+                <div style={{ height: '100%', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', borderRadius: '8px', overflow: 'hidden' }}>
+                  <img src={n.img} style={{ width: '100%', height: 'auto' }} alt={n.title} />
+                  <div style={{ padding: '16px' }}>
                     <span
-                      className="badge badge-light mb-2"
                       style={{
-                        background: "#eef2ff",
-                        color: "#1b2a4b",
-                        borderRadius: 20,
-                        padding: "6px 12px",
+                        background: '#eef2ff',
+                        color: '#1b2a4b',
+                        borderRadius: '20px',
+                        padding: '6px 12px',
+                        fontSize: '0.875rem',
+                        marginBottom: '8px',
+                        display: 'inline-block'
                       }}
                     >
                       {n.tag}
                     </span>
-                    <h5 className="card-title">{n.title}</h5>
-                    <p className="text-muted">{n.date}</p>
-                    <button className="btn btn-outline-primary">Đọc thêm</button>
+                    <h5 style={{ marginBottom: '8px', fontSize: '1.25rem' }}>{n.title}</h5>
+                    <p style={{ color: '#6b7280', marginBottom: '16px' }}>{n.date}</p>
+                    <button style={{ padding: '8px 16px', border: '2px solid #3b82f6', color: '#3b82f6', background: 'none', borderRadius: '8px' }}>Đọc thêm</button>
                   </div>
                 </div>
               </div>
@@ -611,80 +828,71 @@ const Home = () => {
         </div>
       </section>
 
-      <section className="py-5" style={{ background: "#2b5cff" }}>
-        <div className="container text-center text-white">
-          <h2 className="mb-3">Cùng nhau khám phá những điều mới</h2>
-          <p className="mb-4">
+      {/* CTA Section */}
+      <section style={{ background: '#2b5cff', padding: '40px 0' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', textAlign: 'center', color: 'white' }}>
+          <h2 style={{ marginBottom: '12px', fontSize: '2.5rem' }}>Cùng nhau khám phá những điều mới</h2>
+          <p style={{ marginBottom: '24px', fontSize: '1.25rem' }}>
             Sẵn sàng trải nghiệm dịch vụ vệ sinh tốt nhất? Bắt đầu ngay hôm nay!
           </p>
-          <button className="btn btn-warning btn-lg">Bắt đầu ngay</button>
+          <button style={{ padding: '12px 24px', background: '#ffd84d', color: '#1b1c24', borderRadius: '8px', border: 'none', fontSize: '1.125rem' }}>Bắt đầu ngay</button>
         </div>
       </section>
 
-      <section className="py-5">
-        <div className="container">
-          <h2 className="h1 text-center mb-2">Chương trình tích điểm thành viên</h2>
-          <p className="text-center text-muted mb-5">
+      {/* Tiers Section */}
+      <section style={{ padding: '40px 0' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          <h2 style={{ fontSize: '2.5rem', textAlign: 'center', marginBottom: '8px' }}>Chương trình tích điểm thành viên</h2>
+          <p style={{ textAlign: 'center', color: '#6b7280', marginBottom: '40px' }}>
             Tích điểm cho mỗi dịch vụ và mở khóa những quyền lợi dành riêng cho thành viên
           </p>
-          <div className="row">
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px' }}>
             {tiers.map((t) => (
-              <div key={t.name} className="col-md-6 col-lg-3 mb-4 d-flex">
+              <div key={t.name} style={{ flex: '1 1 25%', padding: '12px' }}>
                 <div
-                  className={`card shadow-sm border-0 w-100 ${t.popular ? "position-relative" : ""
-                    }`}
                   style={{
-                    boxShadow: t.popular
-                      ? "0 0 0 3px #ffe58f inset"
-                      : undefined,
+                    height: '100%',
+                    boxShadow: t.popular ? '0 0 0 3px #ffe58f inset' : '0 4px 20px rgba(0,0,0,0.1)',
+                    borderRadius: '8px',
+                    position: 'relative'
                   }}
                 >
                   {t.popular && (
                     <div
-                      className="position-absolute"
                       style={{
-                        top: -12,
-                        left: "50%",
-                        transform: "translateX(-50%)",
+                        position: 'absolute',
+                        top: '-12px',
+                        left: '50%',
+                        transform: 'translateX(-50%)'
                       }}
                     >
                       <span
-                        className="badge badge-warning"
                         style={{
-                          background: "#ffd84d",
-                          color: "#1b1c24",
-                          padding: "6px 12px",
-                          borderRadius: 20,
-                          fontWeight: 700,
+                          background: '#ffd84d',
+                          color: '#1b1c24',
+                          padding: '6px 12px',
+                          borderRadius: '20px',
+                          fontWeight: '700'
                         }}
                       >
                         Most Popular
                       </span>
                     </div>
                   )}
-                  <div className="card-body text-center">
-                    <h5 className="mb-2">{t.name}</h5>
-                    <h3
-                      className="text-primary mb-4"
-                      style={{ fontWeight: 700 }}
-                    >
+                  <div style={{ padding: '24px', textAlign: 'center' }}>
+                    <h5 style={{ marginBottom: '8px', fontSize: '1.5rem' }}>{t.name}</h5>
+                    <h3 style={{ color: '#3b82f6', marginBottom: '24px', fontWeight: '700' }}>
                       {t.points}
                     </h3>
-                    <ul className="list-unstyled text-left mb-4">
+                    <ul style={{ listStyle: 'none', padding: '0', marginBottom: '24px', textAlign: 'left' }}>
                       {t.features.map((f, idx) => (
-                        <li key={idx} className="mb-2">
-                          <FontAwesomeIcon
-                            icon={faCheckCircle}
-                            className="text-success mr-2"
-                          />
+                        <li key={idx} style={{ marginBottom: '8px', display: 'flex', alignItems: 'center' }}>
+                          <FontAwesomeIcon icon={faCheckCircle} style={{ color: '#10b981', marginRight: '8px' }} />
                           <span>{f}</span>
                         </li>
                       ))}
                     </ul>
-                    <button
-                      className={`btn ${t.popular ? "btn-warning" : "btn-primary"
-                        }`}
-                    >
+                    <button style={{ padding: '12px 24px', background: t.popular ? '#ffd84d' : '#3b82f6', color: t.popular ? '#1b1c24' : 'white', border: 'none', borderRadius: '8px' }}>
                       Unlock Rewards
                     </button>
                   </div>
@@ -695,54 +903,49 @@ const Home = () => {
         </div>
       </section>
 
-      <section className="py-5" style={{ background: "#f6f8ff" }}>
-        <div className="container">
-          <h2 className="h1 text-center mb-2">Top 3 Professional Cleaners</h2>
-          <p className="text-center text-muted mb-5">
+      {/* Cleaners Section */}
+      <section style={{ background: '#f6f8ff', padding: '40px 0' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          <h2 style={{ fontSize: '2.5rem', textAlign: 'center', marginBottom: '8px' }}>Top 3 Professional Cleaners</h2>
+          <p style={{ textAlign: 'center', color: '#6b7280', marginBottom: '40px' }}>
             Meet our highest-rated cleaning professionals
           </p>
-          <div className="row">
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px' }}>
             {cleaners.map((c) => (
-              <div key={c.id} className="col-md-6 col-lg-4 mb-4">
-                <div className="card h-100 shadow-sm border-0">
-                  <div className="position-relative">
-                    <img src={c.img} className="card-img-top" alt={c.name} />
+              <div key={c.id} style={{ flex: '1 1 33.33%', padding: '12px' }}>
+                <div style={{ height: '100%', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', borderRadius: '8px', overflow: 'hidden' }}>
+                  <div style={{ position: 'relative' }}>
+                    <img src={c.img} style={{ width: '100%', height: 'auto' }} alt={c.name} />
                     <span
-                      className="badge badge-warning position-absolute"
                       style={{
-                        top: 12,
-                        left: 12,
-                        background: "#ffd84d",
-                        color: "#1b1c24",
-                        padding: "6px 10px",
-                        borderRadius: 20,
-                        fontWeight: 600,
+                        position: 'absolute',
+                        top: '12px',
+                        left: '12px',
+                        background: '#ffd84d',
+                        color: '#1b1c24',
+                        padding: '6px 10px',
+                        borderRadius: '20px',
+                        fontWeight: '600'
                       }}
                     >
                       Top Rated
                     </span>
                   </div>
-                  <div className="card-body">
-                    <h5 className="card-title mb-2">{c.name}</h5>
-                    <div className="mb-2" style={{ color: "#f5b100" }}>
+                  <div style={{ padding: '16px' }}>
+                    <h5 style={{ marginBottom: '8px', fontSize: '1.25rem' }}>{c.name}</h5>
+                    <div style={{ color: '#f5b100', marginBottom: '8px' }}>
                       {[...Array(5)].map((_, i) => (
-                        <FontAwesomeIcon
-                          key={i}
-                          icon={faStar}
-                          className="mr-1"
-                        />
+                        <FontAwesomeIcon key={i} icon={faStar} style={{ marginRight: '4px' }} />
                       ))}
-                      <span className="text-muted ml-2">
+                      <span style={{ color: '#6b7280', marginLeft: '8px' }}>
                         {c.rating.toFixed(1)} ({c.reviews} reviews)
                       </span>
                     </div>
-                    <p className="text-muted">
+                    <p style={{ color: '#6b7280', marginBottom: '16px' }}>
                       Experienced in residential and commercial cleaning with
                       eco-friendly products.
                     </p>
-                    <button className="btn btn-primary btn-block">
-                      Book Now
-                    </button>
+                    <button style={{ width: '100%', padding: '12px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '8px' }}>Book Now</button>
                   </div>
                 </div>
               </div>
@@ -751,32 +954,27 @@ const Home = () => {
         </div>
       </section>
 
-      <section className="py-5" style={{ background: "#0c1730" }}>
-        <div className="container">
-          <h2 className="text-white text-center mb-2">Happy Customers</h2>
-          <p
-            className="text-center text-light-50 mb-4"
-            style={{ opacity: 0.8 }}
-          >
+      {/* Testimonials Section */}
+      <section style={{ background: '#0c1730', padding: '40px 0' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          <h2 style={{ color: 'white', textAlign: 'center', marginBottom: '8px', fontSize: '2.5rem' }}>Happy Customers</h2>
+          <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.8)', marginBottom: '24px' }}>
             See what our customers say about our services
           </p>
-          <div className="row">
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px' }}>
             {testimonials.map((t) => (
-              <div key={t.id} className="col-md-4 mb-3">
-                <div
-                  className="p-4 rounded shadow-sm"
-                  style={{ background: "#2b5cff", color: "#fff" }}
-                >
-                  <div className="mb-3" style={{ color: "#ffea75" }}>
+              <div key={t.id} style={{ flex: '1 1 33.33%', padding: '12px' }}>
+                <div style={{ background: '#2b5cff', color: 'white', padding: '24px', borderRadius: '8px', boxShadow: '0 4px 20px rgba(0,0,0,0.2)' }}>
+                  <div style={{ color: '#ffea75', marginBottom: '12px' }}>
                     {[...Array(5)].map((_, i) => (
-                      <FontAwesomeIcon key={i} icon={faStar} className="mr-1" />
+                      <FontAwesomeIcon key={i} icon={faStar} style={{ marginRight: '4px' }} />
                     ))}
                   </div>
-                  <p className="mb-4">"{t.quote}"</p>
-                  <div className="d-flex align-items-center">
-                    <div className="ml-2">
+                  <p style={{ marginBottom: '24px' }}>"{t.quote}"</p>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <div>
                       <strong>{t.name}</strong>
-                      <div className="small" style={{ opacity: 0.9 }}>
+                      <div style={{ fontSize: '0.875rem', opacity: '0.9' }}>
                         Verified Customer
                       </div>
                     </div>
