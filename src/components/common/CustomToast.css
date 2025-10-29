@@ -1,0 +1,192 @@
+
+.custom-toast-container {
+  width: auto !important;
+  max-width: 420px;
+  padding: 8px;
+}
+
+.custom-toast-wrapper {
+  margin-bottom: 12px !important;
+  animation: toastPopIn 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+  transform-origin: top right;
+}
+
+@keyframes toastPopIn {
+  0% {
+    opacity: 0;
+    transform: translateX(100%) scale(0.8);
+  }
+  70% {
+    transform: translateX(-10%) scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+.custom-toast {
+  display: flex;
+  align-items: center;
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  border-radius: 16px;
+  box-shadow: 
+    0 8px 25px rgba(0, 0, 0, 0.12),
+    0 2px 8px rgba(0, 0, 0, 0.08);
+  padding: 14px 16px;
+  min-height: 70px;
+  border-left: 6px solid;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.custom-toast::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  transform: translateX(-100%);
+  transition: transform 0.6s;
+}
+
+.custom-toast:hover::before {
+  transform: translateX(100%);
+}
+
+.custom-toast:hover {
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: 
+    0 12px 35px rgba(0, 0, 0, 0.15),
+    0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.custom-toast.success { border-left-color: #28a745; }
+.custom-toast.error { border-left-color: #dc3545; }
+.custom-toast.info { border-left-color: #17a2b8; }
+.custom-toast.warning { border-left-color: #ffc107; }
+
+.toast-icon-wrapper {
+  margin-right: 14px;
+  font-size: 1.7rem;
+  flex-shrink: 0;
+}
+
+.toast-icon {
+  width: 32px;
+  height: 32px;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.1));
+}
+
+.toast-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.toast-title {
+  margin: 0 0 2px 0;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #2d3748;
+  text-transform: capitalize;
+}
+
+.toast-message {
+  margin: 0;
+  font-size: 0.88rem;
+  color: #4a5568;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.toast-close-btn {
+  background: none;
+  border: none;
+  font-size: 1.8rem;
+  color: #a0aec0;
+  cursor: pointer;
+  padding: 0 8px;
+  line-height: 1;
+  transition: all 0.2s ease;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 8px;
+}
+
+.toast-close-btn:hover {
+  background: rgba(0,0,0,0.05);
+  color: #718096;
+  transform: scale(1.1);
+}
+
+.custom-toast-progress {
+  height: 4px;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.toast-progress-success { background: linear-gradient(90deg, #28a745, #20c997); }
+.toast-progress-error { background: linear-gradient(90deg, #dc3545, #e4606d); }
+.toast-progress-info { background: linear-gradient(90deg, #17a2b8, #20b2aa); }
+.toast-progress-warning { background: linear-gradient(90deg, #ffc107, #ffd43b); }
+
+.custom-toast-body {
+  padding: 0 !important;
+}
+
+@media (max-width: 480px) {
+  .custom-toast {
+    min-width: 280px;
+    max-width: 340px;
+    padding: 12px 14px;
+  }
+  .toast-icon {
+    width: 28px;
+    height: 28px;
+  }
+}
+/* ẨN HOÀN TOÀN UI MẶC ĐỊNH */
+.Toastify__toast {
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  min-height: auto !important;
+  border-radius: 16px !important;
+}
+
+.Toastify__toast-body {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.Toastify__close-button {
+  display: none !important;
+}
+
+.Toastify__progress-bar--wrp {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  border-radius: 0 0 16px 16px;
+  overflow: hidden;
+}
+
+.Toastify__progress-bar--bg {
+  display: none !important;
+}
+
+/* Đảm bảo wrapper không thêm padding */
+.custom-toast-wrapper {
+  padding: 0 !important;
+  margin-bottom: 12px !important;
+}
