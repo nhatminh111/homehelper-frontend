@@ -33,7 +33,6 @@ const Chat = () => {
     loading,
     error,
     hasMoreMessages,
-    typingUsers,
     sendingMessage,
     isConnected,
     loadConversations,
