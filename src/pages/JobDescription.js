@@ -29,6 +29,9 @@ export default function JobDescription() {
 
   const [expectedPrice, setExpectedPrice] = useState("");
 
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [showError, setShowError] = useState(false);
+
   const handleCreateBooking = async () => {
     try {
       // ✅ Kiểm tra đăng nhập
@@ -76,29 +79,42 @@ export default function JobDescription() {
       });
 
       const data = await res.json();
+      
+      // ✅ Xử lý token hết hạn
+      if (res.status === 401 && data.error === "Token đã hết hạn") {
+        alert("⚠️ Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
+        localStorage.removeItem("user");
+        navigate("/login");
+        return;
+      }
+      
       if (!data.success) throw new Error(data.message || "Create booking failed");
 
-      alert("✅ Gửi yêu cầu thành công!");
+      // ✅ Hiển thị modal thành công
+      setShowSuccess(true);
 
       console.log("📦 navigate state:", {
-  ...bookingData,
-  ...payload,
-  expectedPrice: payload.expected_price,
-});
-
-      // ✅ Điều hướng sang trang xem trước
-      navigate("/tasker/bookings/preview", {
-        state: {
-          ...bookingData,
-          ...payload,
-          expectedPrice: payload.expected_price,
-          total: bookingData.total || 0,
-          cleaner: bookingData.cleaner,
-        },
+        ...bookingData,
+        ...payload,
+        expectedPrice: payload.expected_price,
       });
+
+      // ⏳ Sau 2 giây tự chuyển sang trang xem trước
+      setTimeout(() => {
+        navigate("/tasker/bookings/preview", {
+          state: {
+            ...bookingData,
+            ...payload,
+            expectedPrice: payload.expected_price,
+            total: bookingData.total || 0,
+            cleaner: bookingData.cleaner,
+          },
+        });
+      }, 2000);
     } catch (err) {
       console.error("❌ [JobDescription] Lỗi khi tạo booking:", err);
-      alert("Không gửi được mô tả. Vui lòng thử lại sau.");
+      setShowError(true);
+      setTimeout(() => setShowError(false), 2000);
     }
   };
 
@@ -267,8 +283,36 @@ export default function JobDescription() {
           box-shadow: 0 3px 8px rgba(33, 150, 243, 0.2);
         }
 
-      `}</style>
+        .overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.4);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+  }
 
+  .popup {
+    background: #fff;
+    padding: 2rem 3rem;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    text-align: center;
+    max-width: 420px;
+    width: 90%;
+    animation: fadeIn 0.3s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+      `}</style>
       {/* Header */}
       <header className="bg-white border-bottom sticky-top shadow-sm">
         <Container fluid className="py-3">
@@ -539,17 +583,21 @@ export default function JobDescription() {
                                 setPhotos([...photos, previewUrl]);
 
                                 const formData = new FormData();
-                                formData.append("file", file);
+                                formData.append("images", file);
 
                                 try {
-                                  const res = await fetch("http://localhost:5000/upload", {
+                                  const user = JSON.parse(localStorage.getItem("user") || "{}");
+                                  const res = await fetch("http://localhost:3001/api/uploads/post-images", {
                                     method: "POST",
+                                    headers: {
+                                      'Authorization': `Bearer ${user.token}`
+                                    },
                                     body: formData,
                                   });
                                   const data = await res.json();
-                                  if (data.url) {
+                                  if (data.success && data.data.urls && data.data.urls.length > 0) {
                                     setPhotos((prev) =>
-                                      prev.map((p) => (p === previewUrl ? data.url : p))
+                                      prev.map((p) => (p === previewUrl ? data.data.urls[0] : p))
                                     );
                                     URL.revokeObjectURL(previewUrl);
                                   }
@@ -630,6 +678,27 @@ export default function JobDescription() {
         </Container>
       </main>
 
+      {showSuccess && (
+        <div className="overlay">
+          <div className="popup">
+            <i className="bi bi-check-circle-fill text-success" style={{ fontSize: "4rem" }}></i>
+            <h4 className="mt-3 fw-bold text-success">Đặt lịch thành công!</h4>
+            <p className="text-muted mb-3">Người giúp việc sẽ sớm liên hệ với bạn.</p>
+            <Button variant="success" onClick={() => navigate("/")}>Về Trang Chủ</Button>
+          </div>
+        </div>
+      )}
+
+      {showError && (
+        <div className="overlay">
+          <div className="popup">
+            <i className="bi bi-x-circle-fill text-danger" style={{ fontSize: "4rem" }}></i>
+            <h4 className="mt-3 fw-bold text-danger">Gửi yêu cầu thất bại</h4>
+            <p className="text-muted mb-3">Vui lòng thử lại sau.</p>
+            <Button variant="outline-danger" onClick={() => setShowError(false)}>Đóng</Button>
+          </div>
+        </div>
+      )}
     </>
   );
 }

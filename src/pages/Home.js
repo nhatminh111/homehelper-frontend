@@ -31,6 +31,7 @@ const Home = () => {
   const [showResults, setShowResults] = useState(false);
   const { user, token } = useAuth();
   const [wishlistTaskers, setWishlistTaskers] = useState([]);
+  const navigate = useNavigate();
 
   const createHeaders = (token) => ({
     "Content-Type": "application/json",

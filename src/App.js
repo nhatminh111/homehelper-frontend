@@ -1,73 +1,76 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import 'bootstrap/dist/css/bootstrap.min.css';
+import React from "react";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import './App.css';
 import CustomToastContainer from './components/common/CustomToast';
 
 // Import contexts
-import { AuthProvider } from './contexts/AuthContext';
-import { SocketProvider } from './contexts/SocketContext';
+import { AuthProvider } from "./contexts/AuthContext";
+import { SocketProvider } from "./contexts/SocketContext";
 
 // Import components
-import Header from './components/Header';
-import Footer from './components/Footer';
-import ProtectedRoute from './components/ProtectedRoute';
-import Home from './pages/Home';
-import About from './pages/About';
-import Services from './pages/Services';
-import ServiceDetails from './pages/ServiceDetails';
-import Portfolio from './pages/Portfolio';
-import Pricing from './pages/Pricing';
-import Blog from './pages/Blog';
-import BlogDetails from './pages/BlogDetails';
-import BlogCreate from './pages/BlogCreate';
-import MyBlogs from './pages/MyBlogs';
-import Contact from './pages/Contact';
-import Video from './pages/Video';
-import VideoDetail from './pages/VideoDetail';
-import TopUp from './pages/TopUp';
-import PaymentResult from './pages/PaymentResult';
-import Wallet from './pages/Wallet';
-import Booking from './pages/Booking';
-import JobDescription from './pages/JobDescription';
-import Contract from './pages/Contract';
+import Header from "./components/Header";
+import Footer from "./components/Footer";
+import ProtectedRoute from "./components/ProtectedRoute";
+import Home from "./pages/Home";
+import About from "./pages/About";
+import Services from "./pages/Services";
+import ServiceDetails from "./pages/ServiceDetails";
+import Portfolio from "./pages/Portfolio";
+import Pricing from "./pages/Pricing";
+import Blog from "./pages/Blog";
+import BlogDetails from "./pages/BlogDetails";
+import BlogCreate from "./pages/BlogCreate";
+import MyBlogs from "./pages/MyBlogs";
+import Contact from "./pages/Contact";
+import Video from "./pages/Video";
+import VideoDetail from "./pages/VideoDetail";
+import TopUp from "./pages/TopUp";
+import PaymentResult from "./pages/PaymentResult";
+import Wallet from "./pages/Wallet";
+import Booking from "./pages/Booking";
+import JobDescription from "./pages/JobDescription";
+import Contract from "./pages/Contract";
 import TaskerBookingDetail from "./pages/TaskerBookingDetail";
+import TaskerBookings from "./pages/TaskerBookings";
 
 // Import authentication pages
-import Login from './pages/auth/Login';
-import Register from './pages/auth/Register';
-import ForgotPassword from './pages/auth/ForgotPassword';
-import ResetPassword from './pages/auth/ResetPassword';
-import AuthDemo from './pages/auth/AuthDemo';
+import Login from "./pages/auth/Login";
+import Register from "./pages/auth/Register";
+import ForgotPassword from "./pages/auth/ForgotPassword";
+import ResetPassword from "./pages/auth/ResetPassword";
+import AuthDemo from "./pages/auth/AuthDemo";
 
 // Import new pages for functional objectives
-import Dashboard from './pages/Dashboard';
-import TaskerSearch from './pages/TaskerSearch';
-import TaskerProfile from './pages/TaskerProfile';
-import AccountManagement from './pages/AccountManagement';
-import TaskManagement from './pages/TaskManagement';
-import PaymentInvoicing from './pages/PaymentInvoicing';
-import RatingComplaints from './pages/RatingComplaints';
-import ContentManagement from './pages/ContentManagement';
-import VideoUpload from './pages/VideoUpload';
-import TaskerManagement from './pages/TaskerManagement';
-import AIInteraction from './pages/AIInteraction';
-import SystemManagement from './pages/SystemManagement';
-import QuotesPage from './pages/QuotesPage';
-import VideoManager from './pages/VideoManager';
-
+import Dashboard from "./pages/Dashboard";
+import TaskerSearch from "./pages/TaskerSearch";
+import TaskerProfile from "./pages/TaskerProfile";
+import AccountManagement from "./pages/AccountManagement";
+import TaskManagement from "./pages/TaskManagement";
+import PaymentInvoicing from "./pages/PaymentInvoicing";
+import RatingComplaints from "./pages/RatingComplaints";
+import ContentManagement from "./pages/ContentManagement";
+import VideoUpload from "./pages/VideoUpload";
+import TaskerManagement from "./pages/TaskerManagement";
+import AIInteraction from "./pages/AIInteraction";
+import SystemManagement from "./pages/SystemManagement";
+import QuotesPage from "./pages/QuotesPage";
+import VideoManager from "./pages/VideoManager";
+// import NegotiateSessionTest from './pages/NegotiateSessionTest';
 // Role landing pages
-import TaskerHome from './pages/tasker/TaskerHome';
-import AdminHome from './pages/admin/AdminHome';
-import CustomerHome from './pages/customer/CustomerHome';
-import ChatPage from './pages/Chat';
-import CCCDExtractor from './pages/CCCDExtractor';
-import BecomeTasker from './pages/BecomeTasker';
-import TaskerApprovals from './pages/admin/TaskerApprovals';
+import TaskerHome from "./pages/tasker/TaskerHome";
+import AdminHome from "./pages/admin/AdminHome";
+import CustomerHome from "./pages/customer/CustomerHome";
+import ChatPage from "./pages/Chat";
+import CCCDExtractor from "./pages/CCCDExtractor";
+import BecomeTasker from "./pages/BecomeTasker";
 import Wishlist from "./pages/Wishlist";
-import StaffApplications from './pages/StaffApplications';
-import { Navigate } from 'react-router-dom';
+import { Navigate } from "react-router-dom";
+import StaffApplications from "./pages/StaffApplications";
+import StaffCertifications from "./pages/StaffCertifications";
+import StaffDashboard from "./pages/StaffDashboard";
+import StaffBlogs from "./pages/StaffBlogs";
 function App() {
   return (
     <AuthProvider>
@@ -123,46 +126,61 @@ function App() {
               <Route path="/job-description" element={<JobDescription />} />
               <Route path="/contract" element={<Contract />} />
 
-              <Route path="/become-tasker" element={<BecomeTasker />} />
-              
-              {/* Authentication routes */}
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/reset-password" element={<ResetPassword />} />
-              <Route path="/auth-demo" element={<AuthDemo />} />
-              <Route path="/wallet" element={<Wallet />} />
-              
-              {/* Protected routes */}
-              <Route path="/dashboard" element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              } />
-              <Route path="/tasker-search" element={<TaskerSearch />} />
-              <Route path="/tasker-profile" element={<TaskerProfile />} />
-              <Route path="/tasker-profile/:id" element={<TaskerProfile />} />
-              <Route path="/account" element={
-                <ProtectedRoute>
-                  <AccountManagement />
-                </ProtectedRoute>
-              } />
-              <Route path="/tasks" element={
-                <ProtectedRoute>
-                  <TaskManagement />
-                </ProtectedRoute>
-              } />
-              <Route path="/payment" element={
-                <ProtectedRoute>
-                  <PaymentInvoicing />
-                </ProtectedRoute>
-              } />
-              <Route path="/ratings" element={
-                <ProtectedRoute>
-                  <RatingComplaints />
-                </ProtectedRoute>
-              } />
-              <Route
+                <Route path="/become-tasker" element={<BecomeTasker />} />
+
+                {/* Authentication routes */}
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/auth-demo" element={<AuthDemo />} />
+                <Route path="/wallet" element={<Wallet />} />
+
+                {/* Protected routes */}
+                <Route
+                  path="/dashboard"
+                  element={
+                    <ProtectedRoute>
+                      <Dashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route path="/tasker-search" element={<TaskerSearch />} />
+                <Route path="/tasker-profile" element={<TaskerProfile />} />
+                <Route path="/tasker-profile/:id" element={<TaskerProfile />} />
+                <Route
+                  path="/account"
+                  element={
+                    <ProtectedRoute>
+                      <AccountManagement />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/tasks"
+                  element={
+                    <ProtectedRoute>
+                      <TaskManagement />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/payment"
+                  element={
+                    <ProtectedRoute>
+                      <PaymentInvoicing />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/ratings"
+                  element={
+                    <ProtectedRoute>
+                      <RatingComplaints />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
                   path="/wishlists"
                   element={
                     <ProtectedRoute>
@@ -170,69 +188,107 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
-              <Route path="/content" element={
-                <ProtectedRoute requiredRole="Admin">
-                  <ContentManagement />
-                </ProtectedRoute>
-              } />
-              <Route path="/videostaff" element={
-                <ProtectedRoute requiredRole="Staff">
-                  <VideoUpload />
-                </ProtectedRoute>
-              } />
-              <Route path="/tasker-management" element={
-                <ProtectedRoute requiredRole="Admin">
-                  <TaskerManagement />
-                </ProtectedRoute>
-              } />
-              <Route path="/ai-chat" element={
-                <ProtectedRoute>
-                  <AIInteraction />
-                </ProtectedRoute>
-              } />
-              <Route path="/system" element={
-                <ProtectedRoute requiredRole="Admin">
-                  <SystemManagement />
-                </ProtectedRoute>
-              } />
-              <Route path="/chat" element={
-                <ProtectedRoute>
-                  <ChatPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/chat/:conversationId" element={
-                <ProtectedRoute>
-                  <ChatPage />
-                </ProtectedRoute>
-              } />
-              {/* Role landing */}
-              <Route path="/tasker" element={
-                <ProtectedRoute requiredRole="Tasker">
-                  <TaskerHome />
-                </ProtectedRoute>
-              } />
-              <Route path="/customer" element={
-                <ProtectedRoute requiredRole="Customer">
-                  <CustomerHome />
-                </ProtectedRoute>
-              } />
-              <Route path="/admin" element={
-                <ProtectedRoute requiredRole="Admin">
-                  <AdminHome />
-                </ProtectedRoute>
-              } />
-              <Route path="/tasker-approvals" element={
-                <ProtectedRoute requiredRole="Staff">
-                  <TaskerApprovals />
-                </ProtectedRoute>
-              } />
-              <Route path="/staff/applications" element={
-                <ProtectedRoute requiredRole="Staff">
-                  <StaffApplications />
-                </ProtectedRoute>
-              } />
-              <Route path="/staff" element={<Navigate to="/staff/applications" replace />} />
-            </Routes>
+                <Route
+                  path="/content"
+                  element={
+                    <ProtectedRoute requiredRole="Admin">
+                      <ContentManagement />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/videostaff"
+                  element={
+                    <ProtectedRoute requiredRole="Staff">
+                      <VideoUpload />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/tasker-management"
+                  element={
+                    <ProtectedRoute requiredRole="Admin">
+                      <TaskerManagement />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/ai-chat"
+                  element={
+                    <ProtectedRoute>
+                      <AIInteraction />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/system"
+                  element={
+                    <ProtectedRoute requiredRole="Admin">
+                      <SystemManagement />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/chat"
+                  element={
+                    <ProtectedRoute>
+                      <ChatPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/chat/:conversationId"
+                  element={
+                    <ProtectedRoute>
+                      <ChatPage />
+                    </ProtectedRoute>
+                  }
+                />
+                {/* Role landing */}
+                <Route
+                  path="/tasker"
+                  element={
+                    <ProtectedRoute requiredRole="Tasker">
+                      <TaskerHome />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/customer"
+                  element={
+                    <ProtectedRoute requiredRole="Customer">
+                      <CustomerHome />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin"
+                  element={
+                    <ProtectedRoute requiredRole="Admin">
+                      <AdminHome />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/staff/dashboard"
+                  element={
+                    <ProtectedRoute requiredRole="Staff">
+                      <StaffDashboard />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route path="applications" element={<StaffApplications />} />
+                  <Route
+                    path="certifications"
+                    element={<StaffCertifications />}
+                  />
+                  <Route path="blogs" element={<StaffBlogs />} />
+                </Route>
+                <Route
+                  path="/staff"
+                  element={<Navigate to="/staff/applications" replace />}
+                />
+              </Routes>
             </main>
             <Footer />
           </div>

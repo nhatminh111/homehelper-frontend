@@ -22,6 +22,7 @@ const TaskerHome = () => {
   ];
 
   const menu = [
+    { label: 'Quản lý Công việc', icon: faTasks, to: '/tasker/bookings', highlight: true },
     { label: 'My Tasks', icon: faTasks, to: '/tasks' },
     { label: 'Schedule', icon: faCalendar, to: '/tasks' },
     { label: 'Earnings', icon: faDollarSign, to: '/payment' },
@@ -43,9 +44,20 @@ const TaskerHome = () => {
             </h6>
             <div className="list-group">
               {menu.map(item => (
-                <Link key={item.label} to={item.to} className="list-group-item list-group-item-action d-flex align-items-center">
-                  <FontAwesomeIcon icon={item.icon} className="mr-2 text-primary" />
+                <Link 
+                  key={item.label} 
+                  to={item.to} 
+                  className={`list-group-item list-group-item-action d-flex align-items-center ${
+                    item.highlight ? 'bg-primary text-white' : ''
+                  }`}
+                  style={item.highlight ? { fontWeight: '600', borderRadius: '10px', marginBottom: '5px' } : {}}
+                >
+                  <FontAwesomeIcon 
+                    icon={item.icon} 
+                    className={`mr-2 ${item.highlight ? 'text-white' : 'text-primary'}`} 
+                  />
                   {item.label}
+                  {item.highlight && <span className="badge bg-warning text-dark ms-auto">Mới</span>}
                 </Link>
               ))}
             </div>
@@ -53,6 +65,29 @@ const TaskerHome = () => {
         </div>
 
         <div className="col-lg-9">
+          {/* Hero Banner for Job Management */}
+          <div className="bg-gradient rounded shadow-lg p-4 mb-4" style={{ 
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white'
+          }}>
+            <div className="row align-items-center">
+              <div className="col-md-8">
+                <h3 className="fw-bold mb-2">
+                  <FontAwesomeIcon icon={faTasks} className="me-2" />
+                  Quản lý Công việc
+                </h3>
+                <p className="mb-3">Xem và quản lý các công việc đã được gửi cho bạn. Chấp nhận, từ chối và theo dõi tiến độ một cách dễ dàng.</p>
+                <Link to="/tasker/bookings" className="btn btn-light btn-lg rounded-pill px-4">
+                  <FontAwesomeIcon icon={faTasks} className="me-2" />
+                  Xem Công việc
+                </Link>
+              </div>
+              <div className="col-md-4 text-center">
+                <FontAwesomeIcon icon={faTasks} size="4x" className="opacity-75" />
+              </div>
+            </div>
+          </div>
+
           <div className="row">
             {stats.map(s => (
               <div key={s.title} className="col-md-6 col-xl-3 mb-3">

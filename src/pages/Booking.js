@@ -6,6 +6,7 @@ import { servicesAPI } from "../services/api";
 import api from "../services/api";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import TaskerService from '../services/taskerService';
+import _ from "lodash";
 
 function formatVND(input) {
     const n = Number(input);
@@ -36,6 +37,8 @@ export default function Booking() {
     const [services, setServices] = useState([]);
     const [selectedVariantId, setSelectedVariantId] = useState(null);
 
+    const [loadingServices, setLoadingServices] = useState(true);
+
     useEffect(() => {
         if (!selectedVariantId) return;
         TaskerService.getTaskersByVariant(selectedVariantId)
@@ -44,23 +47,37 @@ export default function Booking() {
     }, [selectedVariantId]);
 
     useEffect(() => {
-        async function fetchTaskerData() {
+        console.log("🏁 Booking mounted. taskerId =", taskerId);
+
+        if (!taskerId) {
+            console.warn("⚠️ Không có taskerId, skip fetchTaskerData()");
+            setLoadingServices(false); // ✅ ngắt loading ngay
+            return;
+        }
+
+        const fetchTaskerData = async () => {
+            setLoadingServices(true);
             try {
                 const token = api.getStoredToken();
-                const data = await servicesAPI.getServicesByTaskerId(taskerId, token);
-                console.log("📦 [Booking] Data trả về từ API:", data);
+                const res = await servicesAPI.getServicesByTaskerId(taskerId, token);
+                console.log("📦 [Booking] Data trả về từ API:", res);
 
-                if (data.success) {
-                    setTasker(data.tasker);
-                    setServices(data.variants || []);
-                    console.log("✅ [Booking] Services được set:", data.variants);
+                if (res?.success) {
+                    setTasker(res.tasker);
+                    setServices(res.variants || []);
+                    const grouped = _.groupBy(res.variants || [], "service_id");
+                    setVariantsByService(grouped);
+                    console.log("🧩 [Booking] setServices data:", res.variants);
                 } else {
-                    console.warn("⚠️ [Booking] Không lấy được service theo ID:", data);
+                    console.warn("⚠️ API trả về không có success:", res);
                 }
             } catch (err) {
-                console.error("❌ [Booking] Lỗi khi load Tasker:", err);
+                console.error("❌ Lỗi khi load Tasker:", err);
+            } finally {
+                console.log("✅ Done fetchTaskerData");
+                setLoadingServices(false);
             }
-        }
+        };
 
         if (taskerId) fetchTaskerData();
     }, [taskerId]);
@@ -108,28 +125,7 @@ export default function Booking() {
     // Lấy dịch vụ + variants từ API
 
     const [variantsByService, setVariantsByService] = useState({});
-    const [loadingServices, setLoadingServices] = useState(true);
 
-    useEffect(() => {
-        (async () => {
-            try {
-                const list = await servicesAPI.getAllServices();
-                const safeList = Array.isArray(list) ? list : [];
-                setServices(safeList);
-
-                const entries = await Promise.all(
-                    safeList.map(async (s) => {
-                        const detail = await servicesAPI.getServiceById(s.service_id);
-                        const variants = detail?.data?.variants || detail?.variants || [];
-                        return [s.service_id, variants];
-                    })
-                );
-                setVariantsByService(Object.fromEntries(entries));
-            } finally {
-                setLoadingServices(false);
-            }
-        })();
-    }, []);
 
     const defaultSelection = () => ({
         date: "",
@@ -577,28 +573,27 @@ export default function Booking() {
                                         </div>
                                     ) : (
                                         <Accordion defaultActiveKey="0" alwaysOpen className="service-accordion">
-                                            {services.map((s, idx) => (
-                                                <Accordion.Item eventKey={String(idx)} key={s.service_id} className="mb-2 border-0">
+                                            {Object.entries(_.groupBy(services, "service_id")).map(([serviceId, variants], idx) => (
+                                                <Accordion.Item key={serviceId} eventKey={String(idx)} className="mb-2 border-0">
                                                     <Accordion.Header>
                                                         <div className="d-flex align-items-center gap-2">
-                                                            <span className="fs-5">{iconMap[s.service_id] || "✨"}</span>
+                                                            <span className="fs-5">{iconMap[serviceId] || "✨"}</span>
                                                             <div>
-                                                                <div className="fw-semibold">{s.name}</div>
-                                                                {s.description && <div className="text-muted small">{s.description}</div>}
+                                                                <div className="fw-semibold">{variants[0].service_name}</div>
+                                                                <div className="text-muted small">{variants.length} gói dịch vụ</div>
                                                             </div>
                                                         </div>
                                                     </Accordion.Header>
 
-                                                    <Accordion.Body className="bg-light" style={{ borderBottomLeftRadius: 16, borderBottomRightRadius: 16 }}>
-                                                        {(variantsByService[s.service_id] || []).length === 0 && (
-                                                            <div className="text-muted small">Chưa có gói dịch vụ.</div>
-                                                        )}
-
-                                                        {(variantsByService[s.service_id] || []).map((v) => (
+                                                    <Accordion.Body
+                                                        className="bg-light"
+                                                        style={{ borderBottomLeftRadius: 16, borderBottomRightRadius: 16 }}
+                                                    >
+                                                        {variants.map((v) => (
                                                             <VariantCard
                                                                 key={v.variant_id}
                                                                 v={v}
-                                                                checked={Boolean(selection.services[v.variant_id])}
+                                                                checked={!!selection.services[v.variant_id]}
                                                                 onToggle={() => toggleVariant(v.variant_id)}
                                                             />
                                                         ))}
@@ -1433,7 +1428,7 @@ export default function Booking() {
                                         variant="outline-light"
                                         className="nav-btn"
                                         onClick={goPrev}
-                                        disabled={step === 0}
+                                        disabled={false}
                                     >
                                         <span className="me-2">←</span> Quay lại
                                     </Button>
@@ -1453,11 +1448,11 @@ export default function Booking() {
                                             className="nav-btn"
                                             onClick={() => {
                                                 const startISO = selection.date && selection.startTime
-                                                    ? new Date(`${selection.date}T${selection.startTime}`).toISOString()
+                                                    ? new Date(`${selection.date}T${selection.startTime}:00`).toISOString()
                                                     : null;
 
                                                 const endISO = selection.date && selection.endTime
-                                                    ? new Date(`${selection.date}T${selection.endTime}`).toISOString()
+                                                    ? new Date(`${selection.date}T${selection.endTime}:00`).toISOString()
                                                     : null;
 
                                                 const payload = {
