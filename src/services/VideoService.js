@@ -37,8 +37,8 @@ class VideoService {
       });
       return response.data;
     } catch (error) {
-      console.error('Lỗi khi upload video:', error);
-      throw new Error(error.response?.data?.error || `Lỗi khi upload video: ${error.message}`);
+      console.error( error);
+      throw new Error(error.response?.data?.error || error.message);
     }
   }
 
@@ -277,14 +277,15 @@ class VideoService {
       throw error;
     }
   }
-  static async deleteVideoByStaff(videoId) {
-    try {
-      const response = await api.delete(`/videos/${videoId}`);
-      return response.data;
-    } catch (error) {
-      throw new Error(error.response?.data?.error || 'Lỗi khi xóa video');
-    }
+// Xóa video bởi Staff
+async deleteVideoByStaff(videoId) {
+  try {
+    const response = await api.delete(`/videos/staff/${videoId}`);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.error || 'Lỗi khi xóa video');
   }
+}
 }
 
 export default new VideoService();

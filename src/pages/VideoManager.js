@@ -1,9 +1,10 @@
+// src/pages/VideoManager.js
 import React, { useState, useEffect, useRef } from 'react';
-import { Container, Row, Col, Form, Button, Card, Dropdown, Pagination } from 'react-bootstrap';
+import { Container, Row, Col, Form, Button, Card, Dropdown, Pagination, Alert } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
-import { toast, ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
 import VideoService from '../services/VideoService';
+import { showToast } from '../components/common/CustomToast';
+import { FiSearch, FiFilter, FiCalendar } from 'react-icons/fi';
 import '../css/VideoManager.css';
 
 const VideoManager = () => {
@@ -12,18 +13,14 @@ const VideoManager = () => {
   const [description, setDescription] = useState('');
   const [videoFile, setVideoFile] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
   const [editVideoId, setEditVideoId] = useState(null);
   const [currentVideoUrl, setCurrentVideoUrl] = useState(null);
-  const formRef = useRef(null); // Reference to the form for scrolling
+  const formRef = useRef(null);
 
-  // State for search and filter
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [dateSort, setDateSort] = useState('desc');
   const [filteredVideos, setFilteredVideos] = useState([]);
-  // State for pagination
   const [currentPage, setCurrentPage] = useState(1);
   const videosPerPage = 4;
 
@@ -32,7 +29,6 @@ const VideoManager = () => {
   }, []);
 
   useEffect(() => {
-    // Filter and sort videos
     let result = [...videos];
 
     if (searchQuery) {
@@ -58,23 +54,13 @@ const VideoManager = () => {
     setCurrentPage(1);
   }, [videos, searchQuery, statusFilter, dateSort]);
 
-  useEffect(() => {
-    if (error) {
-      toast.error(error, { position: 'top-right', autoClose: 3000 });
-    }
-    if (success) {
-      toast.success(success, { position: 'top-right', autoClose: 3000 });
-    }
-  }, [error, success]);
-
   const fetchVideos = async () => {
     setLoading(true);
-    setError(null);
     try {
       const { videos: videoList } = await VideoService.getUserVideos();
       setVideos(videoList || []);
     } catch (err) {
-      setError('Lỗi khi tải danh sách video: ' + err.message);
+      showToast.error('Lỗi khi tải danh sách video: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -83,32 +69,25 @@ const VideoManager = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!title) {
-      setError('Vui lòng cung cấp tiêu đề');
+      showToast.error('Vui lòng cung cấp tiêu đề');
       return;
     }
 
     setLoading(true);
-    setError(null);
-    setSuccess(null);
-
     try {
-      const videoData = {
-        title,
-        description,
-        video: videoFile,
-      };
+      const videoData = { title, description, video: videoFile };
 
       if (editVideoId) {
         await VideoService.updateVideo(editVideoId, videoData);
-        setSuccess('Cập nhật video thành công!');
+        showToast.success('Cập nhật video thành công!');
       } else {
         if (!videoFile) {
-          setError('Vui lòng cung cấp file video');
+          showToast.error('Vui lòng cung cấp file video');
           setLoading(false);
           return;
         }
         await VideoService.uploadVideo(videoData);
-        setSuccess('Upload video thành công!');
+        showToast.success('Upload video thành công!');
       }
 
       setTitle('');
@@ -118,7 +97,7 @@ const VideoManager = () => {
       setCurrentVideoUrl(null);
       fetchVideos();
     } catch (err) {
-      setError(err.message || 'Lỗi khi xử lý video');
+      showToast.error(err.message || 'Lỗi khi xử lý video');
     } finally {
       setLoading(false);
     }
@@ -128,15 +107,12 @@ const VideoManager = () => {
     if (!window.confirm('Bạn chắc chắn muốn xóa video này?')) return;
 
     setLoading(true);
-    setError(null);
-    setSuccess(null);
-
     try {
       await VideoService.deleteVideo(videoId);
-      setSuccess('Xóa video thành công!');
+      showToast.success('Xóa video thành công!');
       fetchVideos();
     } catch (err) {
-      setError(err.message || 'Lỗi khi xóa video');
+      showToast.error(err.message || 'Lỗi khi xóa video');
     } finally {
       setLoading(false);
     }
@@ -148,10 +124,7 @@ const VideoManager = () => {
     setDescription(video.description || '');
     setVideoFile(null);
     setCurrentVideoUrl(video.video_url);
-    // Scroll to the form smoothly
-    if (formRef.current) {
-      formRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   const handleCancelEdit = () => {
@@ -163,64 +136,34 @@ const VideoManager = () => {
   };
 
   const getStatusBadge = (status) => {
-    const statusConfig = {
-      Pending: { variant: 'warning', text: 'Đang chờ duyệt', className: 'status-pending' },
-      Approved: { variant: 'success', text: 'Đã duyệt', className: 'status-approved' },
-      Rejected: { variant: 'danger', text: 'Bị từ chối', className: 'status-rejected' },
-    };
+    const config = {
+      Pending: { variant: 'warning', text: 'Đang chờ duyệt' },
+      Approved: { variant: 'success', text: 'Đã duyệt' },
+      Rejected: { variant: 'danger', text: 'Bị từ chối' },
+    }[status] || { variant: 'secondary', text: status };
 
-    const config = statusConfig[status] || { variant: 'secondary', text: status, className: '' };
-
-    return (
-      <span className={`status-badge ${config.className}`}>
-        {config.text}
-      </span>
-    );
+    return <span className={`badge bg-${config.variant}`}>{config.text}</span>;
   };
 
-  const getStatusBadgeRight = (status) => {
-    const statusConfig = {
-      Pending: { variant: 'warning', text: 'Đang chờ duyệt', className: 'status-pending' },
-      Approved: { variant: 'success', text: 'Đã duyệt', className: 'status-approved' },
-      Rejected: { variant: 'danger', text: 'Bị từ chối', className: 'status-rejected' },
-    };
-
-    const config = statusConfig[status] || { variant: 'secondary', text: status, className: '' };
-
-    return (
-      <span className={`status-badge-right ${config.className}`}>
-        {config.text}
-      </span>
-    );
-  };
-
-  // Pagination logic
   const indexOfLastVideo = currentPage * videosPerPage;
   const indexOfFirstVideo = indexOfLastVideo - videosPerPage;
   const currentVideos = filteredVideos.slice(indexOfFirstVideo, indexOfLastVideo);
   const totalPages = Math.ceil(filteredVideos.length / videosPerPage);
 
-  const handlePageChange = (pageNumber) => {
-    setCurrentPage(pageNumber);
-  };
+  const handlePageChange = (pageNumber) => setCurrentPage(pageNumber);
 
   const renderPagination = () => {
-    const pageItems = [];
     const maxVisiblePages = 5;
     let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
     let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
-
     if (endPage - startPage + 1 < maxVisiblePages) {
       startPage = Math.max(1, endPage - maxVisiblePages + 1);
     }
 
+    const pageItems = [];
     for (let i = startPage; i <= endPage; i++) {
       pageItems.push(
-        <Pagination.Item
-          key={i}
-          active={i === currentPage}
-          onClick={() => handlePageChange(i)}
-        >
+        <Pagination.Item key={i} active={i === currentPage} onClick={() => handlePageChange(i)}>
           {i}
         </Pagination.Item>
       );
@@ -228,51 +171,47 @@ const VideoManager = () => {
 
     return (
       <Pagination className="pagination-container">
-        <Pagination.Prev
-          onClick={() => handlePageChange(currentPage - 1)}
-          disabled={currentPage === 1}
-        />
+        <Pagination.Prev onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} />
         {startPage > 1 && <Pagination.Ellipsis />}
         {pageItems}
         {endPage < totalPages && <Pagination.Ellipsis />}
-        <Pagination.Next
-          onClick={() => handlePageChange(currentPage + 1)}
-          disabled={currentPage === totalPages}
-        />
+        <Pagination.Next onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} />
       </Pagination>
     );
   };
 
   return (
-    <Container fluid className="video-manager-container">
-      <ToastContainer />
-      <h2 className="video-manager-title">Quản lý Video</h2>
+    <Container fluid className="video-manager-container py-4">
+      <h2 className="video-manager-title mb-4">Quản lý Video</h2>
 
-      {/* Form for both Upload and Edit */}
-      <Form onSubmit={handleSubmit} className="upload-form" ref={formRef}>
+      {/* FORM UPLOAD / EDIT */}
+      <Form onSubmit={handleSubmit} className="upload-form p-4 rounded shadow-sm bg-white mb-5" ref={formRef}>
         <h5 className="mb-3">{editVideoId ? 'Sửa Video' : 'Tải lên Video mới'}</h5>
+
         {editVideoId && currentVideoUrl && (
-          <div className="current-video-preview">
-            <p>Video hiện tại:</p>
-            <video controls>
+          <div className="current-video-preview mb-3">
+            <p className="mb-1 fw-bold">Video hiện tại:</p>
+            <video controls className="w-100 rounded shadow-sm" style={{ maxHeight: '200px' }}>
               <source src={currentVideoUrl} type="video/mp4" />
-              Trình duyệt của bạn không hỗ trợ video.
+              Trình duyệt không hỗ trợ video.
             </video>
           </div>
         )}
-        <Form.Group controlId="title">
+
+        <Form.Group controlId="title" className="mb-3">
           <Form.Label>Tiêu đề <span className="text-danger">*</span></Form.Label>
           <Form.Control
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            required
             placeholder="Nhập tiêu đề video"
             maxLength={200}
+            required
+            className="shadow-sm"
           />
         </Form.Group>
 
-        <Form.Group controlId="description" className="mt-3">
+        <Form.Group controlId="description" className="mb-3">
           <Form.Label>Mô tả</Form.Label>
           <Form.Control
             as="textarea"
@@ -281,159 +220,204 @@ const VideoManager = () => {
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Nhập mô tả (tùy chọn)"
             maxLength={500}
+            className="shadow-sm"
           />
         </Form.Group>
 
-        <Form.Group controlId="videoFile" className="mt-3">
-          <Form.Label>File Video {editVideoId ? '(tùy chọn - thay thế video hiện tại)' : <span className="text-danger">*</span>}</Form.Label>
-          <Form.Control
-            type="file"
-            accept="video/*"
-            onChange={(e) => setVideoFile(e.target.files[0])}
-            required={!editVideoId}
-          />
-          <Form.Text className="text-muted">
-            {editVideoId
-              ? 'Để trống nếu không muốn thay đổi video hiện tại.'
-              : 'Chọn file video (MP4, AVI, MOV, v.v.). Kích thước tối đa 100MB.'}
-          </Form.Text>
-        </Form.Group>
+        {!editVideoId && (
+          <Form.Group controlId="videoFile" className="mb-3">
+            <Form.Label>File Video <span className="text-danger">*</span></Form.Label>
+            <Form.Control
+              type="file"
+              accept="video/*"
+              onChange={(e) => setVideoFile(e.target.files[0])}
+              required
+              className="shadow-sm"
+            />
+            <Form.Text className="text-muted">
+              MP4, AVI, MOV... Tối đa 100MB.
+            </Form.Text>
+          </Form.Group>
+        )}
 
-        <div className="mt-3">
-          <Button variant="primary" type="submit" disabled={loading}>
-            {loading ? 'Đang xử lý...' : editVideoId ? 'Cập nhật Video' : 'Upload Video'}
+        <div className="d-flex gap-2">
+          <Button variant="primary" type="submit" disabled={loading} className="px-4">
+            {loading ? 'Đang xử lý...' : editVideoId ? 'Cập nhật' : 'Upload'}
           </Button>
           {editVideoId && (
-            <Button
-              variant="secondary"
-              onClick={handleCancelEdit}
-              className="ms-2"
-              disabled={loading}
-            >
+            <Button variant="secondary" onClick={handleCancelEdit} disabled={loading}>
               Hủy
             </Button>
           )}
         </div>
       </Form>
 
-      {/* Filter & Search */}
-      <Form className="filter-form">
-        <div className="filter-group">
-          <Form.Group controlId="searchQuery">
-            <Form.Label>Tìm kiếm</Form.Label>
-            <div className="input-group">
-              <span className="input-group-icon"><i className="bi bi-search"></i></span>
-              <Form.Control
-                type="text"
-                placeholder="Tìm theo tiêu đề hoặc mô tả"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-          </Form.Group>
+      {/* === FILTER FORM === */}
+<Form className="filter-form">
+  <Row className="g-3 align-items-end">
+    {/* TÌM KIẾM */}
+    <Col md={5}>
+      <Form.Group>
+        <Form.Label className="filter-label">
+          <FiSearch className="me-1" /> Tìm kiếm 
+        </Form.Label>
+        <div className="input-group filter-input-group">
+          
+          <Form.Control
+            type="text"
+            placeholder="Tìm theo tiêu đề hoặc mô tả..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="filter-control"
+          />
         </div>
+      </Form.Group>
+    </Col>
 
-        <div className="filter-group">
-          <Form.Group controlId="statusFilter">
-            <Form.Label>Trạng thái</Form.Label>
-            <Form.Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-              <option value="">Tất cả</option>
-              <option value="Pending">Đang chờ duyệt</option>
-              <option value="Approved">Đã duyệt</option>
-              <option value="Rejected">Bị từ chối</option>
-            </Form.Select>
-          </Form.Group>
-        </div>
+    {/* TRẠNG THÁI */}
+    <Col md={3}>
+      <Form.Group>
+        <Form.Label className="filter-label">
+          <FiFilter className="me-1" /> Trạng thái
+        </Form.Label>
+        <Form.Select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="filter-control"
+        >
+          <option value="">Tất cả</option>
+          <option value="Pending">Đang chờ duyệt</option>
+          <option value="Approved">Đã duyệt</option>
+          <option value="Rejected">Bị từ chối</option>
+        </Form.Select>
+      </Form.Group>
+    </Col>
 
-        <div className="filter-group">
-          <Form.Group controlId="dateSort">
-            <Form.Label>Sắp xếp theo ngày</Form.Label>
-            <Dropdown>
-              <Dropdown.Toggle variant="outline-primary" id="dropdown-date-sort">
-                {dateSort === 'desc' ? 'Mới nhất trước' : 'Cũ nhất trước'}
-              </Dropdown.Toggle>
-              <Dropdown.Menu>
-                <Dropdown.Item onClick={() => setDateSort('desc')}>Mới nhất trước</Dropdown.Item>
-                <Dropdown.Item onClick={() => setDateSort('asc')}>Cũ nhất trước</Dropdown.Item>
-              </Dropdown.Menu>
-            </Dropdown>
-          </Form.Group>
-        </div>
-      </Form>
+    {/* SẮP XẾP */}
+    <Col md={4}>
+      <Form.Group>
+        <Form.Label className="filter-label">
+          <FiCalendar className="me-1" /> Sắp xếp
+        </Form.Label>
+        <Dropdown>
+          <Dropdown.Toggle
+            variant="outline-primary"
+            className="w-100 filter-dropdown-toggle d-flex justify-content-between align-items-center"
+          >
+            <span>{dateSort === 'desc' ? 'Mới nhất trước' : 'Cũ nhất trước'}</span>
+          </Dropdown.Toggle>
+          <Dropdown.Menu className="filter-dropdown-menu">
+            <Dropdown.Item
+              onClick={() => setDateSort('desc')}
+              className="d-flex align-items-center gap-2"
+            >
+              Mới nhất trước
+            </Dropdown.Item>
+            <Dropdown.Item
+              onClick={() => setDateSort('asc')}
+              className="d-flex align-items-center gap-2"
+            >
+              Cũ nhất trước
+            </Dropdown.Item>
+          </Dropdown.Menu>
+        </Dropdown>
+      </Form.Group>
+    </Col>
+  </Row>
+</Form>
+      {/* DANH SÁCH VIDEO */}
+      <h3 className="mb-3">Danh sách Video ({filteredVideos.length})</h3>
 
-      {/* Video List */}
-      <h3 className="mt-4 mb-3">Danh sách Video của bạn ({filteredVideos.length})</h3>
       {loading ? (
-        <div className="text-center py-5"><p>Đang tải video...</p></div>
-      ) : filteredVideos.length === 0 ? (
         <div className="text-center py-5">
-          <p className="text-muted">Chưa có video nào phù hợp.</p>
-          <p>Hãy tải lên video hoặc thay đổi bộ lọc!</p>
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Đang tải...</span>
+          </div>
         </div>
+      ) : filteredVideos.length === 0 ? (
+        <Alert variant="info" className="text-center py-5">
+          <p className="mb-0">Chưa có video nào.</p>
+          <small>Hãy tải lên hoặc thay đổi bộ lọc!</small>
+        </Alert>
       ) : (
         <>
           <Row xs={1} sm={2} md={3} lg={4} className="g-4">
             {currentVideos.map((video) => (
               <Col key={video.video_id}>
-                <Card className="video-card h-100">
+                <Card className="video-card h-100 shadow-sm border-0 overflow-hidden">
                   <div className="position-relative">
-                    <video controls className="w-100">
+                    <video
+                      controls
+                      className="w-100 card-img-top"
+                      style={{ height: '380px', objectFit: 'cover' }}
+                    >
                       <source src={video.video_url} type="video/mp4" />
-                      Trình duyệt của bạn không hỗ trợ video.
+                      Trình duyệt không hỗ trợ video.
                     </video>
                     <div className="position-absolute top-0 start-0 p-2">
                       {getStatusBadge(video.status)}
                     </div>
-                    <div className="position-absolute top-0 end-0 p-2">
-                      {getStatusBadgeRight(video.status)}
-                    </div>
                   </div>
 
-                  <Card.Body className="video-card-body">
-                    <Card.Title className="video-card-title">
-                      <Link to={`/video/${video.video_id}`}>{video.title}</Link>
+                  <Card.Body className="d-flex flex-column p-3">
+                    {/* CHỈ APPROVED MỚI CÓ LINK */}
+                    <Card.Title className="fw-bold mb-2">
+                      {video.status === 'Approved' ? (
+                        <Link
+                          to={`/video/${video.video_id}`}
+                          className="text-decoration-none text-dark stretched-link"
+                        >
+                          {video.title}
+                        </Link>
+                      ) : (
+                        <span className="text-muted">{video.title}</span>
+                      )}
                     </Card.Title>
-                    <Card.Text className="video-card-text">
-                      <Link to={`/video/${video.video_id}`}>
-                        {video.description || 'Không có mô tả'}
-                      </Link>
+
+                    <Card.Text className="text-muted small flex-grow-1 mb-3">
+                      {video.description || 'Không có mô tả'}
                     </Card.Text>
 
-                    <div className="video-card-meta">
-                      <div className="mb-1">
-                        <i className="bi bi-heart-fill text-danger me-1"></i>
-                        Lượt thích: {video.likes || 0}
-                      </div>
-                      <div className="mb-1">
-                        <i className="bi bi-calendar3 me-1"></i>
-                        Upload: {new Date(video.uploaded_at).toLocaleDateString('vi-VN')}
-                      </div>
-                      {video.expert && (
-                        <div>
-                          <i className="bi bi-person-circle me-1"></i>
-                          Chuyên gia: {video.expert}
-                        </div>
-                      )}
+                    <div className="small text-muted mb-3">
+                      <div>Likes {video.likes || 0} lượt thích</div>
+                      <div>Date {new Date(video.uploaded_at).toLocaleDateString('vi-VN')}</div>
                     </div>
 
-                    <div className="btn-group-edit">
+                    {/* LÝ DO VI PHẠM */}
+                    {video.text_moderation_status === 'BAD' && (
+                      <Alert variant="warning" className="p-2 small mb-2">
+                        <strong>Tiêu đề/mô tả vi phạm:</strong><br />
+                        <small className="text-danger">{video.text_moderation_reason || 'Nội dung không phù hợp'}</small>
+                      </Alert>
+                    )}
+
+                    {video.status === 'Rejected' && video.rejection_reason && (
+                      <Alert variant="danger" className="p-2 small mb-2">
+                        <strong>Lý do từ chối:</strong><br />
+                        <small>{video.rejection_reason}</small>
+                      </Alert>
+                    )}
+
+                    <div className="mt-auto d-flex gap-1">
                       {video.status === 'Pending' && (
                         <Button
+                          size="sm"
                           variant="warning"
                           onClick={() => handleEdit(video)}
                           disabled={loading}
-                          size="sm"
+                          className="flex-fill"
                         >
-                          <i className="bi bi-pencil me-1"></i>Chỉnh sửa
+                          Sửa
                         </Button>
                       )}
                       <Button
+                        size="sm"
                         variant="danger"
                         onClick={() => handleDelete(video.video_id)}
                         disabled={loading}
-                        size="sm"
+                        className="flex-fill"
                       >
-                        <i className="bi bi-trash me-1"></i>Xóa
+                        Xóa
                       </Button>
                     </div>
                   </Card.Body>
@@ -442,7 +426,11 @@ const VideoManager = () => {
             ))}
           </Row>
 
-          {renderPagination()}
+          {totalPages > 1 && (
+            <div className="d-flex justify-content-center mt-4">
+              {renderPagination()}
+            </div>
+          )}
         </>
       )}
     </Container>

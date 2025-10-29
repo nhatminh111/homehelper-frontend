@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import "bootstrap-icons/font/bootstrap-icons.css";
 import './App.css';
+import CustomToastContainer from './components/common/CustomToast';
 
 // Import contexts
 import { AuthProvider } from './contexts/AuthContext';
@@ -75,6 +76,7 @@ function App() {
           <div className="App">
             <Header />
             <main>
+            <CustomToastContainer />
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/about" element={<About />} />
