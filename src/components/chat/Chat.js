@@ -198,7 +198,7 @@ const Chat = () => {
         if (bookingObj && bookingObj.booking_id) {
           setBookingDetails(bookingObj);
           // Clear any pseudo session quoteDetails so UI shows booking context only
-          if (quoteDetails && quoteDetails.quote_id && String(quoteDetails.quote_id).startsWith('session:')) setQuoteDetails(null);
+          if (quoteDetails && quoteDetails?.quote_id && String(quoteDetails?.quote_id).startsWith('session:')) setQuoteDetails(null);
         } else {
           console.warn('[DEBUG][Chat.js] bookingService.getBookingDetails did not return booking:', bookingObj);
         }
@@ -299,7 +299,7 @@ const Chat = () => {
         const res = await QuoteService.getQuoteDetails(quoteIdParam);
         if (res.success) {
           // Only update if different to avoid loops
-          if (!quoteDetails || String(quoteDetails.quote_id) !== String(res.data.quote_id)) {
+          if (!quoteDetails || String(quoteDetails?.quote_id) !== String(res.data.quote_id)) {
             setQuoteDetails(res.data);
             setNegPrice(String(res.data?.proposed_price ?? ''));
           } else {
@@ -564,7 +564,7 @@ const Chat = () => {
         }
       }
       if (!derivedQuoteId) return;
-      if (quoteDetails?.quote_id && String(quoteDetails.quote_id) === String(derivedQuoteId)) {
+      if (quoteDetails?.quote_id && String(quoteDetails?.quote_id) === String(derivedQuoteId)) {
         // Already have details for this quote; do not force open here to avoid loops on ACK
         return;
       }
@@ -647,7 +647,7 @@ const Chat = () => {
       // If a session negotiation is pending, do not align to quotes either
       if (pendingSessionIdFromMessages) return;
       if (!activePendingQuoteId) return;
-      const currId = quoteDetails?.quote_id ? String(quoteDetails.quote_id) : null;
+      const currId = quoteDetails?.quote_id ? String(quoteDetails?.quote_id) : null;
       const isCurrPending = String(quoteDetails?.status || '') === 'Chờ xử lý';
       // If current quote is already the active pending, do nothing
       if (currId === String(activePendingQuoteId) && isCurrPending) return;
@@ -687,7 +687,7 @@ const Chat = () => {
           const sid = payload.sessionId ?? payload.session;
           const match = sessionId
             ? String(sid) === String(sessionId)
-            : (bookingIdParam ? String(payload.bookingId) === String(bookingIdParam) : String(payload.quoteId) === String(quoteDetails.quote_id));
+            : (bookingIdParam ? String(payload.bookingId) === String(bookingIdParam) : String(payload.quoteId) === String(quoteDetails?.quote_id));
           if (match) { lastReq = payload; lastReqIdx = i; lastReqMsg = m; }
         } catch(_) {}
       } else if (c.startsWith('[NEG_ACK]')) {
@@ -696,7 +696,7 @@ const Chat = () => {
           const sid = payload.sessionId ?? payload.session;
           const match = sessionId
             ? String(sid) === String(sessionId)
-            : (bookingIdParam ? String(payload.bookingId) === String(bookingIdParam) : String(payload.quoteId) === String(quoteDetails.quote_id));
+            : (bookingIdParam ? String(payload.bookingId) === String(bookingIdParam) : String(payload.quoteId) === String(quoteDetails?.quote_id));
           if (match) { lastAck = payload; lastAckIdx = i; lastAckMsg = m; }
         } catch(_) {}
       } else if (c.startsWith('[NEG_REJ]')) {
@@ -705,7 +705,7 @@ const Chat = () => {
           const sid = payload.sessionId ?? payload.session;
           const match = sessionId
             ? String(sid) === String(sessionId)
-            : (bookingIdParam ? String(payload.bookingId) === String(bookingIdParam) : String(payload.quoteId) === String(quoteDetails.quote_id));
+            : (bookingIdParam ? String(payload.bookingId) === String(bookingIdParam) : String(payload.quoteId) === String(quoteDetails?.quote_id));
           if (match) { lastRej = payload; lastRejIdx = i; lastRejMsg = m; }
         } catch(_) {}
       }
@@ -872,11 +872,11 @@ const Chat = () => {
         if (currentConversation?.conversation_id) params.set('conversationId', String(currentConversation.conversation_id));
         navigate(`/chat?${params.toString()}`, { replace: true });
       } else if (quoteDetails) {
-        await sendTextMessage(`[NEG_REQ]${JSON.stringify({ quoteId: quoteDetails.quote_id, price, senderId: myUserId })}`);
+        await sendTextMessage(`[NEG_REQ]${JSON.stringify({ quoteId: quoteDetails?.quote_id, price, senderId: myUserId })}`);
         setNegError(null);
         setNegotiationOpen(true);
         const params = new URLSearchParams(searchParams);
-        params.set('quoteId', String(quoteDetails.quote_id));
+        params.set('quoteId', String(quoteDetails?.quote_id));
         if (params.get('session')) params.delete('session');
         // For quote flow, remove negotiation flag after sending
         if (params.get('negotiation') === '1') params.delete('negotiation');
@@ -920,10 +920,10 @@ const Chat = () => {
           console.warn('[Chat] Failed to update booking final price:', e?.message || e);
         }
       } else {
-        const resp = await QuoteService.updateProposedPrice(quoteDetails.quote_id, price);
+        const resp = await QuoteService.updateProposedPrice(quoteDetails?.quote_id, price);
         if (!resp?.success) throw new Error(resp?.message || 'Không thể cập nhật báo giá');
         // Inform both sides and hide bar
-        await sendTextMessage(`[NEG_ACK]${JSON.stringify({ quoteId: quoteDetails.quote_id, price })}`);
+        await sendTextMessage(`[NEG_ACK]${JSON.stringify({ quoteId: quoteDetails?.quote_id, price })}`);
       }
       setNegotiationOpen(false);
       // Update local quote details to reflect accepted status and price
@@ -950,7 +950,7 @@ const Chat = () => {
       if (sessionId) {
         await sendTextMessage(`[NEG_REJ]${JSON.stringify({ sessionId: sessionId, price: negotiationState.pending.price })}`);
       } else {
-        await sendTextMessage(`[NEG_REJ]${JSON.stringify({ quoteId: quoteDetails.quote_id, price: negotiationState.pending.price })}`);
+        await sendTextMessage(`[NEG_REJ]${JSON.stringify({ quoteId: quoteDetails?.quote_id, price: negotiationState.pending.price })}`);
       }
     } catch (_) {}
   };
@@ -1311,7 +1311,7 @@ const Chat = () => {
                             {currencyVND(quoteDetails?.proposed_price)}
                           </strong>
                           {quoteDetails?.unit && (
-                            <span> / {quoteDetails.unit}</span>
+                            <span> / {quoteDetails?.unit}</span>
                           )}
                         </>
                       ) : null}
