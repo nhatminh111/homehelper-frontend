@@ -28,6 +28,7 @@ import Video from "./pages/Video";
 import VideoDetail from "./pages/VideoDetail";
 import TopUp from "./pages/TopUp";
 import PaymentResult from "./pages/PaymentResult";
+import PaymentPage from "./pages/PaymentPage";
 import Wallet from "./pages/Wallet";
 import Booking from "./pages/Booking";
 import JobDescription from "./pages/JobDescription";
@@ -121,6 +122,12 @@ function App() {
                 } />
                 <Route path="/topUp" element={<TopUp />} />
                 <Route path="/payment-result" element={<PaymentResult />} />
+                <Route path="/payment/:bookingId" element={
+                  <ProtectedRoute requiredRole="Customer">
+                    <PaymentPage />
+                  </ProtectedRoute>
+                }
+                />
                 <Route path="/wallet" element={<Wallet />} />
                 <Route path="/cccd" element={<CCCDExtractor />} />
                 <Route path="/booking/:taskerId" element={<Booking />} />
@@ -256,7 +263,7 @@ function App() {
                   <NegotiateSessionTest />
                 </ProtectedRoute>
               } /> */}
-              {/* Role landing */}
+                {/* Role landing */}
                 <Route
                   path="/tasker"
                   element={
