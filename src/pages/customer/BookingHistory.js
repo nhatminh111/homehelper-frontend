@@ -45,16 +45,6 @@ export default function BookingHistory() {
         return "secondary";
     };
 
-    const handlePayment = (booking) => {
-        alert(`💳 Thanh toán thành công cho booking #${booking.booking_id}`);
-        const updated = bookings.map((b) =>
-            b.booking_id === booking.booking_id
-                ? { ...b, status: "Đã thanh toán" }
-                : b
-        );
-        setBookings(updated);
-    };
-
     const handleContract = (booking) => {
         window.location.href = `/contract/${booking.booking_id}`;
     };
@@ -187,7 +177,7 @@ export default function BookingHistory() {
                                     </td>
                                     <td className="fw-bold text-primary">
                                         {b.expected_price
-                                            ? Number(b.expected_price).toLocaleString("vi-VN") + " ₫"
+                                            ? Number(b.final_price).toLocaleString("vi-VN") + " ₫"
                                             : "-"}
                                     </td>
                                     <td>
@@ -206,7 +196,10 @@ export default function BookingHistory() {
                                                     <Button
                                                         variant="success"
                                                         size="sm"
-                                                        onClick={() => handlePayment(b)}
+                                                        className="btn-modern"
+                                                        onClick={() => {
+                                                            window.location.href = `/payment/${b.booking_id}`;
+                                                        }}
                                                     >
                                                         💳 Thanh toán
                                                     </Button>

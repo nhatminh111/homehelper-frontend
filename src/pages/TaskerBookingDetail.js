@@ -140,31 +140,31 @@ export default function TaskerBookingDetail() {
 
       const data = await response.json();
 
-    if (data.success) {
-      let message = "";
+      if (data.success) {
+        let message = "";
 
-      switch (newStatus) {
-        case "Đã chấp nhận":
-          message = "Đã chấp nhận booking thành công!";
-          break;
-        case "Hủy":
-          message = "Đã từ chối booking!";
-          break;
-        case "Đang tiến hành":
-          message = "Đã bắt đầu công việc!";
-          break;
-        case "Hoàn thành":
-          message = "Đã hoàn thành công việc!";
-          break;
-        default:
-          message = `Cập nhật trạng thái: ${newStatus}`;
+        switch (newStatus) {
+          case "Đã chấp nhận":
+            message = "Đã chấp nhận booking thành công!";
+            break;
+          case "Hủy":
+            message = "Đã từ chối booking!";
+            break;
+          case "Đang tiến hành":
+            message = "Đã bắt đầu công việc!";
+            break;
+          case "Hoàn thành":
+            message = "Đã hoàn thành công việc!";
+            break;
+          default:
+            message = `Cập nhật trạng thái: ${newStatus}`;
+        }
+
+        alert(message);
+        navigate("/tasker/bookings");
+      } else {
+        alert("Có lỗi xảy ra khi cập nhật trạng thái");
       }
-
-      alert(message);
-      navigate("/tasker/bookings");
-    } else {
-      alert("Có lỗi xảy ra khi cập nhật trạng thái");
-    }
     } catch (err) {
       console.error("Lỗi khi cập nhật trạng thái:", err);
       alert("Có lỗi xảy ra khi cập nhật trạng thái");
@@ -187,28 +187,32 @@ export default function TaskerBookingDetail() {
               status === "Chờ xử lý"
                 ? "warning"
                 : status === "Đã chấp nhận"
-                ? "info"
-                : status === "Đang tiến hành"
-                ? "primary"
-                : status === "Hoàn thành"
-                ? "success"
-                : status === "Hủy"
-                ? "danger"
-                : "secondary"
+                  ? "info"
+                  : status === "Đã thanh toán"
+                    ? "success"
+                    : status === "Đang tiến hành"
+                      ? "primary"
+                      : status === "Hoàn thành"
+                        ? "success"
+                        : status === "Hủy"
+                          ? "danger"
+                          : "secondary"
             }
             className="px-3 py-2 fs-6"
           >
             {status === "Chờ xử lý"
               ? "⏳"
               : status === "Đã chấp nhận"
-              ? "✅"
-              : status === "Đang tiến hành"
-              ? "🔄"
-              : status === "Hoàn thành"
-              ? "🎉"
-              : status === "Hủy"
-              ? "❌"
-              : "❓"}{" "}
+                ? "✅"
+                : status === "Đã thanh toán"
+                  ? "💰"
+                  : status === "Đang tiến hành"
+                    ? "🔄"
+                    : status === "Hoàn thành"
+                      ? "🎉"
+                      : status === "Hủy"
+                        ? "❌"
+                        : "❓"}{" "}
             {status}
           </Badge>
         </div>
