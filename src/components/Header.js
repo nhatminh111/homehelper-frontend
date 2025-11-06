@@ -31,6 +31,7 @@ import useWalletBalance from "../hooks/useWalletBalance";
 import { formatVND } from "../utils/formatVND";
 import NotificationBell from "./notifications/NotificationBell";
 import "../css/Header.css";
+import { is } from "date-fns/locale";
 
 const Header = () => {
   const [isNavCollapsed, setIsNavCollapsed] = useState(true);
@@ -221,7 +222,12 @@ const Header = () => {
                         <FontAwesomeIcon icon={faNewspaper} className="mr-2" />
                         Blog của tôi
                       </Link>
-
+                      {!isTasker() && !isAdmin() && !isStaff() && (
+                        <Link className="dropdown-item" to="/customer/bookings">
+                          <FontAwesomeIcon icon={faCog} className="mr-2" />
+                          Booking của tôi
+                        </Link>
+                      )}
                       {isTasker() && (
                         <>
                           <Link className="dropdown-item" to="/tasker">

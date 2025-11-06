@@ -9,6 +9,194 @@ import ChatHeader from './ChatHeader';
 import './Chat.css';
 import QuoteService from '../../services/quoteService';
 
+
+
+const PHONE_REGEX = /\b(?:\+?84|0)(?:[\s.\-]?\d){9,10}\b/g;
+const EMAIL_REGEX = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi; 
+const URL_REGEX = /(https?:\/\/|www\.)[\w\-]+(\.[\w\-]+)+[\w\-._~:/?#[\]@!$&'()*+,;=.]*\/??/gi;
+const BROKEN_SCHEME_URL_REGEX = /\bhttps?www\.[\w\-]+(\.[\w\-]+)+[\w\-._~:/?#[\]@!$&'()*+,;=.]*\/??/gi;
+const OBFUSCATED_DOT_FRAGMENT = '(?:\(\.\)|\(dot\)|\[\.\]|\{\.\}|\[dot\]|\{dot\}|\s+dot\s+)';
+const OBFUSCATED_URL_REGEX = new RegExp(`(https?:\\/\\/|www\\.)[\\w-]+${OBFUSCATED_DOT_FRAGMENT}[\\w-]+[\\w-._~:/?#\\[\\]@!$&'()*+,;=.]*`, 'gi');
+const OBFUSCATED_DOMAIN_REGEX = new RegExp(`\\b[\\w-]+${OBFUSCATED_DOT_FRAGMENT}[a-z]{2,}\\b`, 'gi');
+const SOCIAL_KEYWORDS = [
+  'facebook', 'fb', 'zalo', 'telegram', 'whatsapp', 'instagram', 'ig', 'tiktok'
+];
+const PAYMENT_KEYWORDS = [
+  'chuyển khoản', 'chuyen khoan', 'ck', 'momo', 'zalopay', 'stk', 'số tài khoản', 'so tai khoan', 'bank'
+];
+const VIET_NUMBER_WORDS = [
+  'không','mot','một','hai','ba','bon','bốn','nam','năm','sau','bảy','bay','tám','tam','chin','chín'
+];
+
+const BANK_TOKENS = [
+  'stk','tk','vcb','tcb','acb','bidv','mb','mbbank','vpbank','tpbank','agribank','sacombank','eximbank','shb','hdbank','msb','ocb','vib','vietcombank','vietinbank','techcombank','shinhan','uob','hsbc','citibank'
+];
+const BANK_PHRASES = [
+  'so tai khoan','số tài khoản','tai khoan','ngan hang','mb bank','standard chartered'
+];
+const TRANSFER_PHRASES = [
+  'chuyen khoan','chuyển khoản', 'bank','chuyen vao','chuyển vào','chuyen tien','chuyển tiền','nhan tien','nhận tiền','transfer','send money','ck'
+];
+
+const BANK_ACCOUNT_REGEX = /\b\d(?:[\s\.]?\d){7,19}\b/g;
+
+// Unified redaction token (simplified per request)
+const REDACTED_TOKEN = '****';
+
+const normalize = (str) => str
+  .toLowerCase()
+  .normalize('NFD')
+  .replace(/\p{Diacritic}/gu, '')
+  .replace(/đ/g, 'd');
+
+// Detect if text has sequence of >=8 number words suggesting an obfuscated phone
+const hasObfuscatedPhone = (text) => {
+  const norm = normalize(text);
+  const tokens = norm.split(/[^a-z0-9]+/).filter(Boolean);
+  let streak = 0;
+  for (const t of tokens) {
+    if (VIET_NUMBER_WORDS.includes(t)) {
+      streak++;
+      if (streak >= 8) return true;
+    } else {
+      streak = 0;
+    }
+  }
+  return false;
+};
+
+const redactMatches = (text, regex, placeholder) => {
+  let changed = false;
+  const redacted = text.replace(regex, () => { changed = true; return placeholder; });
+  return { redacted, changed };
+};
+
+// Main sanitize function used in Chat component
+export function sanitizeOutgoingMessage(original, opts = {}) {
+  if (typeof original !== 'string' || !original.trim()) {
+    return { redacted: original, reasons: [], changed: false };
+  }
+  let working = original;
+  const reasons = [];
+  let anyChange = false;
+  // Pattern to detect existing placeholders to avoid re-processing inside them
+  const PLACEHOLDER_PATTERN = /\*{4}/; 
+
+  // 1. Handle direct & obfuscated URLs and domains FIRST (before introducing placeholders that might confuse domain regex)
+  if (!PLACEHOLDER_PATTERN.test(working)) {
+    // First catch broken scheme forms so they don't leave a leading 'https'
+    if (BROKEN_SCHEME_URL_REGEX.test(working)) {
+      BROKEN_SCHEME_URL_REGEX.lastIndex = 0;
+  const resBroken = redactMatches(working, BROKEN_SCHEME_URL_REGEX, REDACTED_TOKEN);
+      working = resBroken.redacted; anyChange = anyChange || resBroken.changed;
+      if (resBroken.changed) reasons.push('Phát hiện đường dẫn/link (dạng thiếu ://).');
+    }
+    if (URL_REGEX.test(working)) {
+      URL_REGEX.lastIndex = 0;
+  const res = redactMatches(working, URL_REGEX, REDACTED_TOKEN);
+      working = res.redacted; anyChange = anyChange || res.changed;
+      if (res.changed) reasons.push('Phát hiện đường dẫn/link.');
+    }
+  }
+  // 1.5 Bank account numbers (requires banking/transfer context), before phone/email
+  {
+    const normEarly = normalize(working);
+    const tokens = normEarly.split(/[^a-z0-9]+/).filter(Boolean);
+    const tokenSet = new Set(tokens);
+    const hasBankToken = BANK_TOKENS.some(t => tokenSet.has(t));
+    const hasBankPhrase = BANK_PHRASES.some(p => normEarly.includes(normalize(p)));
+    const hasTransfer = TRANSFER_PHRASES.some(p => normEarly.includes(normalize(p)));
+    if (opts.forceBankContext || hasBankToken || hasBankPhrase || hasTransfer) {
+      if (BANK_ACCOUNT_REGEX.test(working)) {
+        BANK_ACCOUNT_REGEX.lastIndex = 0;
+  const res = redactMatches(working, BANK_ACCOUNT_REGEX, REDACTED_TOKEN);
+        working = res.redacted; anyChange = anyChange || res.changed;
+        if (res.changed) reasons.push('Phát hiện số tài khoản ngân hàng.');
+      }
+    }
+  }
+  if (!PLACEHOLDER_PATTERN.test(working) && OBFUSCATED_URL_REGEX.test(working)) {
+    OBFUSCATED_URL_REGEX.lastIndex = 0;
+  const res = redactMatches(working, OBFUSCATED_URL_REGEX, REDACTED_TOKEN);
+    working = res.redacted; anyChange = anyChange || res.changed;
+    if (res.changed) reasons.push('Phát hiện link được làm mờ (ví dụ youtu(.)be).');
+  }
+  if (!PLACEHOLDER_PATTERN.test(working) && OBFUSCATED_DOMAIN_REGEX.test(working)) {
+    OBFUSCATED_DOMAIN_REGEX.lastIndex = 0;
+  const res = redactMatches(working, OBFUSCATED_DOMAIN_REGEX, REDACTED_TOKEN);
+    working = res.redacted; anyChange = anyChange || res.changed;
+    if (res.changed) reasons.push('Phát hiện tên miền được làm mờ.');
+  }
+
+  // 2. Phone numbers (after URL handling)
+  if (PHONE_REGEX.test(working)) {
+    PHONE_REGEX.lastIndex = 0; // reset
+  const res = redactMatches(working, PHONE_REGEX, REDACTED_TOKEN);
+    working = res.redacted; anyChange = anyChange || res.changed;
+    if (res.changed) reasons.push('Phát hiện số điện thoại.');
+  }
+  // 3. Emails
+  if (EMAIL_REGEX.test(working)) {
+    EMAIL_REGEX.lastIndex = 0;
+  const res = redactMatches(working, EMAIL_REGEX, REDACTED_TOKEN);
+    working = res.redacted; anyChange = anyChange || res.changed;
+    if (res.changed) reasons.push('Phát hiện email.');
+  }
+  // Social & payment keywords (keyword presence only -> DO NOT mutate content; just record reasons)
+  const norm = normalize(working);
+  SOCIAL_KEYWORDS.forEach(k => {
+    if (norm.includes(k)) {
+      reasons.push(`Từ khóa mạng xã hội: ${k}`);
+    }
+  });
+  PAYMENT_KEYWORDS.forEach(k => {
+    if (norm.includes(normalize(k))) {
+      // Escape regex special chars in keyword then allow optional spaces between words
+      const escaped = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const re = new RegExp(escaped.replace(/\s+/g, '\\s*'), 'gi');
+      // Do not replace keywords to avoid unreadable text; only record reason and keep for context
+      if (re.test(working)) {
+        reasons.push(`Từ khóa thanh toán ngoài hệ thống: ${k}`);
+        // Replace the payment keyword phrase itself with placeholder
+        const reReplace = new RegExp(`\\b${escaped.replace(/\\s+/g, '\\s*')}\\b`, 'gi');
+        const resPay = redactMatches(working, reReplace, REDACTED_TOKEN);
+        working = resPay.redacted; anyChange = anyChange || resPay.changed;
+      }
+    }
+  });
+  // Bank tokens (whole-word) should also trigger a warning reason (e.g., 'shb', 'mbbank')
+  {
+    const tokens2 = norm.split(/[^a-z0-9]+/).filter(Boolean);
+    const tokenSet2 = new Set(tokens2);
+    BANK_TOKENS.forEach(tok => {
+      if (tokenSet2.has(tok)) {
+        reasons.push(`Từ khóa ngân hàng: ${tok}`);
+        // Replace standalone bank token occurrences with placeholder
+        const reTok = new RegExp(`\\b${tok}\\b`, 'gi');
+        const resTok = redactMatches(working, reTok, REDACTED_TOKEN);
+        working = resTok.redacted; anyChange = anyChange || resTok.changed;
+      }
+    });
+  }
+  // Social keywords: redact standalone mentions like 'facebook', 'zalo', 'telegram', etc.
+  SOCIAL_KEYWORDS.forEach(sk => {
+    const reSk = new RegExp(`\\b${sk.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+    if (reSk.test(working)) {
+      const resSk = redactMatches(working, reSk, REDACTED_TOKEN);
+      working = resSk.redacted; anyChange = anyChange || resSk.changed;
+    }
+  });
+  // Collapse duplicate placeholders (e.g., when multiple patterns matched adjacent segments)
+  working = working.replace(new RegExp(`\\s*(${REDACTED_TOKEN.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})(?:\\s*\\1)+`, 'g'), ' $1');
+  // Obfuscated phone via number words
+  if (hasObfuscatedPhone(original)) {
+    reasons.push('Phát hiện chuỗi từ số có thể là số điện thoại bị làm mờ.');
+  }
+
+  return { redacted: working, reasons, changed: anyChange };
+}
+// === End Moderation Utilities ===
+
 const Chat = () => {
   const [searchParams] = useSearchParams();
   const initialConversationId = searchParams.get("conversationId");
@@ -25,6 +213,11 @@ const Chat = () => {
   const [negError, setNegError] = useState(null);
   const [negSubmitting, setNegSubmitting] = useState(false);
   const [ackBanner, setAckBanner] = useState(null);
+  // Sensitive content moderation state
+  const [policyModalOpen, setPolicyModalOpen] = useState(false);
+  const [policyReasons, setPolicyReasons] = useState([]);
+  const [pendingMessage, setPendingMessage] = useState(null);
+  const [pendingRedacted, setPendingRedacted] = useState(null);
   // Removed chat-triggered renegotiation; negotiation opens only via Quotes or backend state
   const {
     conversations,
@@ -33,7 +226,6 @@ const Chat = () => {
     loading,
     error,
     hasMoreMessages,
-    typingUsers,
     sendingMessage,
     isConnected,
     loadConversations,
@@ -1053,9 +1245,57 @@ const Chat = () => {
     );
   });
 
+  // Moderation context per conversation (e.g., bank keyword detected recently)
+  const moderationContextsRef = useRef(new Map());
+  const BANK_CONTEXT_TTL_MS = 3 * 60 * 1000; // 3 minutes
+
+  const getBankContextActive = () => {
+    const convId = currentConversation?.conversation_id;
+    if (!convId) return false;
+    const entry = moderationContextsRef.current.get(String(convId));
+    return !!(entry && entry.bankUntilTs && entry.bankUntilTs > Date.now());
+  };
+
+  const extendBankContextFromText = (text) => {
+    if (typeof text !== 'string' || !text.trim()) return;
+    const norm = normalize(text);
+    const tokens = norm.split(/[^a-z0-9]+/).filter(Boolean);
+    const tokenSet = new Set(tokens);
+    const hasBankToken = BANK_TOKENS.some(t => tokenSet.has(t));
+    const hasBankPhrase = BANK_PHRASES.some(p => norm.includes(normalize(p)));
+    const hasTransfer = TRANSFER_PHRASES.some(p => norm.includes(normalize(p)));
+    if (hasBankToken || hasBankPhrase || hasTransfer) {
+      const convId = currentConversation?.conversation_id;
+      if (convId) {
+        moderationContextsRef.current.set(String(convId), { bankUntilTs: Date.now() + BANK_CONTEXT_TTL_MS });
+      }
+    }
+  };
+
   const handleSendMessage = async (content, replyToMessageId = null) => {
     try {
-      await sendTextMessage(content, replyToMessageId);
+      // Skip moderation for system negotiation messages
+      const isSystem = typeof content === 'string' && (content.startsWith('[NEG_REQ]') || content.startsWith('[NEG_ACK]') || content.startsWith('[NEG_REJ]'));
+      let toSend = content;
+      if (!isSystem && typeof content === 'string' && content.trim()) {
+        // Update bank context window if this message contains bank hints
+        extendBankContextFromText(content);
+        const forceBankContext = getBankContextActive();
+        const { redacted, reasons, changed } = sanitizeOutgoingMessage(content, { forceBankContext });
+        if (reasons.length > 0) {
+          // Show modal and allow user to accept redaction or edit
+          setPolicyReasons(reasons);
+          setPendingMessage(content);
+          setPendingRedacted(redacted);
+          setPolicyModalOpen(true);
+          // Do not send now; wait for user confirmation
+          return;
+        }
+        if (changed) {
+          toSend = redacted;
+        }
+      }
+      await sendTextMessage(toSend, replyToMessageId);
     } catch (error) {
       console.error('Failed to send message:', error);
     }
@@ -1063,7 +1303,15 @@ const Chat = () => {
 
   const handleSendFile = async (file, content = '') => {
     try {
-      await sendFileMessage(file, content);
+      // Moderate optional caption content
+      let caption = content;
+      if (typeof caption === 'string' && caption.trim()) {
+        extendBankContextFromText(caption);
+        const forceBankContext = getBankContextActive();
+        const { redacted } = sanitizeOutgoingMessage(caption, { forceBankContext });
+        caption = redacted;
+      }
+      await sendFileMessage(file, caption);
     } catch (error) {
       console.error('Failed to send file:', error);
     }
@@ -1252,12 +1500,25 @@ const Chat = () => {
                                 `#${bookingDetails.booking_id}`}
                             </strong>
                             {bookingDetails?.booking_id && (
-                              <Link
-                                to={`/tasker/bookings/${bookingDetails.booking_id}`}
-                                className="ms-2 btn btn-link btn-sm p-0 align-baseline"
-                              >
-                                Xem chi tiết
-                              </Link>
+                              <>
+                                {isTasker && (
+                                  <Link
+                                    to={`/tasker/bookings/${bookingDetails.booking_id}`}
+                                    className="ms-2 btn btn-link btn-sm p-0 align-baseline"
+                                  >
+                                    Xem chi tiết
+                                  </Link>
+                                )}
+
+                                {isCustomer && (
+                                  <Link
+                                    to={`/customer/bookings`}
+                                    className="ms-2 btn btn-link btn-sm p-0 align-baseline"
+                                  >
+                                    Xem chi tiết
+                                  </Link>
+                                )}
+                              </>
                             )}
                           </div>
                           {bookingDetails.tasker_name && (
@@ -1443,6 +1704,57 @@ const Chat = () => {
           onClose={() => setShowNewConversationModal(false)}
           onCreate={handleCreateConversation}
         />
+      )}
+
+      {/* Safety Policy Modal */}
+      {policyModalOpen && (
+        <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Cảnh báo nội dung nhạy cảm</h5>
+                <button type="button" className="btn-close" onClick={() => setPolicyModalOpen(false)} aria-label="Close"></button>
+              </div>
+              <div className="modal-body">
+                <p>
+                  Vì lý do an toàn, vui lòng không chia sẻ số điện thoại, email, link hay liên hệ ngoài ứng dụng.
+                  Mọi giao dịch cần được thực hiện trong hệ thống.
+                </p>
+                {/* {policyReasons.length > 0 && (
+                  <ul className="mb-2">
+                    {policyReasons.map((r, i) => (
+                      <li key={i}>{r}</li>
+                    ))}
+                  </ul>
+                )} */}
+                {pendingRedacted != null && (
+                  <div className="border rounded p-2 bg-light">
+                    <small className="text-muted">Nội dung sau khi được che:</small>
+                    <div>{pendingRedacted}</div>
+                  </div>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-outline-secondary" onClick={() => { setPolicyModalOpen(false); setPendingMessage(null); setPendingRedacted(null); }}>Sửa lại</button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={async () => {
+                    try {
+                      if (pendingRedacted) await sendTextMessage(pendingRedacted);
+                    } finally {
+                      setPolicyModalOpen(false);
+                      setPendingMessage(null);
+                      setPendingRedacted(null);
+                    }
+                  }}
+                >
+                  Gửi với nội dung đã che
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

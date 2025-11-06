@@ -176,9 +176,11 @@ export default function BookingHistory() {
                                         <Badge bg={getBadgeVariant(b.status)}>{b.status}</Badge>
                                     </td>
                                     <td className="fw-bold text-primary">
-                                        {b.expected_price
+                                        {(b.final_price && b.final_price !== 0)
                                             ? Number(b.final_price).toLocaleString("vi-VN") + " ₫"
-                                            : "-"}
+                                            : (b.expected_price
+                                                ? Number(b.expected_price).toLocaleString("vi-VN") + " ₫"
+                                                : "-")}
                                     </td>
                                     <td>
                                         <div className="action-buttons">

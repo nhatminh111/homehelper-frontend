@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState} from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -14,13 +14,13 @@ import {
   faClock,
 } from "@fortawesome/free-solid-svg-icons";
 import { faHeart as faHeartRegular } from "@fortawesome/free-regular-svg-icons";
-import { Link } from "react-router-dom";
+import { Link, useNavigate} from "react-router-dom";
 import { motion } from "framer-motion";
 import { toast, ToastContainer } from "react-toastify";
 import TaskerService from "../services/taskerService";
 import '../css/Home.css';
 import 'react-toastify/dist/ReactToastify.css';
-import { useNavigate } from "react-router-dom";
+
 
 const Home = () => {
   const [services, setServices] = useState([]);

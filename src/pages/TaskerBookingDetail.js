@@ -98,23 +98,29 @@ export default function TaskerBookingDetail() {
     variant_name,
   } = booking;
 
-  const formatDateTime = (isoString) => {
-    if (!isoString) return "—";
-    const date = new Date(isoString);
-    return `${date.toLocaleDateString("vi-VN", {
-      weekday: "long",
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    })}, ${date.toLocaleTimeString("vi-VN", {
-      hour: "2-digit",
-      minute: "2-digit",
-    })}`;
-  };
-
   const formatPrice = (price) => {
     if (!price) return "Chưa có giá";
     return new Intl.NumberFormat("vi-VN").format(price) + "đ";
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const endsWithZ = /z$/i.test(String(dateString)); // ISO UTC like 2025-09-20T12:07:00Z
+    const options = {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    };
+    // If the input is explicitly UTC (ends with 'Z'), format in UTC to avoid +7h shift
+    if (endsWithZ) {
+      return new Intl.DateTimeFormat('vi-VN', { ...options, timeZone: 'UTC' }).format(date);
+    }
+    // Otherwise, render with default locale settings
+    return new Intl.DateTimeFormat('vi-VN', options).format(date);
   };
 
   const handleStatusUpdate = async (newStatus) => {
@@ -254,7 +260,7 @@ export default function TaskerBookingDetail() {
                 {(start_time || end_time) && (
                   <div>
                     <i className="bi bi-clock text-primary me-2"></i>
-                    {formatDateTime(start_time)} → {formatDateTime(end_time)}
+                    {formatDate(start_time)} → {formatDate(end_time)}
                     <br />
                   </div>
                 )}
@@ -385,7 +391,7 @@ export default function TaskerBookingDetail() {
           </Button>
         )}
 
-        {status !== "Hủy" && status !== "Hoàn thành" && (
+        {status === "Chờ xử lý" && (
           <NegotiatePriceButton
             peerId={customer_id}
             bookingId={booking_id}

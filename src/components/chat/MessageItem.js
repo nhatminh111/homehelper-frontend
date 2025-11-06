@@ -11,7 +11,6 @@ const MessageItem = ({
   showAvatar = true,
   showSenderName = true,
   isEditing = false,
-  isReplying = false,
   onEdit,
   onCancelEdit,
   onSaveEdit,
