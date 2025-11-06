@@ -349,9 +349,9 @@ export default function TaskerBookings() {
                     <div className="mb-3">
                       <div className="bg-success bg-opacity-10 rounded-3 p-2 text-center">
                         <h5 className="fw-bold text-success mb-0">
-                          {formatPrice(booking.expected_price || booking.final_price)}
+                          {formatPrice(booking.final_price)}
                         </h5>
-                        <small className="text-muted">Giá mong muốn</small>
+                        <small className="text-muted">Giá hiện tại</small>
                       </div>
                     </div>
 

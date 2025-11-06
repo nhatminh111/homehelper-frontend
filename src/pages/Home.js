@@ -20,7 +20,7 @@ import { toast, ToastContainer } from "react-toastify";
 import TaskerService from "../services/taskerService";
 import '../css/Home.css';
 import 'react-toastify/dist/ReactToastify.css';
-import { useNavigate } from "react-router-dom";
+
 
 const Home = () => {
   const [services, setServices] = useState([]);

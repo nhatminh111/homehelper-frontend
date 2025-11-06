@@ -1251,12 +1251,25 @@ const Chat = () => {
                                 `#${bookingDetails.booking_id}`}
                             </strong>
                             {bookingDetails?.booking_id && (
-                              <Link
-                                to={`/tasker/bookings/${bookingDetails.booking_id}`}
-                                className="ms-2 btn btn-link btn-sm p-0 align-baseline"
-                              >
-                                Xem chi tiết
-                              </Link>
+                              <>
+                                {isTasker && (
+                                  <Link
+                                    to={`/tasker/bookings/${bookingDetails.booking_id}`}
+                                    className="ms-2 btn btn-link btn-sm p-0 align-baseline"
+                                  >
+                                    Xem chi tiết
+                                  </Link>
+                                )}
+
+                                {isCustomer && (
+                                  <Link
+                                    to={`/customer/bookings`}
+                                    className="ms-2 btn btn-link btn-sm p-0 align-baseline"
+                                  >
+                                    Xem chi tiết
+                                  </Link>
+                                )}
+                              </>
                             )}
                           </div>
                           {bookingDetails.tasker_name && (
