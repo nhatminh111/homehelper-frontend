@@ -32,8 +32,31 @@ export default function JobDescription() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [showError, setShowError] = useState(false);
 
+
+  const [priceError, setPriceError] = useState("");
+
+  const minVnd = (chosenVariants?.[0]?.price_min ?? 0) * 1000;
+  const maxVnd = (chosenVariants?.[0]?.price_max ?? 0) * 1000;
+  const priceVnd = (Number(expectedPrice) || 0) * 1000;
+
+  const checkOutPrice = () => {
+    if (!expectedPrice) {
+      setPriceError("Vui lòng nhập giá mong muốn.");
+      return false;
+    }
+    if (priceVnd < minVnd || priceVnd > maxVnd) {
+      setPriceError(
+        `Giá mong muốn phải nằm trong khoảng từ ${minVnd.toLocaleString("vi-VN")}đ đến ${maxVnd.toLocaleString("vi-VN")}đ`
+      );
+      return false;
+    }
+    setPriceError("");
+    return true;
+  };
+
   const handleCreateBooking = async () => {
     try {
+      if (!checkOutPrice()) return;
       // ✅ Kiểm tra đăng nhập
       const user = JSON.parse(localStorage.getItem("user") || "{}");
       console.log("🪣 [JobDescription] user in localStorage:", user);
@@ -79,7 +102,7 @@ export default function JobDescription() {
       });
 
       const data = await res.json();
-      
+
       // ✅ Xử lý token hết hạn
       if (res.status === 401 && data.error === "Token đã hết hạn") {
         alert("⚠️ Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
@@ -87,7 +110,7 @@ export default function JobDescription() {
         navigate("/login");
         return;
       }
-      
+
       if (!data.success) throw new Error(data.message || "Create booking failed");
 
       // ✅ Hiển thị modal thành công
@@ -479,37 +502,28 @@ export default function JobDescription() {
                             boxShadow: "0 2px 6px rgba(0, 0, 0, 0.08)",
                           }}
                         >
-                          <Form.Control
-                            type="text"
-                            placeholder="0"
-                            value={expectedPrice}
-                            onChange={(e) => {
-                              const val = e.target.value.replace(/\D/g, ""); // chỉ giữ số
-                              setExpectedPrice(val);
-                            }}
-                            style={{
-                              textAlign: "center",
-                              border: "1px solid #e0e6ed",
-                              borderLeft: "none",
-                              borderRight: "none",
-                              fontWeight: 600,
-                              fontSize: "1rem",
-                              color: "#212529",
-                            }}
-                          />
+                          <InputGroup style={{ width: "180px", borderRadius: "12px", overflow: "hidden" }}>
+                            <Form.Control
+                              type="text"
+                              placeholder="0"
+                              value={expectedPrice}
+                              onChange={(e) => {
+                                const val = e.target.value.replace(/\D/g, ""); // chỉ giữ số
+                                setExpectedPrice(val);
+                                if (priceError) setPriceError(""); // xóa lỗi cũ khi người dùng đang nhập lại
+                              }}
+                              onKeyDown={(e) => { if (e.key === "Enter") checkOutPrice(); }}
+                              onBlur={() => { if (expectedPrice !== "") checkOutPrice(); }}
+                              style={{ textAlign: "center", fontWeight: 600 }}
+                            />
+                            <InputGroup.Text>.000đ</InputGroup.Text>
+                          </InputGroup>
 
-                          <InputGroup.Text
-                            style={{
-                              backgroundColor: "#f1f5f9",
-                              border: "1px solid #e0e6ed",
-                              borderLeft: "none",
-                              fontWeight: 600,
-                              fontSize: "0.95rem",
-                              color: "#374151",
-                            }}
-                          >
-                            .000đ
-                          </InputGroup.Text>
+                          {priceError && <div className="text-danger mt-1">{priceError}</div>}
+
+                          <Button className="mt-2" variant="primary" onClick={checkOutPrice}>
+                            Xác nhận giá
+                          </Button>
                         </InputGroup>
                       </Form.Group>
                     </Card.Body>

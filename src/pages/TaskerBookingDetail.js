@@ -98,23 +98,29 @@ export default function TaskerBookingDetail() {
     variant_name,
   } = booking;
 
-  const formatDateTime = (isoString) => {
-    if (!isoString) return "—";
-    const date = new Date(isoString);
-    return `${date.toLocaleDateString("vi-VN", {
-      weekday: "long",
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    })}, ${date.toLocaleTimeString("vi-VN", {
-      hour: "2-digit",
-      minute: "2-digit",
-    })}`;
-  };
-
   const formatPrice = (price) => {
     if (!price) return "Chưa có giá";
     return new Intl.NumberFormat("vi-VN").format(price) + "đ";
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const endsWithZ = /z$/i.test(String(dateString)); // ISO UTC like 2025-09-20T12:07:00Z
+    const options = {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    };
+    // If the input is explicitly UTC (ends with 'Z'), format in UTC to avoid +7h shift
+    if (endsWithZ) {
+      return new Intl.DateTimeFormat('vi-VN', { ...options, timeZone: 'UTC' }).format(date);
+    }
+    // Otherwise, render with default locale settings
+    return new Intl.DateTimeFormat('vi-VN', options).format(date);
   };
 
   const handleStatusUpdate = async (newStatus) => {
@@ -134,31 +140,31 @@ export default function TaskerBookingDetail() {
 
       const data = await response.json();
 
-    if (data.success) {
-      let message = "";
+      if (data.success) {
+        let message = "";
 
-      switch (newStatus) {
-        case "Đã chấp nhận":
-          message = "Đã chấp nhận booking thành công!";
-          break;
-        case "Hủy":
-          message = "Đã từ chối booking!";
-          break;
-        case "Đang tiến hành":
-          message = "Đã bắt đầu công việc!";
-          break;
-        case "Hoàn thành":
-          message = "Đã hoàn thành công việc!";
-          break;
-        default:
-          message = `Cập nhật trạng thái: ${newStatus}`;
+        switch (newStatus) {
+          case "Đã chấp nhận":
+            message = "Đã chấp nhận booking thành công!";
+            break;
+          case "Hủy":
+            message = "Đã từ chối booking!";
+            break;
+          case "Đang tiến hành":
+            message = "Đã bắt đầu công việc!";
+            break;
+          case "Hoàn thành":
+            message = "Đã hoàn thành công việc!";
+            break;
+          default:
+            message = `Cập nhật trạng thái: ${newStatus}`;
+        }
+
+        alert(message);
+        navigate("/tasker/bookings");
+      } else {
+        alert("Có lỗi xảy ra khi cập nhật trạng thái");
       }
-
-      alert(message);
-      navigate("/tasker/bookings");
-    } else {
-      alert("Có lỗi xảy ra khi cập nhật trạng thái");
-    }
     } catch (err) {
       console.error("Lỗi khi cập nhật trạng thái:", err);
       alert("Có lỗi xảy ra khi cập nhật trạng thái");
@@ -181,28 +187,32 @@ export default function TaskerBookingDetail() {
               status === "Chờ xử lý"
                 ? "warning"
                 : status === "Đã chấp nhận"
-                ? "info"
-                : status === "Đang tiến hành"
-                ? "primary"
-                : status === "Hoàn thành"
-                ? "success"
-                : status === "Hủy"
-                ? "danger"
-                : "secondary"
+                  ? "info"
+                  : status === "Đã thanh toán"
+                    ? "success"
+                    : status === "Đang tiến hành"
+                      ? "primary"
+                      : status === "Hoàn thành"
+                        ? "success"
+                        : status === "Hủy"
+                          ? "danger"
+                          : "secondary"
             }
             className="px-3 py-2 fs-6"
           >
             {status === "Chờ xử lý"
               ? "⏳"
               : status === "Đã chấp nhận"
-              ? "✅"
-              : status === "Đang tiến hành"
-              ? "🔄"
-              : status === "Hoàn thành"
-              ? "🎉"
-              : status === "Hủy"
-              ? "❌"
-              : "❓"}{" "}
+                ? "✅"
+                : status === "Đã thanh toán"
+                  ? "💰"
+                  : status === "Đang tiến hành"
+                    ? "🔄"
+                    : status === "Hoàn thành"
+                      ? "🎉"
+                      : status === "Hủy"
+                        ? "❌"
+                        : "❓"}{" "}
             {status}
           </Badge>
         </div>
@@ -250,7 +260,7 @@ export default function TaskerBookingDetail() {
                 {(start_time || end_time) && (
                   <div>
                     <i className="bi bi-clock text-primary me-2"></i>
-                    {formatDateTime(start_time)} → {formatDateTime(end_time)}
+                    {formatDate(start_time)} → {formatDate(end_time)}
                     <br />
                   </div>
                 )}
@@ -381,7 +391,7 @@ export default function TaskerBookingDetail() {
           </Button>
         )}
 
-        {status !== "Hủy" && status !== "Hoàn thành" && (
+        {status === "Chờ xử lý" && (
           <NegotiatePriceButton
             peerId={customer_id}
             bookingId={booking_id}

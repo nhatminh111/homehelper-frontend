@@ -213,6 +213,7 @@ const TaskerProfile = () => {
     loading: authLoading,
     isAuthenticated,
     isStaff,
+    isTasker,
   } = useAuth();
   const [tasker, setTasker] = useState(null);
   const [reviewsData, setReviewsData] = useState({
@@ -551,7 +552,10 @@ const TaskerProfile = () => {
   { id: "reviews", label: "Reviews", icon: faStar },
   { id: "videos", label: "Videos", icon: faEye },
   { id: "articles", label: "Articles", icon: faAward },
-  { id: "certification", label: "Certification", icon: faAward },
+    // Only show Certification tab if user is viewing their own profile and is a tasker
+    ...(isTasker && user?.user_id === Number(id) ? [
+      { id: "certification", label: "Certification", icon: faAward },
+    ] : []),
   { id: "achievements", label: "Achievements", icon: faCheckCircle },
   ];
 
@@ -593,14 +597,19 @@ const TaskerProfile = () => {
                 </div>
               </div>
               <div className="d-flex flex-wrap gap-2 mt-3">
-                <button className="btn btn-primary tp-btn-primary">
-                  <FontAwesomeIcon icon={faCalendarCheck} className="me-1" />
-                  Book Now — ${tasker.pricePerHour || 25}/hr
-                </button>
-                <button className="btn btn-outline-secondary tp-btn-outline">
-                  <FontAwesomeIcon icon={faComments} className="me-1" />
-                  Start Chat
-                </button>
+                {/* Hide booking/chat buttons if tasker is viewing their own profile */}
+                {!(isTasker && user?.user_id === Number(id)) && (
+                  <>
+                    <button className="btn btn-primary tp-btn-primary">
+                      <FontAwesomeIcon icon={faCalendarCheck} className="me-1" />
+                      Book Now — ${tasker.pricePerHour || 25}/hr
+                    </button>
+                    <button className="btn btn-outline-secondary tp-btn-outline">
+                      <FontAwesomeIcon icon={faComments} className="me-1" />
+                      Start Chat
+                    </button>
+                  </>
+                )}
               </div>
             </div>
             <div className="col-md-6 text-md-end mt-3 mt-md-0">
@@ -1228,7 +1237,7 @@ const TaskerProfile = () => {
               </div>
             )}
 
-            {activeTab === "certification" && (
+            {activeTab === "certification" && isTasker && user?.user_id === Number(id) && (
               <div className="row g-3">
                 <div className="col-12">
                   <div className="p-4 rounded border bg-white h-100 shadow-sm">

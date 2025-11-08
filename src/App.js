@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import "./App.css";
+import CustomToastContainer from './components/common/CustomToast';
 
 // Import contexts
 import { AuthProvider } from "./contexts/AuthContext";
@@ -27,6 +28,7 @@ import Video from "./pages/Video";
 import VideoDetail from "./pages/VideoDetail";
 import TopUp from "./pages/TopUp";
 import PaymentResult from "./pages/PaymentResult";
+import PaymentPage from "./pages/PaymentPage";
 import Wallet from "./pages/Wallet";
 import Booking from "./pages/Booking";
 import JobDescription from "./pages/JobDescription";
@@ -56,11 +58,13 @@ import AIInteraction from "./pages/AIInteraction";
 import SystemManagement from "./pages/SystemManagement";
 import QuotesPage from "./pages/QuotesPage";
 import VideoManager from "./pages/VideoManager";
+
 // import NegotiateSessionTest from './pages/NegotiateSessionTest';
 // Role landing pages
 import TaskerHome from "./pages/tasker/TaskerHome";
 import AdminHome from "./pages/admin/AdminHome";
 import CustomerHome from "./pages/customer/CustomerHome";
+import BookingHistory from "./pages/customer/BookingHistory";
 import ChatPage from "./pages/Chat";
 import CCCDExtractor from "./pages/CCCDExtractor";
 import BecomeTasker from "./pages/BecomeTasker";
@@ -78,6 +82,7 @@ function App() {
           <div className="App">
             <Header />
             <main>
+              <CustomToastContainer />
               <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/about" element={<About />} />
@@ -86,67 +91,52 @@ function App() {
                 <Route path="/portfolio" element={<Portfolio />} />
                 <Route path="/pricing" element={<Pricing />} />
                 <Route path="/blog" element={<Blog />} />
-                <Route
-                  path="/blog/create"
-                  element={
-                    <ProtectedRoute>
-                      <BlogCreate />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/blog/:id/edit"
-                  element={
-                    <ProtectedRoute>
-                      <BlogCreate />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/my-blogs"
-                  element={
-                    <ProtectedRoute>
-                      <MyBlogs />
-                    </ProtectedRoute>
-                  }
-                />
+                <Route path="/blog/create" element={
+                  <ProtectedRoute>
+                    <BlogCreate />
+                  </ProtectedRoute>
+                } />
+                <Route path="/blog/:id/edit" element={
+                  <ProtectedRoute>
+                    <BlogCreate />
+                  </ProtectedRoute>
+                } />
+                <Route path="/my-blogs" element={
+                  <ProtectedRoute>
+                    <MyBlogs />
+                  </ProtectedRoute>
+                } />
                 <Route path="/blog/:id" element={<BlogDetails />} />
-                <Route
-                  path="/blog/:postId/quotes"
-                  element={
-                    <ProtectedRoute>
-                      <QuotesPage />
-                    </ProtectedRoute>
-                  }
-                />
+                <Route path="/blog/:postId/quotes" element={
+                  <ProtectedRoute>
+                    <QuotesPage />
+                  </ProtectedRoute>
+                } />
                 <Route path="/contact" element={<Contact />} />
                 <Route path="/video" element={<Video />} />
                 <Route path="/video/:videoId" element={<VideoDetail />} />
-                <Route
-                  path="/videos"
-                  element={
-                    <ProtectedRoute requiredRole="Tasker">
-                      <VideoManager />
-                    </ProtectedRoute>
-                  }
-                />
+                <Route path="/videos" element={
+                  <ProtectedRoute requiredRole="Tasker">
+                    <VideoManager />
+                  </ProtectedRoute>
+                } />
                 <Route path="/topUp" element={<TopUp />} />
                 <Route path="/payment-result" element={<PaymentResult />} />
+                <Route path="/payment/:bookingId" element={
+                  <ProtectedRoute requiredRole="Customer">
+                    <PaymentPage />
+                  </ProtectedRoute>
+                }
+                />
                 <Route path="/wallet" element={<Wallet />} />
                 <Route path="/cccd" element={<CCCDExtractor />} />
                 <Route path="/booking/:taskerId" element={<Booking />} />
-                <Route
-                  path="/tasker/bookings/:id"
-                  element={<TaskerBookingDetail />}
-                />
-                <Route
-                  path="/tasker/bookings"
-                  element={
-                    <ProtectedRoute requiredRole="Tasker">
-                      <TaskerBookings />
-                    </ProtectedRoute>
-                  }
-                />
+                <Route path="/tasker/bookings/:id" element={<TaskerBookingDetail />} />
+                <Route path="/tasker/bookings" element={
+                  <ProtectedRoute requiredRole="Tasker">
+                    <TaskerBookings />
+                  </ProtectedRoute>
+                } />
                 <Route path="/job-description" element={<JobDescription />} />
                 <Route path="/contract" element={<Contract />} />
 
@@ -268,6 +258,11 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
+                {/* <Route path="/negotiate-session-test" element={
+                <ProtectedRoute>
+                  <NegotiateSessionTest />
+                </ProtectedRoute>
+              } /> */}
                 {/* Role landing */}
                 <Route
                   path="/tasker"
@@ -282,6 +277,15 @@ function App() {
                   element={
                     <ProtectedRoute requiredRole="Customer">
                       <CustomerHome />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/customer/bookings"
+                  element={
+                    <ProtectedRoute requiredRole="Customer">
+                      <BookingHistory />
                     </ProtectedRoute>
                   }
                 />

@@ -81,8 +81,8 @@ const VideoApproval = () => {
     const { videoId, action } = modal;
     try {
       if (action === 'Delete') {
-        await VideoService.deleteVideoByStaff(videoId);
-        setVideos(videos.filter((video) => video.video_id !== videoId));
+      await VideoService.deleteVideoByStaff(videoId); 
+      setVideos(videos.filter((video) => video.video_id !== videoId));
         toast.success('Xóa nội dung thành công!', {
           position: 'top-right',
           autoClose: 3000,
