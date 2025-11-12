@@ -9,6 +9,7 @@ import { authAPI, getStoredToken } from '../services/api';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import '../css/videoDetail.css';
+import { faChevronDown } from '@fortawesome/free-solid-svg-icons';
 
 const VideoDetail = () => {
   const { videoId } = useParams();

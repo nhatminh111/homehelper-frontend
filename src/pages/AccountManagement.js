@@ -422,7 +422,7 @@ const AccountManagement = () => {
         <div className="row">
           {/* Left Sidebar - Navigation */}
           <div className="col-lg-3">
-            <div className="sidebar bg-white rounded shadow-sm">
+            <div className="sidebar1 bg-white rounded shadow-sm">
               <div className="user-summary p-4 border-bottom">
                 <div className="text-center">
                   <div className="profile-image-container mb-3">
@@ -1152,7 +1152,7 @@ const AccountManagement = () => {
           border-bottom: 1px solid #e9ecef;
         }
         
-        .sidebar {
+        .sidebar1 {
           position: sticky;
           top: 20px;
         }

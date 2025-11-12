@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useNavigate, useSearchParams} from 'react-router-dom';
+import { useNavigate, useSearchParams, Link} from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../contexts/SocketContext';
 import { useChat } from '../../hooks/useChat';
@@ -8,6 +8,194 @@ import ChatWindow from './ChatWindow';
 import ChatHeader from './ChatHeader';
 import './Chat.css';
 import QuoteService from '../../services/quoteService';
+
+
+
+const PHONE_REGEX = /\b(?:\+?84|0)(?:[\s.\-]?\d){9,10}\b/g;
+const EMAIL_REGEX = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi; 
+const URL_REGEX = /(https?:\/\/|www\.)[\w\-]+(\.[\w\-]+)+[\w\-._~:/?#[\]@!$&'()*+,;=.]*\/??/gi;
+const BROKEN_SCHEME_URL_REGEX = /\bhttps?www\.[\w\-]+(\.[\w\-]+)+[\w\-._~:/?#[\]@!$&'()*+,;=.]*\/??/gi;
+const OBFUSCATED_DOT_FRAGMENT = '(?:\(\.\)|\(dot\)|\[\.\]|\{\.\}|\[dot\]|\{dot\}|\s+dot\s+)';
+const OBFUSCATED_URL_REGEX = new RegExp(`(https?:\\/\\/|www\\.)[\\w-]+${OBFUSCATED_DOT_FRAGMENT}[\\w-]+[\\w-._~:/?#\\[\\]@!$&'()*+,;=.]*`, 'gi');
+const OBFUSCATED_DOMAIN_REGEX = new RegExp(`\\b[\\w-]+${OBFUSCATED_DOT_FRAGMENT}[a-z]{2,}\\b`, 'gi');
+const SOCIAL_KEYWORDS = [
+  'facebook', 'fb', 'zalo', 'telegram', 'whatsapp', 'instagram', 'ig', 'tiktok'
+];
+const PAYMENT_KEYWORDS = [
+  'chuyển khoản', 'chuyen khoan', 'ck', 'momo', 'zalopay', 'stk', 'số tài khoản', 'so tai khoan', 'bank'
+];
+const VIET_NUMBER_WORDS = [
+  'không','mot','một','hai','ba','bon','bốn','nam','năm','sau','bảy','bay','tám','tam','chin','chín'
+];
+
+const BANK_TOKENS = [
+  'stk','tk','vcb','tcb','acb','bidv','mb','mbbank','vpbank','tpbank','agribank','sacombank','eximbank','shb','hdbank','msb','ocb','vib','vietcombank','vietinbank','techcombank','shinhan','uob','hsbc','citibank'
+];
+const BANK_PHRASES = [
+  'so tai khoan','số tài khoản','tai khoan','ngan hang','mb bank','standard chartered'
+];
+const TRANSFER_PHRASES = [
+  'chuyen khoan','chuyển khoản', 'bank','chuyen vao','chuyển vào','chuyen tien','chuyển tiền','nhan tien','nhận tiền','transfer','send money','ck'
+];
+
+const BANK_ACCOUNT_REGEX = /\b\d(?:[\s\.]?\d){7,19}\b/g;
+
+// Unified redaction token (simplified per request)
+const REDACTED_TOKEN = '****';
+
+const normalize = (str) => str
+  .toLowerCase()
+  .normalize('NFD')
+  .replace(/\p{Diacritic}/gu, '')
+  .replace(/đ/g, 'd');
+
+// Detect if text has sequence of >=8 number words suggesting an obfuscated phone
+const hasObfuscatedPhone = (text) => {
+  const norm = normalize(text);
+  const tokens = norm.split(/[^a-z0-9]+/).filter(Boolean);
+  let streak = 0;
+  for (const t of tokens) {
+    if (VIET_NUMBER_WORDS.includes(t)) {
+      streak++;
+      if (streak >= 8) return true;
+    } else {
+      streak = 0;
+    }
+  }
+  return false;
+};
+
+const redactMatches = (text, regex, placeholder) => {
+  let changed = false;
+  const redacted = text.replace(regex, () => { changed = true; return placeholder; });
+  return { redacted, changed };
+};
+
+// Main sanitize function used in Chat component
+export function sanitizeOutgoingMessage(original, opts = {}) {
+  if (typeof original !== 'string' || !original.trim()) {
+    return { redacted: original, reasons: [], changed: false };
+  }
+  let working = original;
+  const reasons = [];
+  let anyChange = false;
+  // Pattern to detect existing placeholders to avoid re-processing inside them
+  const PLACEHOLDER_PATTERN = /\*{4}/; 
+
+  // 1. Handle direct & obfuscated URLs and domains FIRST (before introducing placeholders that might confuse domain regex)
+  if (!PLACEHOLDER_PATTERN.test(working)) {
+    // First catch broken scheme forms so they don't leave a leading 'https'
+    if (BROKEN_SCHEME_URL_REGEX.test(working)) {
+      BROKEN_SCHEME_URL_REGEX.lastIndex = 0;
+  const resBroken = redactMatches(working, BROKEN_SCHEME_URL_REGEX, REDACTED_TOKEN);
+      working = resBroken.redacted; anyChange = anyChange || resBroken.changed;
+      if (resBroken.changed) reasons.push('Phát hiện đường dẫn/link (dạng thiếu ://).');
+    }
+    if (URL_REGEX.test(working)) {
+      URL_REGEX.lastIndex = 0;
+  const res = redactMatches(working, URL_REGEX, REDACTED_TOKEN);
+      working = res.redacted; anyChange = anyChange || res.changed;
+      if (res.changed) reasons.push('Phát hiện đường dẫn/link.');
+    }
+  }
+  // 1.5 Bank account numbers (requires banking/transfer context), before phone/email
+  {
+    const normEarly = normalize(working);
+    const tokens = normEarly.split(/[^a-z0-9]+/).filter(Boolean);
+    const tokenSet = new Set(tokens);
+    const hasBankToken = BANK_TOKENS.some(t => tokenSet.has(t));
+    const hasBankPhrase = BANK_PHRASES.some(p => normEarly.includes(normalize(p)));
+    const hasTransfer = TRANSFER_PHRASES.some(p => normEarly.includes(normalize(p)));
+    if (opts.forceBankContext || hasBankToken || hasBankPhrase || hasTransfer) {
+      if (BANK_ACCOUNT_REGEX.test(working)) {
+        BANK_ACCOUNT_REGEX.lastIndex = 0;
+  const res = redactMatches(working, BANK_ACCOUNT_REGEX, REDACTED_TOKEN);
+        working = res.redacted; anyChange = anyChange || res.changed;
+        if (res.changed) reasons.push('Phát hiện số tài khoản ngân hàng.');
+      }
+    }
+  }
+  if (!PLACEHOLDER_PATTERN.test(working) && OBFUSCATED_URL_REGEX.test(working)) {
+    OBFUSCATED_URL_REGEX.lastIndex = 0;
+  const res = redactMatches(working, OBFUSCATED_URL_REGEX, REDACTED_TOKEN);
+    working = res.redacted; anyChange = anyChange || res.changed;
+    if (res.changed) reasons.push('Phát hiện link được làm mờ (ví dụ youtu(.)be).');
+  }
+  if (!PLACEHOLDER_PATTERN.test(working) && OBFUSCATED_DOMAIN_REGEX.test(working)) {
+    OBFUSCATED_DOMAIN_REGEX.lastIndex = 0;
+  const res = redactMatches(working, OBFUSCATED_DOMAIN_REGEX, REDACTED_TOKEN);
+    working = res.redacted; anyChange = anyChange || res.changed;
+    if (res.changed) reasons.push('Phát hiện tên miền được làm mờ.');
+  }
+
+  // 2. Phone numbers (after URL handling)
+  if (PHONE_REGEX.test(working)) {
+    PHONE_REGEX.lastIndex = 0; // reset
+  const res = redactMatches(working, PHONE_REGEX, REDACTED_TOKEN);
+    working = res.redacted; anyChange = anyChange || res.changed;
+    if (res.changed) reasons.push('Phát hiện số điện thoại.');
+  }
+  // 3. Emails
+  if (EMAIL_REGEX.test(working)) {
+    EMAIL_REGEX.lastIndex = 0;
+  const res = redactMatches(working, EMAIL_REGEX, REDACTED_TOKEN);
+    working = res.redacted; anyChange = anyChange || res.changed;
+    if (res.changed) reasons.push('Phát hiện email.');
+  }
+  // Social & payment keywords (keyword presence only -> DO NOT mutate content; just record reasons)
+  const norm = normalize(working);
+  SOCIAL_KEYWORDS.forEach(k => {
+    if (norm.includes(k)) {
+      reasons.push(`Từ khóa mạng xã hội: ${k}`);
+    }
+  });
+  PAYMENT_KEYWORDS.forEach(k => {
+    if (norm.includes(normalize(k))) {
+      // Escape regex special chars in keyword then allow optional spaces between words
+      const escaped = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const re = new RegExp(escaped.replace(/\s+/g, '\\s*'), 'gi');
+      // Do not replace keywords to avoid unreadable text; only record reason and keep for context
+      if (re.test(working)) {
+        reasons.push(`Từ khóa thanh toán ngoài hệ thống: ${k}`);
+        // Replace the payment keyword phrase itself with placeholder
+        const reReplace = new RegExp(`\\b${escaped.replace(/\\s+/g, '\\s*')}\\b`, 'gi');
+        const resPay = redactMatches(working, reReplace, REDACTED_TOKEN);
+        working = resPay.redacted; anyChange = anyChange || resPay.changed;
+      }
+    }
+  });
+  // Bank tokens (whole-word) should also trigger a warning reason (e.g., 'shb', 'mbbank')
+  {
+    const tokens2 = norm.split(/[^a-z0-9]+/).filter(Boolean);
+    const tokenSet2 = new Set(tokens2);
+    BANK_TOKENS.forEach(tok => {
+      if (tokenSet2.has(tok)) {
+        reasons.push(`Từ khóa ngân hàng: ${tok}`);
+        // Replace standalone bank token occurrences with placeholder
+        const reTok = new RegExp(`\\b${tok}\\b`, 'gi');
+        const resTok = redactMatches(working, reTok, REDACTED_TOKEN);
+        working = resTok.redacted; anyChange = anyChange || resTok.changed;
+      }
+    });
+  }
+  // Social keywords: redact standalone mentions like 'facebook', 'zalo', 'telegram', etc.
+  SOCIAL_KEYWORDS.forEach(sk => {
+    const reSk = new RegExp(`\\b${sk.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+    if (reSk.test(working)) {
+      const resSk = redactMatches(working, reSk, REDACTED_TOKEN);
+      working = resSk.redacted; anyChange = anyChange || resSk.changed;
+    }
+  });
+  // Collapse duplicate placeholders (e.g., when multiple patterns matched adjacent segments)
+  working = working.replace(new RegExp(`\\s*(${REDACTED_TOKEN.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})(?:\\s*\\1)+`, 'g'), ' $1');
+  // Obfuscated phone via number words
+  if (hasObfuscatedPhone(original)) {
+    reasons.push('Phát hiện chuỗi từ số có thể là số điện thoại bị làm mờ.');
+  }
+
+  return { redacted: working, reasons, changed: anyChange };
+}
+// === End Moderation Utilities ===
 
 const Chat = () => {
   const [searchParams] = useSearchParams();
@@ -25,6 +213,11 @@ const Chat = () => {
   const [negError, setNegError] = useState(null);
   const [negSubmitting, setNegSubmitting] = useState(false);
   const [ackBanner, setAckBanner] = useState(null);
+  // Sensitive content moderation state
+  const [policyModalOpen, setPolicyModalOpen] = useState(false);
+  const [policyReasons, setPolicyReasons] = useState([]);
+  const [pendingMessage, setPendingMessage] = useState(null);
+  const [pendingRedacted, setPendingRedacted] = useState(null);
   // Removed chat-triggered renegotiation; negotiation opens only via Quotes or backend state
   const {
     conversations,
@@ -33,7 +226,6 @@ const Chat = () => {
     loading,
     error,
     hasMoreMessages,
-    typingUsers,
     sendingMessage,
     isConnected,
     loadConversations,
@@ -116,9 +308,30 @@ const Chat = () => {
     };
   };
 
-  // Initialize/refresh session pseudo details when sessionId is present
+  // Initialize/refresh session pseudo details when sessionId is present, but skip if booking negotiation is active
   useEffect(() => {
     if (!sessionId) return;
+    // If booking negotiation is active (bookingId in URL or pending NEG_REQ with bookingId), skip pseudo session details
+    if (bookingIdParam) return;
+    // Scan messages for pending NEG_REQ with bookingId
+    let bookingIdFromPending = null;
+    if (Array.isArray(messages)) {
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const m = messages[i];
+        const c = m?.content;
+        if (!c || typeof c !== 'string') continue;
+        if (c.startsWith('[NEG_REQ]')) {
+          try {
+            const payload = JSON.parse(c.substring(9));
+            if (payload.sessionId === sessionId && payload.bookingId) {
+              bookingIdFromPending = payload.bookingId;
+              break;
+            }
+          } catch(_) {}
+        }
+      }
+    }
+    if (bookingIdFromPending) return; // booking negotiation is active, skip pseudo session details
     const details = buildSessionDetails(sessionId);
     if (!details) return;
     setQuoteDetails(prev => {
@@ -138,7 +351,55 @@ const Chat = () => {
       }
       return prev;
     });
-  }, [sessionId, currentConversation?.conversation_id, currentConversation?.participants, currentConversation?.participants?.length, user?.user_id, user?.userId, negotiationParam]);
+  }, [sessionId, currentConversation?.conversation_id, currentConversation?.participants, currentConversation?.participants?.length, user?.user_id, user?.userId, negotiationParam, bookingIdParam, messages]);
+  // When a pending NEG_REQ with bookingId is detected, auto-load booking details for customer
+  useEffect(() => {
+    // Only run if no bookingId in URL (otherwise booking details already loaded)
+    // If quoteId is present, always show quote details and ignore booking context
+    if (bookingIdParam || quoteIdParam) return;
+    // Scan for latest pending NEG_REQ with bookingId
+    let bookingIdFromPending = null;
+    let sessionIdFromPending = null;
+    if (Array.isArray(messages)) {
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const m = messages[i];
+        const c = m?.content;
+        if (!c || typeof c !== 'string') continue;
+        if (c.startsWith('[NEG_REQ]')) {
+          try {
+            const payload = JSON.parse(c.substring(9));
+            if (payload.bookingId) {
+              bookingIdFromPending = payload.bookingId;
+              sessionIdFromPending = payload.sessionId ?? payload.session;
+              break;
+            }
+          } catch(_) {}
+        }
+      }
+    }
+    if (!bookingIdFromPending) return;
+    // If bookingDetails already loaded for this bookingId, skip
+    if (bookingDetails && String(bookingDetails.booking_id) === String(bookingIdFromPending)) return;
+    // Fetch booking details
+    (async () => {
+      try {
+  const { default: bookingService } = await import('../../services/bookingService');
+  const res = await bookingService.getBookingDetails(Number(bookingIdFromPending));
+  // bookingService returns booking object directly; fallback to nested just in case
+  const bookingObj = (res && res.booking_id) ? res : (res?.booking || res?.data?.booking || res?.data || null);
+        // Accept booking object regardless of res.success flag
+        if (bookingObj && bookingObj.booking_id) {
+          setBookingDetails(bookingObj);
+          // Clear any pseudo session quoteDetails so UI shows booking context only
+          if (quoteDetails && quoteDetails?.quote_id && String(quoteDetails?.quote_id).startsWith('session:')) setQuoteDetails(null);
+        } else {
+          console.warn('[DEBUG][Chat.js] bookingService.getBookingDetails did not return booking:', bookingObj);
+        }
+      } catch (e) {
+        console.error('[Chat] auto-load booking details from pending NEG_REQ error', e);
+      }
+    })();
+  }, [messages, bookingIdParam, quoteIdParam, bookingDetails, quoteDetails]);
   useEffect(() => {
     const convId = initialConversationId && !Number.isNaN(parseInt(initialConversationId, 10))
       ? parseInt(initialConversationId, 10)
@@ -231,7 +492,7 @@ const Chat = () => {
         const res = await QuoteService.getQuoteDetails(quoteIdParam);
         if (res.success) {
           // Only update if different to avoid loops
-          if (!quoteDetails || String(quoteDetails.quote_id) !== String(res.data.quote_id)) {
+          if (!quoteDetails || String(quoteDetails?.quote_id) !== String(res.data.quote_id)) {
             setQuoteDetails(res.data);
             setNegPrice(String(res.data?.proposed_price ?? ''));
           } else {
@@ -258,12 +519,23 @@ const Chat = () => {
   // Load booking details if bookingId present
   useEffect(() => {
     const loadBooking = async () => {
-      if (!bookingIdParam) { setBookingDetails(null); return; }
+      if (!bookingIdParam) { 
+        setBookingDetails(null); 
+        return; 
+      }
       try {
-        const { default: bookingService } = await import('../../services/bookingService');
-        const res = await bookingService.getBookingDetails(Number(bookingIdParam));
-        if (res?.success && res.data) {
-          setBookingDetails(res.data);
+  const { default: bookingService } = await import('../../services/bookingService');
+  const res = await bookingService.getBookingDetails(Number(bookingIdParam));
+  // bookingService returns booking object directly; fallback to nested just in case
+  const bookingObj = (res && res.booking_id) ? res : (res?.booking || res?.data?.booking || res?.data || null);
+        // Accept booking object regardless of res.success flag
+        if (bookingObj && bookingObj.booking_id) {
+          setBookingDetails(prev => {
+            return bookingObj;
+          });
+          setTimeout(() => {
+            // Log after state update (next tick)
+          }, 0);
           // Clear any stale quoteDetails so UI shows booking context only
           if (quoteDetails) setQuoteDetails(null);
           // When booking is active, ensure we are not mixing with quote session in URL
@@ -273,6 +545,8 @@ const Chat = () => {
             if (currentConversation?.conversation_id) params.set('conversationId', String(currentConversation.conversation_id));
             navigate(`/chat?${params.toString()}`, { replace: true });
           }
+        } else {
+          console.warn('[DEBUG][Chat.js] bookingService.getBookingDetails did not return booking:', bookingObj);
         }
       } catch (e) {
         console.error('[Chat] load booking details error', e);
@@ -483,7 +757,7 @@ const Chat = () => {
         }
       }
       if (!derivedQuoteId) return;
-      if (quoteDetails?.quote_id && String(quoteDetails.quote_id) === String(derivedQuoteId)) {
+      if (quoteDetails?.quote_id && String(quoteDetails?.quote_id) === String(derivedQuoteId)) {
         // Already have details for this quote; do not force open here to avoid loops on ACK
         return;
       }
@@ -519,8 +793,14 @@ const Chat = () => {
 
   const currencyVND = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(n || 0));
   const myUserId = user?.user_id || user?.userId;
+  // Peer logic: if peerParam exists, treat peer as customer for Tasker
+  const peerId = peerParam ? String(peerParam) : null;
   const isCustomer = !!((bookingDetails || quoteDetails) && myUserId && String((bookingDetails?.customer_id ?? quoteDetails?.customer_id)) === String(myUserId));
-  const isTasker = !!((bookingDetails || quoteDetails) && myUserId && String((bookingDetails?.tasker_id ?? quoteDetails?.tasker_id)) === String(myUserId));
+  let isTasker = !!((bookingDetails || quoteDetails) && myUserId && String((bookingDetails?.tasker_id ?? quoteDetails?.tasker_id)) === String(myUserId));
+  // If peerId is customerId and user is tasker, allow tasker to propose price
+  if (isTasker && peerId && String(bookingDetails?.customer_id ?? quoteDetails?.customer_id) === peerId) {
+    isTasker = true;
+  }
 
   // Derive the most recent pending negotiation quoteId from messages (latest [NEG_REQ] without a later [NEG_ACK]/[NEG_REJ])
   const activePendingQuoteId = useMemo(() => {
@@ -560,7 +840,7 @@ const Chat = () => {
       // If a session negotiation is pending, do not align to quotes either
       if (pendingSessionIdFromMessages) return;
       if (!activePendingQuoteId) return;
-      const currId = quoteDetails?.quote_id ? String(quoteDetails.quote_id) : null;
+      const currId = quoteDetails?.quote_id ? String(quoteDetails?.quote_id) : null;
       const isCurrPending = String(quoteDetails?.status || '') === 'Chờ xử lý';
       // If current quote is already the active pending, do nothing
       if (currId === String(activePendingQuoteId) && isCurrPending) return;
@@ -600,7 +880,7 @@ const Chat = () => {
           const sid = payload.sessionId ?? payload.session;
           const match = sessionId
             ? String(sid) === String(sessionId)
-            : (bookingIdParam ? String(payload.bookingId) === String(bookingIdParam) : String(payload.quoteId) === String(quoteDetails.quote_id));
+            : (bookingIdParam ? String(payload.bookingId) === String(bookingIdParam) : String(payload.quoteId) === String(quoteDetails?.quote_id));
           if (match) { lastReq = payload; lastReqIdx = i; lastReqMsg = m; }
         } catch(_) {}
       } else if (c.startsWith('[NEG_ACK]')) {
@@ -609,7 +889,7 @@ const Chat = () => {
           const sid = payload.sessionId ?? payload.session;
           const match = sessionId
             ? String(sid) === String(sessionId)
-            : (bookingIdParam ? String(payload.bookingId) === String(bookingIdParam) : String(payload.quoteId) === String(quoteDetails.quote_id));
+            : (bookingIdParam ? String(payload.bookingId) === String(bookingIdParam) : String(payload.quoteId) === String(quoteDetails?.quote_id));
           if (match) { lastAck = payload; lastAckIdx = i; lastAckMsg = m; }
         } catch(_) {}
       } else if (c.startsWith('[NEG_REJ]')) {
@@ -618,7 +898,7 @@ const Chat = () => {
           const sid = payload.sessionId ?? payload.session;
           const match = sessionId
             ? String(sid) === String(sessionId)
-            : (bookingIdParam ? String(payload.bookingId) === String(bookingIdParam) : String(payload.quoteId) === String(quoteDetails.quote_id));
+            : (bookingIdParam ? String(payload.bookingId) === String(bookingIdParam) : String(payload.quoteId) === String(quoteDetails?.quote_id));
           if (match) { lastRej = payload; lastRejIdx = i; lastRejMsg = m; }
         } catch(_) {}
       }
@@ -636,16 +916,23 @@ const Chat = () => {
     return { pending: null, pendingMsg: null, ack: lastAck, ackMsg: lastAckMsg, ackIdx: lastAckIdx, rej: lastRej, rejMsg: lastRejMsg, rejIdx: lastRejIdx };
   }, [messages, quoteDetails?.quote_id, sessionId, bookingIdParam]);
 
+  // Determine if the latest pending request is from current user
+  const pendingFromMe = useMemo(() => {
+    const sender = negotiationState?.pending?.senderId;
+    if (!sender || !myUserId) return false;
+    return String(sender) === String(myUserId);
+  }, [negotiationState?.pending?.senderId, myUserId]);
+
   // Single source of truth for negotiation bar visibility to avoid toggle loops
   useEffect(() => {
     let desired = negotiationOpen;
     const hasPendingViaQuote = isNegotiationContextValid && String(quoteDetails?.status || '') === 'Chờ xử lý';
     const wantsToReopenFromQuotes = negotiationParam === '1' && isCustomer;
-    // Only allow Tasker to force-open from Quotes in quote mode (not session)
-    const wantsTaskerOpenFromQuotes = negotiationParam === '1' && isTasker && !sessionId;
+    // Allow Tasker to open negotiation bar if peerId is customerId
+    const wantsTaskerOpenFromQuotes = negotiationParam === '1' && isTasker && (!sessionId || (peerId && String(bookingDetails?.customer_id ?? quoteDetails?.customer_id) === peerId));
     if (!isNegotiationContextValid) {
-      // Allow pre-open in session/booking mode for Customer while context is resolving; otherwise preserve current state
-      desired = (negotiationParam === '1' && isCustomer && !!(quoteDetails || bookingDetails)) || negotiationOpen;
+      // Allow pre-open in session/booking mode for Customer or Tasker while context is resolving; otherwise preserve current state
+      desired = (negotiationParam === '1' && (isCustomer || isTasker) && !!(quoteDetails || bookingDetails)) || negotiationOpen;
     } else if (negotiationState.pending) {
       // Any pending request should show the bar for both sides
       desired = true;
@@ -653,10 +940,13 @@ const Chat = () => {
       // Hide on REJ (no newer REQ)
       desired = false;
     } else if (bookingIdParam && isCustomer && !sessionId) {
-      // Booking flow: always allow Customer to (re)open bar to propose price, even after ACK
+      // Booking flow: only allow Customer to (re)open bar to propose price, even after ACK
       desired = true;
-    } else if (sessionId && negotiationParam === '1' && isCustomer) {
-      // In session mode, only auto-open for the Customer who initiated via URL until an ACK/REJ happens
+    } else if (bookingIdParam && isTasker && !sessionId && negotiationState.ack) {
+      // Booking flow: hide bar for Tasker after ACK
+      desired = false;
+    } else if (sessionId && negotiationParam === '1' && (isCustomer || isTasker)) {
+      // In session mode, only auto-open for the Customer or Tasker who initiated via URL until an ACK/REJ happens
       desired = true;
     } else if (wantsToReopenFromQuotes) {
       // Explicitly opened from Quotes by Customer, allow composing a new request even if previous ACK exists
@@ -674,7 +964,7 @@ const Chat = () => {
       desired = false;
     }
     if (desired !== negotiationOpen) setNegotiationOpen(desired);
-  }, [isNegotiationContextValid, negotiationState.pending, negotiationState.ack, negotiationState.rej, negotiationParam, negotiationOpen, quoteDetails?.status, isTasker, isCustomer]);
+  }, [isNegotiationContextValid, negotiationState.pending, negotiationState.ack, negotiationState.rej, negotiationParam, negotiationOpen, quoteDetails?.status, isTasker, isCustomer, peerId, bookingDetails, quoteDetails]);
 
   useEffect(() => {
     if (isNegotiationContextValid && negotiationState.ack) {
@@ -688,22 +978,28 @@ const Chat = () => {
 
   // After any ACK, hide the bar and strip negotiation=1 from URL,
   // except when Customer has just opened from Quotes to start a new negotiation (pre-REQ)
+  // Prevent blinking/infinite loop after ACK by tracking last closed ACK
+  const lastClosedAckRef = useRef(null);
   useEffect(() => {
     if (!isNegotiationContextValid || !negotiationState.ack) return;
+    const ackKey = negotiationState.ack.sessionId ? `session:${negotiationState.ack.sessionId}` : (negotiationState.ack.quoteId ? `quote:${negotiationState.ack.quoteId}` : null);
+    if (lastClosedAckRef.current === ackKey) return; // already closed for this ACK
     const openedFromQuotesByCustomer = negotiationParam === '1' && isCustomer && !negotiationState.pending;
-    // In booking-driven flow, keep bar available for Customer to renegotiate
-    if (bookingIdParam && isCustomer) return;
+  // In booking-driven flow, keep bar available for Customer or Tasker to renegotiate if negotiation=1 is present
+  if (bookingIdParam && (isCustomer || (isTasker && negotiationParam === '1'))) return;
     if (openedFromQuotesByCustomer) return; // allow composing a new proposal despite previous ACK existing
     if (negotiationOpen) setNegotiationOpen(false);
-    const params = new URLSearchParams(searchParams);
-    if (params.get('negotiation') === '1') {
+    lastClosedAckRef.current = ackKey;
+    // Only navigate if negotiation=1 is present in the URL (prevents blinking/loop)
+    if (window.location.search.includes('negotiation=1')) {
+      const params = new URLSearchParams(searchParams);
       params.delete('negotiation');
       if (currentConversation?.conversation_id) {
         params.set('conversationId', String(currentConversation.conversation_id));
       }
       navigate(`/chat?${params.toString()}`, { replace: true });
     }
-  }, [isNegotiationContextValid, negotiationState.ack, negotiationState.pending, negotiationParam, isCustomer, negotiationOpen, currentConversation?.conversation_id, searchParams, navigate]);
+  }, [isNegotiationContextValid, negotiationState.ack, negotiationState.pending, negotiationParam, isCustomer, negotiationOpen, bookingIdParam, currentConversation?.conversation_id, searchParams, navigate]);
   const validateNegPrice = () => {
     // Basic number check
     const num = Number(negPrice);
@@ -728,54 +1024,60 @@ const Chat = () => {
   };
 
   const handleFinalizePrice = async () => {
+    console.debug('[Chat] handleFinalizePrice click', {
+      role: { isCustomer, isTasker },
+      ctx: { sessionId, bookingIdParam, hasQuote: !!quoteDetails },
+      negPrice
+    });
     const err = validateNegPrice();
     setNegError(err);
     if (err) return;
     try {
       setNegSubmitting(true);
       const price = Number(negPrice);
-      if (sessionId || isCustomer) {
-        const isBooking = !!bookingIdParam;
-        if (isBooking) {
-          // Always send session-based negotiation for booking flows
-          let sid = sessionId;
-          if (!sid) {
-            const resp = await createSessionId({ prefix: 'sess' });
-            if (!resp?.success || !resp.sessionId) throw new Error('Không thể tạo phiên thương lượng');
-            sid = String(resp.sessionId);
-            setSessionId(sid);
-            // Do not set quoteDetails in booking flow to avoid quote context overriding UI
-          }
-          const payload = { sessionId: sid, price, bookingId: Number(bookingIdParam) };
-          await sendTextMessage(`[NEG_REQ]${JSON.stringify(payload)}`);
-          setNegError(null);
-          setNegotiationOpen(true);
-          // Do not modify URL to add session or quote in booking-driven flow; keep bookingId-only
-          const params = new URLSearchParams(searchParams);
-          if (currentConversation?.conversation_id) params.set('conversationId', String(currentConversation.conversation_id));
-          navigate(`/chat?${params.toString()}`, { replace: true });
-        } else if (sessionId) {
-          const payload = { sessionId: sessionId, price };
-          await sendTextMessage(`[NEG_REQ]${JSON.stringify(payload)}`);
-          setNegError(null);
-          setNegotiationOpen(true);
-          const params = new URLSearchParams(searchParams);
-          // reflect session in URL for pure session (non-booking) flow
-          params.set('session', String(sessionId));
-          if (currentConversation?.conversation_id) params.set('conversationId', String(currentConversation.conversation_id));
-          navigate(`/chat?${params.toString()}`, { replace: true });
-        } else if (quoteDetails) {
-          await sendTextMessage(`[NEG_REQ]${JSON.stringify({ quoteId: quoteDetails.quote_id, price })}`);
-          setNegError(null);
-          setNegotiationOpen(true);
-          const params = new URLSearchParams(searchParams);
-          params.set('quoteId', String(quoteDetails.quote_id));
-          if (params.get('session')) params.delete('session');
-          // For quote flow, remove negotiation flag after sending
-          if (params.get('negotiation') === '1') params.delete('negotiation');
-          if (currentConversation?.conversation_id) params.set('conversationId', String(currentConversation.conversation_id));
-          navigate(`/chat?${params.toString()}`, { replace: true });
+      const isBooking = !!bookingIdParam;
+  if (isBooking) {
+        // Always send session-based negotiation for booking flows
+        let sid = sessionId;
+        if (!sid) {
+          const resp = await createSessionId({ prefix: 'sess' });
+          if (!resp?.success || !resp.sessionId) throw new Error('Không thể tạo phiên thương lượng');
+          sid = String(resp.sessionId);
+          setSessionId(sid);
+          // Do not set quoteDetails in booking flow to avoid quote context overriding UI
         }
+  const payload = { sessionId: sid, price, bookingId: Number(bookingIdParam), senderId: myUserId };
+        await sendTextMessage(`[NEG_REQ]${JSON.stringify(payload)}`);
+        setNegError(null);
+        setNegotiationOpen(true);
+        // Do not modify URL to add session or quote in booking-driven flow; keep bookingId-only
+        const params = new URLSearchParams(searchParams);
+        if (currentConversation?.conversation_id) params.set('conversationId', String(currentConversation.conversation_id));
+        navigate(`/chat?${params.toString()}`, { replace: true });
+      } else if (sessionId) {
+        const payload = { sessionId: sessionId, price, senderId: myUserId };
+        await sendTextMessage(`[NEG_REQ]${JSON.stringify(payload)}`);
+        setNegError(null);
+        setNegotiationOpen(true);
+        const params = new URLSearchParams(searchParams);
+        // reflect session in URL for pure session (non-booking) flow
+        params.set('session', String(sessionId));
+        if (currentConversation?.conversation_id) params.set('conversationId', String(currentConversation.conversation_id));
+        navigate(`/chat?${params.toString()}`, { replace: true });
+      } else if (quoteDetails) {
+        await sendTextMessage(`[NEG_REQ]${JSON.stringify({ quoteId: quoteDetails?.quote_id, price, senderId: myUserId })}`);
+        setNegError(null);
+        setNegotiationOpen(true);
+        const params = new URLSearchParams(searchParams);
+        params.set('quoteId', String(quoteDetails?.quote_id));
+        if (params.get('session')) params.delete('session');
+        // For quote flow, remove negotiation flag after sending
+        if (params.get('negotiation') === '1') params.delete('negotiation');
+        if (currentConversation?.conversation_id) params.set('conversationId', String(currentConversation.conversation_id));
+        navigate(`/chat?${params.toString()}`, { replace: true });
+      } else {
+        // No valid context to send a negotiation request
+        throw new Error('Ngữ cảnh thương lượng không hợp lệ');
       }
     } catch (e) {
       setNegError(e.message || 'Không thể gửi yêu cầu chốt giá');
@@ -785,7 +1087,7 @@ const Chat = () => {
   };
 
   const handleApproveNegotiation = async () => {
-    if (!negotiationState.pending || !isTasker) return;
+    if (!negotiationState.pending || pendingFromMe) return;
     try {
       setNegSubmitting(true);
       const price = Number(negotiationState.pending.price);
@@ -811,10 +1113,10 @@ const Chat = () => {
           console.warn('[Chat] Failed to update booking final price:', e?.message || e);
         }
       } else {
-        const resp = await QuoteService.updateProposedPrice(quoteDetails.quote_id, price);
+        const resp = await QuoteService.updateProposedPrice(quoteDetails?.quote_id, price);
         if (!resp?.success) throw new Error(resp?.message || 'Không thể cập nhật báo giá');
         // Inform both sides and hide bar
-        await sendTextMessage(`[NEG_ACK]${JSON.stringify({ quoteId: quoteDetails.quote_id, price })}`);
+        await sendTextMessage(`[NEG_ACK]${JSON.stringify({ quoteId: quoteDetails?.quote_id, price })}`);
       }
       setNegotiationOpen(false);
       // Update local quote details to reflect accepted status and price
@@ -836,12 +1138,12 @@ const Chat = () => {
   };
 
   const handleRejectNegotiation = async () => {
-    if (!negotiationState.pending || !isTasker) return;
+    if (!negotiationState.pending || pendingFromMe) return;
     try {
       if (sessionId) {
         await sendTextMessage(`[NEG_REJ]${JSON.stringify({ sessionId: sessionId, price: negotiationState.pending.price })}`);
       } else {
-        await sendTextMessage(`[NEG_REJ]${JSON.stringify({ quoteId: quoteDetails.quote_id, price: negotiationState.pending.price })}`);
+        await sendTextMessage(`[NEG_REJ]${JSON.stringify({ quoteId: quoteDetails?.quote_id, price: negotiationState.pending.price })}`);
       }
     } catch (_) {}
   };
@@ -943,9 +1245,57 @@ const Chat = () => {
     );
   });
 
+  // Moderation context per conversation (e.g., bank keyword detected recently)
+  const moderationContextsRef = useRef(new Map());
+  const BANK_CONTEXT_TTL_MS = 3 * 60 * 1000; // 3 minutes
+
+  const getBankContextActive = () => {
+    const convId = currentConversation?.conversation_id;
+    if (!convId) return false;
+    const entry = moderationContextsRef.current.get(String(convId));
+    return !!(entry && entry.bankUntilTs && entry.bankUntilTs > Date.now());
+  };
+
+  const extendBankContextFromText = (text) => {
+    if (typeof text !== 'string' || !text.trim()) return;
+    const norm = normalize(text);
+    const tokens = norm.split(/[^a-z0-9]+/).filter(Boolean);
+    const tokenSet = new Set(tokens);
+    const hasBankToken = BANK_TOKENS.some(t => tokenSet.has(t));
+    const hasBankPhrase = BANK_PHRASES.some(p => norm.includes(normalize(p)));
+    const hasTransfer = TRANSFER_PHRASES.some(p => norm.includes(normalize(p)));
+    if (hasBankToken || hasBankPhrase || hasTransfer) {
+      const convId = currentConversation?.conversation_id;
+      if (convId) {
+        moderationContextsRef.current.set(String(convId), { bankUntilTs: Date.now() + BANK_CONTEXT_TTL_MS });
+      }
+    }
+  };
+
   const handleSendMessage = async (content, replyToMessageId = null) => {
     try {
-      await sendTextMessage(content, replyToMessageId);
+      // Skip moderation for system negotiation messages
+      const isSystem = typeof content === 'string' && (content.startsWith('[NEG_REQ]') || content.startsWith('[NEG_ACK]') || content.startsWith('[NEG_REJ]'));
+      let toSend = content;
+      if (!isSystem && typeof content === 'string' && content.trim()) {
+        // Update bank context window if this message contains bank hints
+        extendBankContextFromText(content);
+        const forceBankContext = getBankContextActive();
+        const { redacted, reasons, changed } = sanitizeOutgoingMessage(content, { forceBankContext });
+        if (reasons.length > 0) {
+          // Show modal and allow user to accept redaction or edit
+          setPolicyReasons(reasons);
+          setPendingMessage(content);
+          setPendingRedacted(redacted);
+          setPolicyModalOpen(true);
+          // Do not send now; wait for user confirmation
+          return;
+        }
+        if (changed) {
+          toSend = redacted;
+        }
+      }
+      await sendTextMessage(toSend, replyToMessageId);
     } catch (error) {
       console.error('Failed to send message:', error);
     }
@@ -953,7 +1303,15 @@ const Chat = () => {
 
   const handleSendFile = async (file, content = '') => {
     try {
-      await sendFileMessage(file, content);
+      // Moderate optional caption content
+      let caption = content;
+      if (typeof caption === 'string' && caption.trim()) {
+        extendBankContextFromText(caption);
+        const forceBankContext = getBankContextActive();
+        const { redacted } = sanitizeOutgoingMessage(caption, { forceBankContext });
+        caption = redacted;
+      }
+      await sendFileMessage(file, caption);
     } catch (error) {
       console.error('Failed to send file:', error);
     }
@@ -1080,6 +1438,9 @@ const Chat = () => {
     );
   }
 
+  // Whether current viewer can input a proposed price in the negotiation bar
+  const canProposePrice = ((isCustomer || isTasker) && negotiationParam === '1' && !negotiationState.pending)
+    || (isCustomer && !negotiationState.pending && (!negotiationState.ack || !!bookingIdParam));
   return (
     <div className="chat-container">
 
@@ -1130,61 +1491,92 @@ const Chat = () => {
                   <div className="me-2">
                     <div className="small text-muted">
                       {bookingDetails ? (
-                        <>
-                          <div>
-                            Bạn đang thương lượng giá cả cho booking:{" "}
-                            <strong>
+                        <div>
+                          <div className="d-flex align-items-center">
+                            <span>Bạn đang thương lượng giá cả cho booking: </span>
+                            <strong className="ms-1">
                               {bookingDetails.variant_name ||
                                 bookingDetails.service_name ||
                                 `#${bookingDetails.booking_id}`}
                             </strong>
-                          </div>
+                            {bookingDetails?.booking_id && (
+                              <>
+                                {isTasker && (
+                                  <Link
+                                    to={`/tasker/bookings/${bookingDetails.booking_id}`}
+                                    className="ms-2 btn btn-link btn-sm p-0 align-baseline"
+                                  >
+                                    Xem chi tiết
+                                  </Link>
+                                )}
 
+                                {isCustomer && (
+                                  <Link
+                                    to={`/customer/bookings`}
+                                    className="ms-2 btn btn-link btn-sm p-0 align-baseline"
+                                  >
+                                    Xem chi tiết
+                                  </Link>
+                                )}
+                              </>
+                            )}
+                          </div>
                           {bookingDetails.tasker_name && (
                             <div>
                               Tasker: <strong>{bookingDetails.tasker_name}</strong>
                             </div>
                           )}
-
                           {(bookingDetails.start_time || bookingDetails.end_time) && (
                             <div>
-                              Thời gian:{" "}
+                              Thời gian: {" "}
                               <strong>
                                 {bookingDetails.start_time
                                   ? new Date(bookingDetails.start_time).toLocaleString("vi-VN")
-                                  : "N/A"}{" "}
-                                -{" "}
+                                  : "N/A"} {" "}
+                                - {" "}
                                 {bookingDetails.end_time
                                   ? new Date(bookingDetails.end_time).toLocaleString("vi-VN")
                                   : "N/A"}
                               </strong>
                             </div>
                           )}
-                        </>
+                        </div>
                       ) : (
                         <div>
-                          Bạn đang thương lượng giá cả cho dịch vụ:{" "}
+                          Bạn đang thương lượng giá cả cho dịch vụ: {" "}
                           <strong>{quoteDetails.variant_name}</strong>
                         </div>
                       )}
                     </div>
 
                     <div className="fw-semibold mt-1">
-                      Giá hiện tại: {" "}
-                      <strong>
-                        {bookingDetails ? (
-                          bookingDetails.final_price != null
-                            ? currencyVND(bookingDetails.final_price)
-                            : "Chưa có"
-                        ) : quoteDetails.proposed_price != null ? (
-                          currencyVND(quoteDetails.proposed_price)
-                        ) : (
-                          "Chưa có"
-                        )}
-                      </strong>
-                      {(bookingDetails?.unit || quoteDetails?.unit) && (
-                        <span> / {(bookingDetails?.unit || quoteDetails?.unit)}</span>
-                      )}
+                      {bookingDetails ? (
+                        <>
+                          Giá khách đề xuất:{" "}
+                          <strong className="text-muted">
+                            {currencyVND(bookingDetails?.expected_price)}
+                          </strong>
+                          <br />
+                          Giá sau thương lượng:{" "}
+                          <strong className="text-success">
+                            {bookingDetails?.base_price
+                              ? currencyVND(bookingDetails.base_price)
+                              : "Chưa có"}
+                          </strong>
+                          {(bookingDetails?.unit || quoteDetails?.unit) && (
+                            <span> / {(bookingDetails?.unit || quoteDetails?.unit)}</span>
+                          )}
+                        </>
+                      ) : quoteDetails ? (
+                        <>
+                          Giá hiện tại: <strong className="text-success">
+                            {currencyVND(quoteDetails?.proposed_price)}
+                          </strong>
+                          {quoteDetails?.unit && (
+                            <span> / {quoteDetails?.unit}</span>
+                          )}
+                        </>
+                      ) : null}
                     </div>
 
                     <div className="small text-muted mt-1">
@@ -1222,8 +1614,8 @@ const Chat = () => {
                   </div>
 
                   <div className="d-flex align-items-center gap-2 ms-auto">
-                    {/* Customer input when not pending */}
-                    {( (isCustomer && negotiationParam === '1' && !negotiationState.pending) || (isCustomer && !negotiationState.pending && (!negotiationState.ack || !!bookingIdParam)) ) ? (
+                    {/* Input for customer or tasker when not pending */}
+                    {canProposePrice ? (
                       <>
                         <input
                           type="number"
@@ -1239,17 +1631,17 @@ const Chat = () => {
                         </button>
                       </>
                     ) : null}
-                    {/* Tasker approves/rejects when pending */}
-                    {negotiationState.pending && isTasker && !negotiationState.ack && (
+                    {/* Receiver approves/rejects when pending (sender waits) */}
+                    {negotiationState.pending && !pendingFromMe && !negotiationState.ack && (
                       <div className="d-flex align-items-center gap-2">
                         <span className="small text-muted">Yêu cầu chốt: <strong>{currencyVND(negotiationState.pending.price)}</strong></span>
                         <button className="btn btn-sm btn-success" disabled={negSubmitting} onClick={handleApproveNegotiation}>Đồng ý</button>
                         <button className="btn btn-sm btn-outline-secondary" onClick={handleRejectNegotiation}>Từ chối</button>
                       </div>
                     )}
-                    {/* Customer waiting when their REQ is pending */}
-                    {negotiationState.pending && isCustomer && !negotiationState.ack && (
-                      <span className="badge bg-warning text-dark">Đang chờ Tasker xác nhận...</span>
+                    {/* Sender waits while pending */}
+                    {negotiationState.pending && pendingFromMe && !negotiationState.ack && (
+                      <span className="badge bg-warning text-dark">Đang chờ đối tác xác nhận...</span>
                     )}
                     {/* Rejected state hints */}
                     {!negotiationState.pending && negotiationState.rej && isTasker && (
@@ -1259,11 +1651,11 @@ const Chat = () => {
                       <span className="badge bg-secondary">Bạn có thể nhập giá mới.</span>
                     )}
                     {/* Optional hint for Tasker when no pending */}
-                    {isTasker && !negotiationState.pending && !negotiationState.ack && !negotiationState.rej && (
+                    {!canProposePrice && isTasker && !negotiationState.pending && !negotiationState.ack && !negotiationState.rej && (
                       <span className="small text-muted">Chờ khách hàng đề xuất...</span>
                     )}
                     {/* Tasker open from Quotes but not pending: keep a neutral hint so bar is visible */}
-                    {negotiationParam === '1' && isTasker && !sessionId && !negotiationState.pending && (
+                    {negotiationParam === '1' && isTasker && !sessionId && !negotiationState.pending && !canProposePrice && (
                       <span className="small text-muted">Đã mở từ báo giá. Chờ khách hàng đề xuất.</span>
                     )}
                   </div>
@@ -1312,6 +1704,57 @@ const Chat = () => {
           onClose={() => setShowNewConversationModal(false)}
           onCreate={handleCreateConversation}
         />
+      )}
+
+      {/* Safety Policy Modal */}
+      {policyModalOpen && (
+        <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Cảnh báo nội dung nhạy cảm</h5>
+                <button type="button" className="btn-close" onClick={() => setPolicyModalOpen(false)} aria-label="Close"></button>
+              </div>
+              <div className="modal-body">
+                <p>
+                  Vì lý do an toàn, vui lòng không chia sẻ số điện thoại, email, link hay liên hệ ngoài ứng dụng.
+                  Mọi giao dịch cần được thực hiện trong hệ thống.
+                </p>
+                {/* {policyReasons.length > 0 && (
+                  <ul className="mb-2">
+                    {policyReasons.map((r, i) => (
+                      <li key={i}>{r}</li>
+                    ))}
+                  </ul>
+                )} */}
+                {pendingRedacted != null && (
+                  <div className="border rounded p-2 bg-light">
+                    <small className="text-muted">Nội dung sau khi được che:</small>
+                    <div>{pendingRedacted}</div>
+                  </div>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-outline-secondary" onClick={() => { setPolicyModalOpen(false); setPendingMessage(null); setPendingRedacted(null); }}>Sửa lại</button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={async () => {
+                    try {
+                      if (pendingRedacted) await sendTextMessage(pendingRedacted);
+                    } finally {
+                      setPolicyModalOpen(false);
+                      setPendingMessage(null);
+                      setPendingRedacted(null);
+                    }
+                  }}
+                >
+                  Gửi với nội dung đã che
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

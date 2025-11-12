@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import "../css/TaskerProfile.css";
 import { useAuth } from "../contexts/AuthContext";
-import { useParams } from "react-router-dom";
+import { useParams} from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faStar,
@@ -15,6 +15,187 @@ import {
   faHeart as faHeartSolid,
 } from "@fortawesome/free-solid-svg-icons";
 import { faHeart as faHeartRegular } from "@fortawesome/free-regular-svg-icons";
+import TaskerCertificateRegister from '../components/TaskerCertificateRegister';
+
+// Certificate list section for the certification tab
+const TaskerCertificateList = ({ taskerId }) => {
+  const [certs, setCerts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  // Hàm lấy signed URL bằng cert_public_id
+  const fetchSignedCertificateUrlByPublicId = useCallback(async (public_id) => {
+    if (!public_id) return null;
+    try {
+      const url = `${API_BASE_URL}/tasker/certifications/signed-url?public_id=${encodeURIComponent(public_id)}`;
+      const res = await fetch(url, {
+        headers: { 'Authorization': localStorage.getItem('token') ? `Bearer ${localStorage.getItem('token')}` : '' }
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.message || 'Failed signed URL by public_id');
+      return json.data?.url || null;
+    } catch (e) {
+      console.warn('fetchSignedCertificateUrlByPublicId error', e.message);
+      return null;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!taskerId) return;
+    setLoading(true);
+    fetch(`${API_BASE_URL}/taskers/${taskerId}/certifications`, {
+      headers: { 'Authorization': localStorage.getItem('token') ? `Bearer ${localStorage.getItem('token')}` : '' }
+    })
+      .then(res => res.json())
+      .then(async data => {
+        let certList = Array.isArray(data.data) ? data.data : [];
+        // For certs with only cert_public_id, fetch signed URL
+        const updatedCerts = await Promise.all(certList.map(async cert => {
+          if (!cert.cert_file_url && cert.cert_public_id) {
+            try {
+              const url = await fetchSignedCertificateUrlByPublicId(cert.cert_public_id);
+              if (url) {
+                return { ...cert, cert_file_url: url };
+              }
+            } catch (e) { /* ignore */ }
+          }
+          return cert;
+        }));
+        setCerts(updatedCerts);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [taskerId, fetchSignedCertificateUrlByPublicId]);
+
+  // Group by service and variant
+  const grouped = {};
+  certs.forEach(cert => {
+    const service = cert.service_name || cert.service_id;
+    const variant = cert.variant_name || cert.variant_id;
+    if (!grouped[service]) grouped[service] = {};
+    if (!grouped[service][variant]) grouped[service][variant] = [];
+    grouped[service][variant].push(cert);
+  });
+
+  if (loading) return <div>Đang tải danh sách chứng chỉ...</div>;
+  if (certs.length === 0) return <div className="alert alert-info">Không có chứng chỉ nào.</div>;
+
+  return (
+    <div>
+      <h5 className="mb-3">Danh sách chứng chỉ đã đăng ký</h5>
+
+      <div className="row g-3">
+        {Object.entries(grouped).map(([service, variants]) =>
+          Object.entries(variants).map(([variant, certList]) =>
+            certList.map((cert, idx) => (
+              <div key={cert.cert_id || cert.cert_public_id || idx} className="col-12">
+                <div
+                  className="card shadow-sm border-0 d-flex flex-column flex-md-row align-items-stretch position-relative"
+                  style={{
+                    borderRadius: '12px',
+                    overflow: 'hidden',
+                    minHeight: '160px',
+                    transition: 'transform 0.2s ease'
+                  }}
+                >
+                  {/* Status góc phải trên */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 8,
+                      right: 8,
+                      zIndex: 2
+                    }}
+                  >
+                    {cert.status && (
+                      <span
+                        className={`badge px-3 py-2 ${
+                          cert.status === 'approved'
+                            ? 'bg-success'
+                            : cert.status === 'pending'
+                            ? 'bg-warning text-dark'
+                            : 'bg-secondary'
+                        }`}
+                        style={{ fontSize: '0.9rem', fontWeight: 500 }}
+                      >
+                        {cert.status === 'approved'
+                          ? 'Đã duyệt'
+                          : cert.status === 'pending'
+                          ? 'Chờ duyệt'
+                          : cert.status}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Ảnh chứng chỉ */}
+                  <div
+                    className="flex-shrink-0 bg-light d-flex align-items-center justify-content-center"
+                    style={{
+                      width: '100%',
+                      maxWidth: '220px',
+                      height: 'auto',
+                      aspectRatio: '4 / 3',
+                      borderBottom: '1px solid #eee'
+                    }}
+                  >
+                    {cert.cert_file_url ? (
+                      <img
+                        src={cert.cert_file_url}
+                        alt={cert.cert_name}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'contain', // giúp giữ tỉ lệ hình
+                          backgroundColor: '#f8f9fa'
+                        }}
+                      />
+                    ) : (
+                      <div className="text-muted small py-4">Không có ảnh</div>
+                    )}
+                  </div>
+
+                  {/* Nội dung chứng chỉ */}
+                  <div className="card-body d-flex flex-column justify-content-between p-3">
+                    <div>
+                      <h6 className="fw-semibold mb-1 text-truncate">
+                        {cert.cert_name}
+                      </h6>
+
+                      {cert.parsed_certificate_code && (
+                        <span className="badge bg-info text-dark mb-2">
+                          Mã: {cert.parsed_certificate_code}
+                        </span>
+                      )}
+
+                      <div className="mb-2">
+                        <span className="badge bg-primary-subtle text-primary me-2">
+                          {service}
+                        </span>
+                        <span className="badge bg-secondary-subtle text-secondary">
+                          {variant}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="text-muted small mt-auto">
+                      <div>
+                        <strong>Cấp bởi:</strong> {cert.issued_by || '—'}
+                      </div>
+                      <div>
+                        <strong>Ngày cấp:</strong>{' '}
+                        {cert.issued_date
+                          ? new Date(cert.issued_date).toLocaleDateString('vi-VN')
+                          : '—'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))
+          )
+        )}
+      </div>
+    </div>
+  );
+};
 
 const API_BASE_URL = "http://localhost:3001/api";
 
@@ -26,7 +207,14 @@ const createHeaders = (token = null) => {
 
 const TaskerProfile = () => {
   const { id } = useParams();
-  const { user, token, loading: authLoading, isAuthenticated } = useAuth();
+  const {
+    user,
+    token,
+    loading: authLoading,
+    isAuthenticated,
+    isStaff,
+    isTasker,
+  } = useAuth();
   const [tasker, setTasker] = useState(null);
   const [reviewsData, setReviewsData] = useState({
     reviews: [],
@@ -231,12 +419,15 @@ const TaskerProfile = () => {
   useEffect(() => {
     if (skipFetch) return;
     if (activeTab === "reviews" && id) {
-      fetch(`${API_BASE_URL}/ratings/${id}`)
+      const userIdParam = user?.user_id ? `?userId=${user.user_id}` : "";
+      fetch(`${API_BASE_URL}/ratings/${id}${userIdParam}`, {
+        headers: createHeaders(token),
+      })
         .then((res) => res.json())
         .then((data) => setReviewsData(data || { reviews: [] }))
         .catch((err) => console.error(err));
     }
-  }, [activeTab, id, skipFetch]);
+  }, [activeTab, id, skipFetch, user, token]);
 
   // reset flag mỗi khi đổi tab
   useEffect(() => setSkipFetch(false), [activeTab]);
@@ -305,13 +496,8 @@ const TaskerProfile = () => {
 
       const status = data.status ?? data.rating?.status;
 
-      if (status === 1 || status === 0) {
-        alert(
-          data.message ||
-            (status === 1
-              ? "Đánh giá đã được đăng thành công."
-              : "Đánh giá của bạn đang chờ duyệt.")
-        );
+      if (status === 1) {
+        alert(data.message || "Đánh giá đã được đăng thành công.");
 
         // 🟢 Sau khi submit thành công -> Fetch lại toàn bộ danh sách review từ server
         await fetch(`${API_BASE_URL}/ratings/${id}`)
@@ -362,11 +548,15 @@ const TaskerProfile = () => {
     return <div className="container py-5 text-center">Loading...</div>;
 
   const tabs = [
-    { id: "overview", label: "Overview", icon: faEye },
-    { id: "reviews", label: "Reviews", icon: faStar },
-    { id: "videos", label: "Videos", icon: faEye },
-    { id: "articles", label: "Articles", icon: faAward },
-    { id: "achievements", label: "Achievements", icon: faCheckCircle },
+  { id: "overview", label: "Overview", icon: faEye },
+  { id: "reviews", label: "Reviews", icon: faStar },
+  { id: "videos", label: "Videos", icon: faEye },
+  { id: "articles", label: "Articles", icon: faAward },
+    // Only show Certification tab if user is viewing their own profile and is a tasker
+    ...(isTasker && user?.user_id === Number(id) ? [
+      { id: "certification", label: "Certification", icon: faAward },
+    ] : []),
+  { id: "achievements", label: "Achievements", icon: faCheckCircle },
   ];
 
   return (
@@ -407,14 +597,19 @@ const TaskerProfile = () => {
                 </div>
               </div>
               <div className="d-flex flex-wrap gap-2 mt-3">
-                <button className="btn btn-primary tp-btn-primary">
-                  <FontAwesomeIcon icon={faCalendarCheck} className="me-1" />
-                  Book Now — ${tasker.pricePerHour || 25}/hr
-                </button>
-                <button className="btn btn-outline-secondary tp-btn-outline">
-                  <FontAwesomeIcon icon={faComments} className="me-1" />
-                  Start Chat
-                </button>
+                {/* Hide booking/chat buttons if tasker is viewing their own profile */}
+                {!(isTasker && user?.user_id === Number(id)) && (
+                  <>
+                    <button className="btn btn-primary tp-btn-primary">
+                      <FontAwesomeIcon icon={faCalendarCheck} className="me-1" />
+                      Book Now — ${tasker.pricePerHour || 25}/hr
+                    </button>
+                    <button className="btn btn-outline-secondary tp-btn-outline">
+                      <FontAwesomeIcon icon={faComments} className="me-1" />
+                      Start Chat
+                    </button>
+                  </>
+                )}
               </div>
             </div>
             <div className="col-md-6 text-md-end mt-3 mt-md-0">
@@ -664,40 +859,197 @@ const TaskerProfile = () => {
                                 <span className="badge bg-primary me-2">
                                   Verified
                                 </span>
-                                {review.status === 0 && (
-                                  <span className="badge bg-secondary ms-2">
-                                    Pending
-                                  </span>
-                                )}
-                                <div>
-                                  {[1, 2, 3, 4, 5].map((star) => (
-                                    <FontAwesomeIcon
-                                      key={star}
-                                      icon={faStar}
-                                      className={
-                                        star <= (review?.rating || 0)
-                                          ? "text-warning"
-                                          : "text-muted"
-                                      }
-                                    />
-                                  ))}
-                                </div>
                               </div>
 
                               {/* Date */}
                               <small className="text-muted d-block mb-2">
                                 {review.date ? review.date.split("T")[0] : ""}
                               </small>
+                              <div>
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                  <FontAwesomeIcon
+                                    key={star}
+                                    icon={faStar}
+                                    className={
+                                      star <= (review?.rating || 0)
+                                        ? "text-warning"
+                                        : "text-muted"
+                                    }
+                                  />
+                                ))}
+                              </div>
 
                               {/* Comment */}
                               <p className="mb-2">
                                 {review?.text || "Không có nhận xét."}
                               </p>
+                              {/* Staff Reply */}
+                              {review.staff_reply && (
+                                <div className="mt-2 ms-4 p-2 bg-light border-start border-primary rounded">
+                                  <strong>Phản hồi từ tasker:</strong>{" "}
+                                  <span>{review.staff_reply}</span>
+                                </div>
+                              )}
+                              {/* ✅ Nếu người dùng hiện tại chính là tasker (người được đánh giá) */}
+                              {user?.user_id === review.reviewee_id &&
+                                !review.staff_reply && (
+                                  <div className="mt-3 ms-4 p-2 border rounded bg-light">
+                                    <label className="form-label fw-semibold">
+                                      Phản hồi:
+                                    </label>
+                                    <textarea
+                                      className="form-control mb-2"
+                                      rows="2"
+                                      placeholder="Nhập phản hồi của bạn..."
+                                      value={review.replyDraft || ""}
+                                      onChange={(e) => {
+                                        const updatedReviews =
+                                          reviewsData.reviews.map((r) =>
+                                            r.id === review.id
+                                              ? {
+                                                  ...r,
+                                                  replyDraft: e.target.value,
+                                                }
+                                              : r
+                                          );
+                                        setReviewsData({
+                                          ...reviewsData,
+                                          reviews: updatedReviews,
+                                        });
+                                      }}
+                                    />
+                                    <button
+                                      className="btn btn-sm btn-primary"
+                                      onClick={async () => {
+                                        try {
+                                          const res = await fetch(
+                                            `${API_BASE_URL}/ratings/${review.id}/reply`,
+                                            {
+                                              method: "POST",
+                                              headers: {
+                                                "Content-Type":
+                                                  "application/json",
+                                                Authorization: `Bearer ${token}`,
+                                              },
+                                              body: JSON.stringify({
+                                                reply: review.replyDraft,
+                                              }),
+                                            }
+                                          );
+
+                                          if (res.ok) {
+                                            alert("Phản hồi đã được gửi!");
+
+                                            // 🟢 Cập nhật trực tiếp vào state để hiển thị ngay lập tức
+                                            const updatedReviews =
+                                              reviewsData.reviews.map((r) =>
+                                                r.id === review.id
+                                                  ? {
+                                                      ...r,
+                                                      staff_reply:
+                                                        review.replyDraft,
+                                                    }
+                                                  : r
+                                              );
+
+                                            setReviewsData({
+                                              ...reviewsData,
+                                              reviews: updatedReviews,
+                                            });
+
+                                            // (Tuỳ chọn) nếu muốn load lại từ server:
+                                            // const refreshed = await fetch(`${API_BASE_URL}/ratings/${id}`);
+                                            // const updated = await refreshed.json();
+                                            // setReviewsData(updated || { reviews: [] });
+                                          } else {
+                                            const err = await res.json();
+                                            alert(
+                                              `❌ Không thể gửi phản hồi: ${
+                                                err.message ||
+                                                "Lỗi không xác định."
+                                              }`
+                                            );
+                                          }
+                                        } catch (error) {
+                                          console.error(
+                                            "❌ Lỗi khi gửi phản hồi:",
+                                            error
+                                          );
+                                          alert(
+                                            "Lỗi kết nối hoặc máy chủ. Vui lòng thử lại."
+                                          );
+                                        }
+                                      }}
+                                    >
+                                      Gửi phản hồi
+                                    </button>
+                                  </div>
+                                )}
 
                               {/* Helpful button */}
-                              <button className="btn btn-sm btn-outline-secondary">
-                                👍 Helpful ({review.helpful || 0})
-                              </button>
+                              {user?.user_id !== review.reviewer_id && (
+                                <div className="mt-3 d-flex justify-content-start">
+                                  <button
+                                    className={`btn btn-sm ${
+                                      review.userLiked
+                                        ? "btn-success"
+                                        : "btn-outline-secondary"
+                                    }`}
+                                    style={{
+                                      borderRadius: "20px",
+                                      padding: "4px 12px",
+                                      marginTop: "6px",
+                                    }}
+                                    onClick={async () => {
+                                      try {
+                                        const res = await fetch(
+                                          `${API_BASE_URL}/ratings/${review.id}/helpful`,
+                                          {
+                                            method: "POST",
+                                            headers: createHeaders(token),
+                                          }
+                                        );
+
+                                        if (!res.ok) {
+                                          const err = await res.json();
+                                          alert(
+                                            err.message ||
+                                              "Không thể cập nhật lượt hữu ích."
+                                          );
+                                          return;
+                                        }
+
+                                        const data = await res.json();
+
+                                        // Update trực tiếp theo backend
+                                        const updatedReviews =
+                                          reviewsData.reviews.map((r) =>
+                                            r.id === review.id
+                                              ? {
+                                                  ...r,
+                                                  helpful: data.helpful,
+                                                  userLiked: data.liked,
+                                                }
+                                              : r
+                                          );
+
+                                        setReviewsData({
+                                          ...reviewsData,
+                                          reviews: updatedReviews,
+                                        });
+                                      } catch (error) {
+                                        console.error(
+                                          "❌ Lỗi khi bấm hữu ích:",
+                                          error
+                                        );
+                                        alert("Lỗi kết nối hoặc máy chủ.");
+                                      }
+                                    }}
+                                  >
+                                    👍 Hữu ích ({review.helpful || 0})
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -885,6 +1237,19 @@ const TaskerProfile = () => {
               </div>
             )}
 
+            {activeTab === "certification" && isTasker && user?.user_id === Number(id) && (
+              <div className="row g-3">
+                <div className="col-12">
+                  <div className="p-4 rounded border bg-white h-100 shadow-sm">
+                    <h4 className="fw-bold mb-3">Đăng kí dịch vụ</h4>
+                    {/* List all certificates for the logged-in tasker */}
+                    <TaskerCertificateList taskerId={id} />
+                    <hr className="my-4" />
+                    <CertificationRegisterSection />
+                  </div>
+                </div>
+              </div>
+            )}
             {activeTab === "achievements" && (
               <div className="row g-3">
                 {achievements.map((a, i) => (
@@ -905,6 +1270,87 @@ const TaskerProfile = () => {
         </div>
       </div>
     </div>
+  );
+};
+
+const CertificationRegisterSection = () => {
+  const [showForm, setShowForm] = useState(false);
+  const [result, setResult] = useState(null);
+  const [pendingStatus, setPendingStatus] = useState(null);
+  const [excludeServiceIds, setExcludeServiceIds] = useState([]);
+  const [excludeVariantIds, setExcludeVariantIds] = useState([]);
+  const { id } = useParams();
+  useEffect(() => {
+    if (!id) return;
+    // // Fetch registered service_ids
+    // fetch(`${API_BASE_URL}/tasker/${id}/service-variants`)
+    //   .then(res => res.json())
+    //   .then(data => {
+    //     if (Array.isArray(data)) setExcludeServiceIds(data.map(sid => String(sid)));
+    //     else if (Array.isArray(data.data)) setExcludeServiceIds(data.data.map(sid => String(sid)));
+    //   })
+    //   .catch(() => setExcludeServiceIds([]));
+    // Fetch registered variant_ids
+    fetch(`${API_BASE_URL}/tasker/${id}/registered-variants`)
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data.data)) setExcludeVariantIds(data.data.map(vid => String(vid)));
+        else if (Array.isArray(data)) setExcludeVariantIds(data.map(vid => String(vid)));
+      })
+      .catch(() => setExcludeVariantIds([]));
+  }, [id]);
+
+  // Gửi đăng ký và tạo bản ghi TaskerCertifications với status pending
+  const handleSubmit = async (data) => {
+    setResult(data);
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('accessToken') || localStorage.getItem('authToken');
+      const res = await fetch(`${API_BASE_URL}/tasker/certifications/pending`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          service_id: data.service_id,
+          variant_ids: data.variants,
+          cert_ids: (data.certs || []).map(c => c.cert_public_id),
+          certs: data.certs,
+          status: 'pending'
+        })
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setPendingStatus('Đã tạo bản ghi đăng ký chứng chỉ, trạng thái: pending');
+      } else {
+        setPendingStatus('Không thể tạo bản ghi pending: ' + (json.message || 'Lỗi không xác định'));
+      }
+    } catch (e) {
+      setPendingStatus('Lỗi khi tạo bản ghi pending: ' + e.message);
+    }
+  };
+
+  return (
+    <>
+      {!showForm ? (
+        <button className="btn btn-success mt-3" onClick={() => setShowForm(true)}>
+          Đăng ký
+        </button>
+      ) : (
+  <TaskerCertificateRegister onSubmit={handleSubmit} excludeServiceIds={excludeServiceIds} excludeVariantIds={excludeVariantIds} />
+      )}
+      {result && (
+        <div className="alert alert-info mt-3">
+          <strong>Đã xác nhận đăng ký!</strong><br />
+          Dịch vụ: {result.service_id}<br />
+          Biến thể: {(result.variants || result.variant_ids || []).join(', ')}<br />
+          Số chứng chỉ: {(result.certs || []).length}
+        </div>
+      )}
+      {pendingStatus && (
+        <div className="alert alert-warning mt-2">{pendingStatus}</div>
+      )}
+    </>
   );
 };
 
