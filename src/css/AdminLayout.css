@@ -1,0 +1,115 @@
+/* Reset margin/padding cho main public để tránh ảnh hưởng admin layout */
+.public-main {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+/* =========================================
+   Biến màu (Color Variables)
+   ========================================= */
+:root{
+  /* --- Sidebar Theme (Dark) --- */
+  
+  /* Nền sidebar chung */
+  --admin-sidebar-bg: #0f172a; /* slate-900 */
+  
+  /* Màu chữ mặc định (sáng) */
+  --admin-sidebar-fg: #e2e8f0; /* slate-200 */
+  
+  /* Màu chữ phụ, mờ hơn */
+  --admin-sidebar-fg-muted: #94a3b8; /* slate-400 */
+  
+  /* Màu nhấn (cho viền active) */
+  --admin-active: #3b82f6; /* blue-500 */
+  
+  /* Nền khi hover vào tab */
+  --admin-hover-bg: #1e293b; /* slate-800 */
+
+  /* --- Tab Active (Light) --- */
+  
+  /* Nền sáng cho tab đang active */
+  --admin-active-bg: #f1f5f9; /* slate-100 */
+  
+  /* Màu chữ tối cho tab đang active (để tương phản với nền sáng) */
+  --admin-active-fg-bright: #0f172a; /* slate-900 */
+}
+
+/* =========================================
+   Layout chính
+   ========================================= */
+.admin-layout{
+  background-color: #ffffff;
+}
+
+.admin-main{
+  background: #fff;
+}
+
+/* =========================================
+   Sidebar Styling
+   ========================================= */
+.admin-sidebar{
+  background: var(--admin-sidebar-bg);
+  color: var(--admin-sidebar-fg);
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+/* --- Header/Text trong Sidebar --- */
+.admin-sidebar .border-bottom{ 
+  border-color: #1f2937 !important; /* Đậm hơn một chút */
+}
+
+.admin-sidebar h5{ 
+  color: #f3f4f6; /* Sáng hơn màu chữ thường */
+  font-weight: 700; 
+}
+
+.admin-sidebar small{ 
+  color: var(--admin-sidebar-fg-muted); 
+}
+
+/* --- Các mục Menu (List Group Items) --- */
+.admin-sidebar .list-group-item{
+  border: none;
+  border-left: 4px solid transparent;
+  border-radius: 0 !important;
+  padding: .8rem 1rem;
+  color: var(--admin-sidebar-fg); 
+  background: transparent;
+  transition: background 0.2s, color 0.2s;
+}
+
+.admin-sidebar .list-group-item .svg-inline--fa{
+  width: 1rem;
+  margin-right: 0.5rem; /* Thêm khoảng cách nhỏ cho icon */
+}
+
+/* --- Trạng thái Hover --- */
+.admin-sidebar .list-group-item:hover{
+  background: var(--admin-hover-bg);
+  color: #ffffff; /* Sáng hơn khi hover */
+}
+
+/* --- Trạng thái Active (Đã sửa) --- */
+.admin-sidebar .list-group-item.active{
+  background: var(--admin-active-bg);     /* Nền sáng */
+  color: var(--admin-active-fg-bright); /* Chữ tối */
+  border-left-color: var(--admin-active); /* Viền màu nhấn (xanh) */
+  font-weight: 600;
+}
+
+.text-muted {
+  color: #ffffff; 
+}
+
+/* =========================================
+   Responsive cho Sidebar
+   ========================================= */
+@media (max-width: 767.98px){
+  .admin-sidebar{ 
+    height: auto; 
+    position: static; 
+  }
+}

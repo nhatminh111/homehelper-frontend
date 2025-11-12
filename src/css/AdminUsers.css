@@ -1,0 +1,136 @@
+.admin-users h2 {
+  font-weight: 700;
+}
+
+.admin-users-toolbar {
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+
+/* =========================================
+   Toolbar Controls (Đã hợp nhất)
+   ========================================= */
+
+/* 1. Style chung cho TẤT CẢ input và select trong toolbar */
+.admin-users-toolbar .admin-input-field {
+  height: 40px;
+  border: none;
+  border-radius: 8px;
+  border-color: #9ca3af;
+  background: #f3f4f6; /* Nền xám nhạt */
+  box-shadow: none;
+  font-size: 0.95rem; /* Giảm kích thước font một chút */
+  padding-left: 2.25rem; /* Thêm padding cho icon */
+  appearance: none; /* Ẩn giao diện mặc định của select */
+}
+
+/* Khi không có icon (ví dụ: Page Size), trả lại padding */
+.admin-users-toolbar .admin-input-field:not([class*="form-control"]) {
+  border: 1px solid #d1d5db;
+  padding-left: 0.75rem;
+}
+/* Riêng input search bar */
+.admin-users-toolbar .admin-input-wrapper input.admin-input-field {
+  border: 1px solid #d1d5db;
+   padding-left: 2.25rem;
+}
+
+
+/* 2. Style cho icon BÊN TRONG */
+.admin-users-toolbar .admin-input-icon {
+  position: absolute;
+  left: 12px; /* Dịch icon sang phải một chút */
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9ca3af; /* Màu icon xám */
+  font-size: .9rem;
+  z-index: 2; /* Đảm bảo icon nổi lên trên */
+}
+
+/* 3. Style khi Focus */
+.admin-users-toolbar .admin-input-field:focus {
+  border-color: #60a5fa;
+  border-color: #a5b4fc; /* Viền tím nhạt khi focus */
+  box-shadow: 0 0 0 3px #60a5fa33; /* Đổ bóng xanh nhạt */
+  z-index: 3; /* Nổi lên trên các icon khác khi focus */
+  position: relative;
+}
+
+/* 4. Thêm mũi tên tùy chỉnh cho Select */
+.admin-users-toolbar .admin-input-wrapper select.admin-input-field {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 16px 12px;
+}
+
+/* =========================================
+   Table Styling (Giữ nguyên)
+   ========================================= */
+.admin-users-table-wrapper {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 4px;
+  background: #fff;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.04);
+}
+
+.admin-users-table thead th {
+  background: #f9fafb;
+  font-weight: 600;
+  font-size: .82rem;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.admin-users-table tbody tr.admin-user-row:hover {
+  background: #f8fafc !important;
+}
+
+.admin-users-table tbody tr.table-danger {
+  --bs-table-bg: #fff5f5;
+}
+
+.admin-users-table td,
+.admin-users-table th {
+  vertical-align: middle;
+}
+
+.admin-users .btn {
+  line-height: 1.1;
+}
+
+.admin-users .icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .25rem;
+}
+
+.admin-users .btn-outline-warning {
+  color: #9a6700;
+}
+
+/* =========================================
+   Pagination (Giữ nguyên)
+   ========================================= */
+.admin-pagination {
+  margin-top: .75rem;
+}
+
+.admin-users .btn-group .btn {
+  min-width: 40px;
+}
+.admin-users-toolbar .col-12.col-md-9.col-lg-5 {
+  flex: 0 0 100%;
+  max-width: 100%;
+}
+
+@media (min-width: 992px) {
+  .admin-users-toolbar .col-lg-5 {
+    flex: 0 0 70%;
+    max-width: 70%;
+  }
+}

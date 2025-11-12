@@ -1,3 +1,79 @@
+/* Modern staff sidebar and dashboard layout */
+.staff-dashboard-container {
+  display: flex;
+  min-height: 100vh;
+  background: #f8fafc;
+}
+
+.staff-sidebar {
+  background: #0f172a;
+  color: #e2e8f0;
+  min-width: 210px;
+  max-width: 260px;
+  width: 100%;
+  border-right: 1px solid #1e293b;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.staff-sidebar nav {
+  padding: 1.5rem 0 0.5rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.25rem;
+  color: #e2e8f0;
+  text-decoration: none;
+  font-weight: 500;
+  border-left: 4px solid transparent;
+  border-radius: 0 8px 8px 0;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.sidebar-link:hover {
+  background: #1e293b;
+  color: #60a5fa;
+}
+
+.sidebar-link.active {
+  background: #1e293b;
+  color: #60a5fa;
+  border-left: 4px solid #60a5fa;
+  font-weight: 600;
+}
+
+.staff-dashboard-main {
+  flex: 1;
+  padding: 2rem 2.5rem;
+  background: #fff;
+  min-height: 100vh;
+}
+
+/* Logout area */
+.staff-sidebar .border-top {
+  border-color: #1e293b !important;
+}
+.staff-sidebar .btn {
+  font-size: 1rem;
+  border-radius: 6px;
+}
+.staff-sidebar .btn-light {
+  background: #f1f5f9;
+  color: #dc2626;
+  border: 1px solid #e5e7eb;
+}
+.staff-sidebar .btn-light:hover {
+  background: #fee2e2;
+  color: #b91c1c;
+  border-color: #fca5a5;
+}
 .staff-dashboard-container {
   display: flex;
   min-height: 80vh;

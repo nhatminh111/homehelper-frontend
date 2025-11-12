@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { CustomToastContainer, showToast } from '../components/common/CustomToast';
 import serviceService from '../services/serviceService';
 // Use same base URL strategy as api.js
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
@@ -372,7 +373,7 @@ const BecomeTasker = () => {
             const exists = await checkCertCodeExists(certCode);
             if (exists) {
               console.warn(`[CertCheck] Phát hiện mã chứng chỉ trùng: ${certCode}. Bỏ qua file.`);
-              alert(`Mã chứng chỉ '${certCode}' đã tồn tại trong hệ thống. Không thể upload chứng chỉ trùng lặp.`);
+              showToast.error(`Mã chứng chỉ '${certCode}' đã tồn tại. Không thể upload chứng chỉ trùng lặp.`);
               continue; // Skip this file
             } else {
               console.log(`[CertCheck] Mã chứng chỉ chưa tồn tại: ${certCode}. Tiếp tục upload.`);
@@ -396,7 +397,7 @@ const BecomeTasker = () => {
           const createJson = await createRes.json();
           // If backend returns duplicate error, show message
           if (createRes.status === 409 && createJson.duplicate) {
-            alert(`Mã chứng chỉ đã tồn tại trong hệ thống. Không thể upload chứng chỉ trùng lặp.`);
+            showToast.error(`Mã chứng chỉ đã tồn tại trong hệ thống. Không thể upload chứng chỉ trùng lặp.`);
             continue;
           }
           if (!createRes.ok || !createJson.success) throw new Error(createJson.message || 'Upload thất bại');
@@ -448,14 +449,14 @@ const BecomeTasker = () => {
             const existsGlobal = await checkCertCodeExists(code);
             if (existsGlobal) {
               console.warn(`[CertCheck] Mã chứng chỉ '${code}' đã tồn tại trong hệ thống (kiểm tra sau upload). Không thêm vào danh sách.`);
-              alert(`Mã chứng chỉ '${code}' đã tồn tại trong hệ thống. Không thể thêm chứng chỉ trùng lặp.`);
+              showToast.error(`Mã chứng chỉ '${code}' đã tồn tại. Không thể thêm chứng chỉ trùng lặp.`);
               isDuplicateGlobal = true;
             }
           }
           // Prevent adding duplicate code within this session
           const codeLower = code.toLowerCase();
           if (codeLower && existingCodes.has(codeLower)) {
-            alert(`Mã chứng chỉ '${code}' đã có trong danh sách chứng chỉ đang thêm. Bỏ qua tệp này.`);
+            showToast.warning(`Mã '${code}' đã có trong danh sách hiện tại. Bỏ qua tệp này.`);
             continue;
           }
           if (codeLower) existingCodes.add(codeLower);
@@ -463,7 +464,7 @@ const BecomeTasker = () => {
             createdCerts.push(d);
           }
         } catch (inner) {
-          alert(inner.message);
+          showToast.error(inner.message);
         }
       }
       setServiceCerts(prev => ({
@@ -471,7 +472,7 @@ const BecomeTasker = () => {
         [service_id]: [...(prev[service_id] || []), ...createdCerts]
       }));
     } catch (e) {
-      alert(e.message);
+      showToast.error(e.message);
     } finally {
       setUploading(false);
     }
@@ -480,8 +481,8 @@ const BecomeTasker = () => {
   const runAIExtraction = async (service_id, idx) => {
     try {
       setExtracting({ service_id, idx });
-      const cert = (serviceCerts[service_id] || [])[idx];
-      if (!cert) { alert('Thiếu dữ liệu chứng chỉ.'); setExtracting(null); return; }
+  const cert = (serviceCerts[service_id] || [])[idx];
+  if (!cert) { showToast.error('Thiếu dữ liệu chứng chỉ.'); setExtracting(null); return; }
       if (!cert.cert_id) {
         const createRes = await authFetch(`${API_BASE_URL}/tasker/certifications`, {
           method: 'POST',
@@ -500,11 +501,11 @@ const BecomeTasker = () => {
         const createJson = await createRes.json();
         console.log('[AI][rerun-ephemeral] response', createJson); // debug
         if (createRes.status === 409 && createJson.duplicate) {
-          alert('Chứng chỉ trùng đã tồn tại: ' + createJson.message);
+          showToast.error('Chứng chỉ trùng đã tồn tại: ' + createJson.message);
           return;
         }
         if (createRes.status === 400 && (createJson.service_mismatch || createJson.service_content_mismatch || createJson.ai_service_mismatch)) {
-          alert(createJson.message || 'Chứng chỉ không thuộc dịch vụ hoặc nội dung không phù hợp.');
+          showToast.error(createJson.message || 'Chứng chỉ không thuộc dịch vụ hoặc nội dung không phù hợp.');
           return;
         }
         if (!createRes.ok || !createJson.success) throw new Error(createJson.message || 'AI extract failed');
@@ -568,7 +569,7 @@ const BecomeTasker = () => {
         } : c)
       }));
     } catch (e) {
-      alert(e.message);
+      showToast.error(e.message);
     }
     finally {
       setExtracting(null);
@@ -626,8 +627,8 @@ const BecomeTasker = () => {
         throw new Error('Bạn phải xác nhận quyền sở hữu/ủy quyền cho các chứng chỉ có holder khác tên tài khoản.');
       }
       if (anyHolderMismatch) {
-        const ok = window.confirm('Một hoặc nhiều chứng chỉ có tên holder khác tên tài khoản. Bạn vẫn muốn gửi?');
-        if (!ok) { setLoading(false); return; }
+        // Show info toast instead of blocking confirm dialog
+        showToast.info('Một số chứng chỉ có holder khác tên tài khoản. Đang gửi đơn...');
       }
       const body = { introduce, variant_ids: selectedVariants, certifications };
       if (introVideo && introVideo.video_url) {
@@ -657,6 +658,7 @@ const BecomeTasker = () => {
 
   return (
     <>
+      <CustomToastContainer />
       {isTaskerAccount === null ? null : isTaskerAccount ? (
         <div className="container py-4">
           <div className="row justify-content-center">
@@ -687,8 +689,8 @@ const BecomeTasker = () => {
               <h3 className="mb-3">Đăng ký trở thành Tasker</h3>
               <p className="text-muted mb-4">Chọn dịch vụ bạn có thể cung cấp và thêm chứng chỉ (nếu có).</p>
 
-              {submitState.done && <div className="alert alert-success">Gửi đơn thành công. Đơn của bạn sẽ được gửi cho Staff duyệt.</div>}
-              {submitState.error && <div className="alert alert-danger">{submitState.error}</div>}
+              {submitState.done && <div className="alert alert-success d-none">Gửi đơn thành công.</div>}
+              {submitState.error && <div className="alert alert-danger d-none">{submitState.error}</div>}
 
               <form onSubmit={submit}>
                 <div className="form-group mb-3">
@@ -976,7 +978,7 @@ const BecomeTasker = () => {
                               description: ''
                             });
                           } catch(err) {
-                            alert(err.message);
+                            showToast.error(err.message);
                           } finally {
                             setVideoUploading(false);
                             e.target.value='';
