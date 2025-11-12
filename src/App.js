@@ -58,7 +58,7 @@ import AIInteraction from "./pages/AIInteraction";
 import SystemManagement from "./pages/SystemManagement";
 import QuotesPage from "./pages/QuotesPage";
 import VideoManager from "./pages/VideoManager";
-
+import ServiceManagement from "./pages/ServiceManagement";
 // import NegotiateSessionTest from './pages/NegotiateSessionTest';
 // Role landing pages
 import TaskerHome from "./pages/tasker/TaskerHome";
@@ -288,6 +288,12 @@ function App() {
                       <BookingHistory />
                     </ProtectedRoute>
                   }
+                />
+                <Route
+                  path="/service-management"
+                  element={ <ProtectedRoute requiredRole="Admin">
+                    <ServiceManagement />
+                  </ProtectedRoute>}
                 />
                 <Route
                   path="/admin"
