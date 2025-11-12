@@ -353,13 +353,15 @@ console.warn('⚠️ Autoplay prevented, retry on metadata loaded:', e);
 
       // Upload ảnh mặt lên Cloudinary trước
       let faceCloudUrl = null;
+      let facePublicId = null;
       if (faceImage) {
         try {
           console.log('🖼️ Uploading face image to Cloudinary:', faceImage);
-const faceUploadResponse = await cccdAPI.uploadFaceImage(faceImage, token);
+          const faceUploadResponse = await cccdAPI.uploadFaceImage(faceImage, token);
           if (faceUploadResponse.success) {
-            faceCloudUrl = faceUploadResponse.data.face_cloud_url;
-            console.log('✅ Face image uploaded to Cloudinary:', faceCloudUrl);
+            faceCloudUrl = faceUploadResponse.data.face_cloud_url || null;
+            facePublicId = faceUploadResponse.data.face_public_id || null;
+            console.log('✅ Face image uploaded to Cloudinary. public_id:', facePublicId);
           }
         } catch (error) {
           console.warn('⚠️ Face image upload failed:', error.message);
@@ -375,7 +377,8 @@ const faceUploadResponse = await cccdAPI.uploadFaceImage(faceImage, token);
         gender: userInput.gender,
         // Gửi kèm dữ liệu OCR đã trích xuất để backend so sánh trực tiếp
         ocr_payload: extractedData ? JSON.stringify(extractedData) : undefined,
-        face_cloud_url: faceCloudUrl, // Thêm face_cloud_url vào payload
+        face_cloud_url: faceCloudUrl || undefined,
+        face_public_id: facePublicId || undefined, // ưu tiên public_id an toàn
       };
       
       console.log('📤 Sending payload with face_cloud_url:', faceCloudUrl);
@@ -436,7 +439,20 @@ const faceUploadResponse = await cccdAPI.uploadFaceImage(faceImage, token);
   }
 
   return (
-    <div className="container py-5">
+    <div className="container py-5 position-relative">
+      {(loading || submitting) && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1050 }}
+          className="d-flex align-items-center justify-content-center"
+        >
+          <div className="bg-white shadow-lg p-4 rounded" style={{ minWidth: 280, textAlign: 'center', borderRadius: 12 }}>
+            <FontAwesomeIcon icon={faSpinner} spin className="mb-2" />
+            <div className="text-muted">
+              {submitting ? 'Đang gửi xác minh CCCD...' : 'Đang trích xuất CCCD...'}
+            </div>
+          </div>
+        </div>
+      )}
       <div className="row mb-4">
         <div className="col-12">
           <h2 className="mb-1">
