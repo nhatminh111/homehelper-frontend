@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from '../contexts/AuthContext';
 import axios from "axios";
+import { showToast } from '../components/common/CustomToast';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:3001/api";
 
@@ -68,8 +69,23 @@ export default function StaffCertifications() {
     if (pendingCerts?.length) loadSignedUrls();
   }, [pendingCerts, token]);
 
+
+  // showToast.confirm đã được cung cấp trung tâm trong CustomToast.js
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    
+    const day = String(date.getDate()).padStart(2, '0');       // dd
+    const month = String(date.getMonth() + 1).padStart(2, '0'); // mm (0-based)
+    const year = date.getFullYear();                             // yyyy
+    
+    return `${day}/${month}/${year}`;
+  };
+
   const handleApprove = async (cert) => {
-    if (!window.confirm(`Bạn có chắc muốn DUYỆT chứng chỉ "${cert.certificate_name}" của Tasker ${cert.tasker_name}?`)) return;
+    const confirmed = await showToast.confirm(`Bạn có chắc muốn DUYỆT chứng chỉ "${cert.certificate_name}" của Tasker ${cert.tasker_name}?`);
+    if (!confirmed) return;
     try {
       const token = localStorage.getItem('token');
       let variantIds = [];
@@ -91,14 +107,15 @@ export default function StaffCertifications() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setPendingCerts((prev) => prev.filter((c) => c.certification_id !== cert.certification_id));
-      alert(`Đã duyệt chứng chỉ "${cert.certificate_name}" thành công!`);
+  showToast.success(`Đã duyệt chứng chỉ "${cert.certificate_name}" thành công!`);
     } catch (err) {
-      alert("Lỗi khi duyệt chứng chỉ");
+  showToast.error("Lỗi khi duyệt chứng chỉ");
     }
   };
 
   const handleReject = async (cert) => {
-    if (!window.confirm(`Bạn có chắc muốn TỪ CHỐI chứng chỉ "${cert.certificate_name}" của Tasker ${cert.tasker_name}?`)) return;
+    const confirmed = await showToast.confirm(`Bạn có chắc muốn TỪ CHỐI chứng chỉ "${cert.certificate_name}" của Tasker ${cert.tasker_name}?`);
+    if (!confirmed) return;
     try {
       const token = localStorage.getItem('token');
       let variantIds = [];
@@ -120,9 +137,9 @@ export default function StaffCertifications() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setPendingCerts((prev) => prev.filter((c) => c.certification_id !== cert.certification_id));
-      alert(`Đã từ chối chứng chỉ "${cert.certificate_name}" thành công!`);
+  showToast.success(`Đã từ chối chứng chỉ "${cert.certificate_name}" thành công!`);
     } catch (err) {
-      alert("Lỗi khi từ chối chứng chỉ");
+  showToast.error("Lỗi khi từ chối chứng chỉ");
     }
   };
 
@@ -140,98 +157,89 @@ export default function StaffCertifications() {
           {pendingCerts.map((cert) => {
             const fileUrl = certUrls[cert.certification_id];
             return (
-              <div key={cert.certification_id} className="col-12">
+              <div
+                className="card shadow-sm border-0 flex-row position-relative"
+                style={{ borderRadius: '12px', overflow: 'hidden' }}
+              >
+                {/* Ngày đăng ký góc phải */}
+                <div className="position-absolute top-0 end-0 p-2 small text-muted">
+                  {formatDate(cert.registered_at)}
+                </div>
+
+                {/* Ảnh chứng chỉ */}
                 <div
-                  className="card shadow-sm border-0 flex-row flex-wrap align-items-stretch"
-                  style={{
-                    borderRadius: '12px',
-                    overflow: 'hidden',
-                    transition: 'transform 0.2s ease',
-                  }}
+                  className="d-flex align-items-center justify-content-center bg-light flex-shrink-0"
+                  style={{ width: '150px', height: '100%', borderRight: '1px solid #eee' }}
                 >
-                  {/* Ảnh chứng chỉ */}
-                  <div
-                    className="flex-shrink-0 d-flex align-items-center justify-content-center bg-light "
-                    style={{
-                      width: '150px',
-                      height: '150px',
-                      borderRight: '1px solid #eee',
-                    }}
-                  >
-                    {fileUrl ? (
-                      (/\.pdf(\?|$)/i).test(fileUrl) ? (
-                        <a
-                          href={fileUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="btn btn-sm btn-outline-secondary"
-                        >
-                          Xem PDF
-                        </a>
-                      ) : (
-                        <img
-                          src={fileUrl}
-                          alt="cert"
-                          className="rounded"
-                          style={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'contain',
-                            cursor: 'zoom-in',
-                          }}
-                          onClick={() => setZoomImgUrl(fileUrl)}
-                        />
-                      )
-                    ) : (
-                      <div
-                        className="border rounded p-2 text-center small text-muted bg-white"
-                        style={{ width: '100%', height: '100%' }}
+                  {fileUrl ? (
+                    (/\.pdf(\?|$)/i).test(fileUrl) ? (
+                      <a
+                        href={fileUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="btn btn-sm btn-outline-secondary"
                       >
-                        <em>Đang tải...</em>
+                        Xem PDF
+                      </a>
+                    ) : (
+                      <img
+                        src={fileUrl}
+                        alt="cert"
+                        style={{
+                          maxWidth: '100%',
+                          maxHeight: '100%',
+                          objectFit: 'contain',
+                          display: 'block', // thêm để chắc chắn căn giữa
+                        }}
+                        onClick={() => setZoomImgUrl(fileUrl)}
+                      />
+                    )
+                  ) : (
+                    <div className="border rounded p-2 text-center small text-muted bg-white w-100 h-100">
+                      <em>Đang tải...</em>
+                    </div>
+                  )}
+                </div>
+
+                {/* Nội dung */}
+                <div className="card-body d-flex flex-column" style={{ flex: 1 }}>
+                  <div>
+                    <div className="fw-bold mb-1 text-truncate">{cert.certificate_name}</div>
+                    <div className="small text-muted mb-1">
+                      <strong>Tasker:</strong> {cert.tasker_name}
+                    </div>
+                    <div className="small text-muted mb-1">
+                      <strong>tên trong chứng chỉ</strong> {cert.parsed_holder_name || '(Không có)'}
+                    </div>
+                    <div className="small text-muted mb-1">
+                      <strong>Mã chứng chỉ:</strong> {cert.parsed_certificate_code || '(Không có)'}
+                    </div>
+                    <div className="small text-muted mb-1">
+                      <strong>Ngày cấp:</strong> {formatDate(cert.issued_date)}
+                    </div>
+                    <div className="small text-muted mb-1">
+                      <strong>Dịch vụ:</strong> {cert.service_name || cert.service_id}
+                    </div>
+                    {cert.variant_name && (
+                      <div className="small text-muted mb-1">
+                        <strong>Loại:</strong>{' '}
+                        {cert.variant_name.split(';').map((v) => v.trim()).join(' • ')}
                       </div>
                     )}
                   </div>
 
-                  {/* Nội dung chứng chỉ */}
-                  <div className="card-body d-flex flex-column" style={{ flexGrow: 1 }}>
-                    <div>
-                      <div className="fw-bold mb-1 text-truncate">{cert.certificate_name}</div>
-                      <div className="small text-muted mb-1">
-                        <strong>Tasker:</strong> {cert.tasker_name}
-                      </div>
-                      <div className="small text-muted mb-1">
-                        <strong>Ngày đăng ký:</strong>{' '}
-                        {new Date(cert.registered_at).toLocaleString('vi-VN')}
-                      </div>
-                      <div className="small text-muted mb-1">
-                        <strong>Dịch vụ:</strong> {cert.service_name || cert.service_id}
-                      </div>
-                      {cert.variant_name && (
-                        <div className="small text-muted mb-1">
-                          <strong>Loại:</strong>{' '}
-                          {cert.variant_name.split(';').map(v => v.trim()).join(' • ')}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Nút Duyệt/Từ chối xuống góc phải */}
-                    <div className="mt-auto d-flex gap-2 justify-content-end">
-                      <button
-                        className="btn btn-success"
-                        onClick={() => handleApprove(cert)}
-                      >
-                        Duyệt
-                      </button>
-                      <button
-                        className="btn btn-danger"
-                        onClick={() => handleReject(cert)}
-                      >
-                        Từ chối
-                      </button>
-                    </div>
+                  {/* Nút Duyệt/Từ chối */}
+                  <div className="mt-auto d-flex gap-2 justify-content-end">
+                    <button className="btn btn-success" onClick={() => handleApprove(cert)}>
+                      Duyệt
+                    </button>
+                    <button className="btn btn-danger" onClick={() => handleReject(cert)}>
+                      Từ chối
+                    </button>
                   </div>
                 </div>
               </div>
+
             );
           })}
         </div>

@@ -5,6 +5,17 @@
   padding: 8px;
 }
 
+/* Đảm bảo container luôn nổi trên backdrop confirm và nhận tương tác */
+.Toastify__toast-container {
+  z-index: 21000 !important;
+  pointer-events: auto;
+}
+
+/* Cho phép từng toast tương tác */
+.custom-toast-wrapper, .custom-toast {
+  pointer-events: auto;
+}
+
 .custom-toast-wrapper {
   margin-bottom: 12px !important;
   animation: toastPopIn 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28);

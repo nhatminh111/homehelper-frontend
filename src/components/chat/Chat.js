@@ -1712,7 +1712,7 @@ const Chat = () => {
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header">
-                <h5 className="modal-title">Cảnh báo nội dung nhạy cảm</h5>
+                <h5 className="modal-title">Cảnh báo</h5>
                 <button type="button" className="btn-close" onClick={() => setPolicyModalOpen(false)} aria-label="Close"></button>
               </div>
               <div className="modal-body">
