@@ -25,7 +25,8 @@ import {
   faCertificate,
   faClock,
   faMapPin,
-  faIdCard
+  faIdCard,
+  faSpinner
 } from '@fortawesome/free-solid-svg-icons';
 import { addressAPI, cccdAPI, pythonOCRAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -48,6 +49,9 @@ const AccountManagement = () => {
   const [cccdLoading, setCccdLoading] = useState(false);
   const [cccdStatus, setCccdStatus] = useState(null);
   const [hasVerifiedCCCD, setHasVerifiedCCCD] = useState(false);
+  const [cccdImageUrl, setCccdImageUrl] = useState(null);
+  const [cccdImageLoading, setCccdImageLoading] = useState(false);
+  const [cccdStatusLoading, setCccdStatusLoading] = useState(false);
 
   const [profileData, setProfileData] = useState({
     firstName: 'John',
@@ -107,6 +111,7 @@ const AccountManagement = () => {
     const checkCCCDStatus = async () => {
       if (!token) return;
       try {
+        setCccdStatusLoading(true);
         const [statusRes, verifiedRes] = await Promise.all([
           cccdAPI.getCCCDStatus(token),
           cccdAPI.checkVerifiedCCCD(token)
@@ -117,10 +122,25 @@ const AccountManagement = () => {
         }
         
         if (verifiedRes.success) {
-          setHasVerifiedCCCD(verifiedRes.data.hasVerified);
+          const verified = verifiedRes.data.hasVerified;
+          setHasVerifiedCCCD(verified);
+          if (verified) {
+            try {
+              setCccdImageLoading(true);
+              const urlRes = await cccdAPI.getSignedUrl(token);
+              const data = urlRes?.data || urlRes;
+              setCccdImageUrl(data?.url || null);
+            } catch (_) {
+              setCccdImageUrl(null);
+            } finally {
+              setCccdImageLoading(false);
+            }
+          }
         }
       } catch (error) {
         console.error('Lỗi kiểm tra trạng thái CCCD:', error);
+      } finally {
+        setCccdStatusLoading(false);
       }
     };
     checkCCCDStatus();
@@ -248,7 +268,20 @@ const AccountManagement = () => {
       }
       
       if (verifiedRes.success) {
-        setHasVerifiedCCCD(verifiedRes.data.hasVerified);
+        const verified = verifiedRes.data.hasVerified;
+        setHasVerifiedCCCD(verified);
+        if (verified) {
+          try {
+            setCccdImageLoading(true);
+            const urlRes = await cccdAPI.getSignedUrl(token);
+            const data = urlRes?.data || urlRes;
+            setCccdImageUrl(data?.url || null);
+          } catch (_) {
+            setCccdImageUrl(null);
+          } finally {
+            setCccdImageLoading(false);
+          }
+        }
       }
     } catch (error) {
       console.error('Lỗi refresh trạng thái CCCD:', error);
@@ -710,7 +743,26 @@ const AccountManagement = () => {
 
             {/* CCCD Verification Tab */}
             {activeTab === 'cccd' && (
-              <div className="content-card bg-white rounded shadow-sm p-4">
+              <div className="content-card bg-white rounded shadow-sm p-4 position-relative">
+                {cccdStatusLoading && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      background: 'rgba(255,255,255,0.6)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      zIndex: 5,
+                      borderRadius: '0.25rem'
+                    }}
+                  >
+                    <div className="text-muted">
+                      <FontAwesomeIcon icon={faSpinner} spin className="me-2" />
+                      Đang tải trạng thái CCCD...
+                    </div>
+                  </div>
+                )}
                 <h4 className="mb-3">
                   <FontAwesomeIcon icon={faIdCard} className="me-2" />
                   Xác minh CCCD
@@ -751,7 +803,23 @@ const AccountManagement = () => {
                     <FontAwesomeIcon icon={faCheckCircle} size="4x" className="text-success mb-3" />
                     <h5 className="text-success mb-3">CCCD đã được xác minh thành công!</h5>
                     <p className="text-muted">Tài khoản của bạn đã được xác minh danh tính. Bạn có thể sử dụng đầy đủ các tính năng của hệ thống.</p>
-                    <div className="mt-4">
+                    <div className="mt-3">
+                      {cccdImageLoading ? (
+                        <div className="py-4">
+                          <FontAwesomeIcon icon={faSpinner} spin className="me-2" />
+                          Đang tải ảnh CCCD an toàn...
+                        </div>
+                      ) : cccdImageUrl ? (
+                        <img
+                          src={cccdImageUrl}
+                          alt="CCCD đã duyệt"
+                          style={{ maxWidth: '100%', maxHeight: 320, borderRadius: 12, boxShadow: '0 6px 16px rgba(0,0,0,0.15)' }}
+                        />
+                      ) : (
+                        <div className="text-muted">Không có ảnh CCCD khả dụng</div>
+                      )}
+                    </div>
+                    <div className="mt-3">
                       <button 
                         className="btn btn-outline-primary"
                         onClick={refreshCCCDStatus}

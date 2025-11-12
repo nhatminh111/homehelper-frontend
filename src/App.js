@@ -52,6 +52,7 @@ import RatingComplaints from './pages/RatingComplaints';
 import ContentManagement from './pages/ContentManagement';
 import VideoUpload from './pages/VideoUpload';
 import TaskerManagement from './pages/TaskerManagement';
+import ServiceManagement from './pages/ServiceManagement';
 import AIInteraction from './pages/AIInteraction';
 import SystemManagement from './pages/SystemManagement';
 import QuotesPage from './pages/QuotesPage';
@@ -187,6 +188,11 @@ function App() {
               <Route path="/tasker-management" element={
                 <ProtectedRoute requiredRole="Admin">
                   <TaskerManagement />
+                </ProtectedRoute>
+              } />
+              <Route path="/service-management" element={
+                <ProtectedRoute requiredRole="Staff">
+                  <ServiceManagement />
                 </ProtectedRoute>
               } />
               <Route path="/ai-chat" element={
