@@ -8,6 +8,7 @@ import QuoteService from '../services/quoteService';
 import NegotiatePriceButton from '../components/negotiation/NegotiatePriceButton';
 import { FaArrowLeft, FaCheckCircle, FaTimesCircle, FaHandshake } from 'react-icons/fa';
 import '../css/QuotesPage.css';
+import { showToast } from '../components/common/CustomToast'; // Thông báo toast
 
 const QuotesPage = () => {
   const { postId } = useParams();
@@ -49,16 +50,25 @@ const QuotesPage = () => {
   };
 
   const handleConfirm = async () => {
+    if (!selectedQuote) return;
     try {
       setError(null);
-      await QuoteService.rejectQuote(selectedQuote.quote_id);
+      const res = await QuoteService.rejectQuote(selectedQuote.quote_id);
+      if (res?.success) {
+        showToast.success('Đã từ chối báo giá thành công');
+      } else {
+        showToast.error(res?.message || 'Từ chối báo giá thất bại');
+      }
       const response = await QuoteService.getPostQuotes(postId);
       if (response.success) {
         setQuotes(response.data || []);
       }
       setShowModal(false);
+      setSelectedQuote(null);
     } catch (err) {
-      setError(err.message || 'Lỗi khi từ chối báo giá.');
+      const msg = err.message || 'Lỗi khi từ chối báo giá.';
+      setError(msg);
+      showToast.error(msg);
     }
   };
 
@@ -150,36 +160,38 @@ const QuotesPage = () => {
               <span className="quote-service-name">{quote.proposal || 'Không có đề xuất'}</span>
             </div>
           </div>
-          {/* Action buttons row */}
-          <div className="quote-action-row">
-            <button
-              className="quote-action-btn"
-              // onClick={...} // TODO: add approve handler
-              title="Duyệt"
-            >
-              <FaCheckCircle className="quote-action-icon" /> Duyệt
-            </button>
-            <button
-              className="quote-action-btn"
-              onClick={() => handleReject(quote)}
-              title="Từ chối"
-            >
-              <FaTimesCircle className="quote-action-icon" /> Từ chối
-            </button>
-            <button
-              className="quote-action-btn"
-              title="Thương lượng giá"
-            >
-              <FaHandshake className="quote-action-icon" />
-              <NegotiatePriceButton
-                peerId={quote.tasker_id || quote.taskerUserId}
-                quoteId={quote.quote_id}
-                label="Thương lượng giá"
-                className="btn"
-                size="md"
-              />
-            </button>
-          </div>
+          {/* Action buttons row (ẩn nếu đã từ chối) */}
+          {quote.status !== 'Đã từ chối' && quote.status !== 'Từ chối' && (
+            <div className="quote-action-row">
+              <button
+                className="quote-action-btn"
+                // onClick={...} // TODO: add approve handler
+                title="Duyệt"
+              >
+                <FaCheckCircle className="quote-action-icon" /> Duyệt
+              </button>
+              <button
+                className="quote-action-btn"
+                onClick={() => handleReject(quote)}
+                title="Từ chối"
+              >
+                <FaTimesCircle className="quote-action-icon" /> Từ chối
+              </button>
+              <button
+                className="quote-action-btn"
+                title="Thương lượng giá"
+              >
+                <FaHandshake className="quote-action-icon" />
+                <NegotiatePriceButton
+                  peerId={quote.tasker_id || quote.taskerUserId}
+                  quoteId={quote.quote_id}
+                  label="Thương lượng giá"
+                  className="btn"
+                  size="md"
+                />
+              </button>
+            </div>
+          )}
         </div>
       ))}
 

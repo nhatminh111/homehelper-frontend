@@ -1,0 +1,227 @@
+/* =========================================
+   Table Styling (Bảng Huy hiệu)
+   ========================================= */
+
+/* (Mới) Thêm shadow và bo góc cho card bọc bên ngoài table */
+.card.shadow-sm {
+  border: none;
+  border-radius: 12px; /* Tăng bo góc */
+  box-shadow: 0 6px 12px rgba(0,0,0,0.04) !important;
+  overflow: hidden; /* Giúp table bo góc theo card */
+}
+
+/* (Sửa) Header của table (TH) */
+.staff-badges-table th {
+  white-space: nowrap;
+  font-size: 0.75rem; /* 12px, nhỏ và gọn gàng */
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: #64748b; /* slate-500, màu xám xanh */
+  background: #f1f5f9; /* slate-100, nền xám rất nhạt */
+  padding: 0.75rem 1rem; /* Thêm padding */
+  border-bottom: 2px solid #e5e7eb; /* Đường viền đáy rõ ràng */
+}
+
+/* (Sửa) Các ô (TD) */
+.staff-badges-table td {
+  vertical-align: middle;
+  padding: 0.85rem 1rem; /* Thêm padding cho các hàng */
+  border: none; /* Bỏ viền mặc định của Bootstrap */
+  border-top: 1px solid #f1f5f9; /* Thêm viền ngang siêu mỏng */
+  color: #334155; /* slate-700, màu chữ đậm vừa phải */
+}
+
+/* (Mới) Bỏ viền trên của hàng đầu tiên */
+.staff-badges-table tbody tr:first-child td {
+  border-top: none;
+}
+
+/* (Giữ nguyên) Hover row */
+.staff-badges-table tbody tr:hover {
+  background: #f8fafc; /* slate-50 */
+}
+
+/* (Sửa) Icon/Ảnh trong table */
+.staff-badges-table img {
+  display: inline-block;
+  border-radius: 8px; /* Bo góc nhiều hơn */
+  background: #f1f5f9;
+  padding: 4px; /* Tăng padding */
+  height: 36px;
+  width: 36px;
+  object-fit: contain;
+}
+
+/* =========================================
+   Button Styling (Nút Tạo mới)
+   ========================================= */
+
+/* (Sửa) Nút tạo mới */
+.staff-badges-create-btn {
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  /* Thêm hiệu ứng transition */
+  transition: all 0.2s ease;
+}
+
+/* (Sửa) Icon '+' giả */
+.staff-badges-create-btn::before {
+  content: '+';
+  display: inline-flex; /* Canh giữa icon '+' */
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1rem;
+  line-height: 1;
+  /* (Mới) Tạo nền tròn nhỏ cho icon */
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 50%;
+  width: 1.5em;
+  height: 1.5em;
+}
+
+/* (Mới) Hiệu ứng hover cho nút */
+.staff-badges-create-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+}
+.staff-badges-create-btn:hover::before {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* =========================================
+   Modal Styling
+   ========================================= */
+
+.modal-dialog {
+  max-width: 1500px; /* Giữ modal rộng vừa phải */
+}
+
+.modal-content1 {
+  border-radius: 12px;
+  border: none;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); /* Đổ bóng nhẹ, hiện đại */
+  overflow: hidden; /* Đảm bảo bo góc không bị che */
+  background-color: #ffffff; /* Nền trắng tinh gọn */
+  transition: all 0.3s ease;
+  max-width: 1500px !important;
+    background: #ffffff;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+
+/* ==== (Sửa) Nút đóng ==== */
+.modal-header .btn-close {
+  filter: invert(1) grayscale(100) brightness(200%);
+  opacity: 0.8;
+  transition: opacity 0.2s ease;
+}
+
+.modal-header .btn-close:hover {
+  opacity: 1;
+}
+
+/* ==== (Sửa) Body ==== */
+.modal-body {
+  padding: 1.5rem 2rem;
+  background-color: #ffffff;
+}
+
+.modal-body label {
+  font-weight: 500;
+  color: #334155; /* slate-700 */
+}
+
+/* Input, textarea, select hiện đại hơn */
+.modal-body .form-control,
+.modal-body .form-select {
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  transition: all 0.2s ease;
+}
+
+.modal-body .form-control:focus,
+.modal-body .form-select:focus {
+  border-color: #3b82f6; /* blue-500 */
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
+/* ==== (Sửa) Footer ==== */
+.modal-footer {
+  border-top: 1px solid #f1f5f9;
+  background: #f8fafc;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+  padding: 1rem 1.25rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+/* ==== (Thêm) Nút hành động ==== */
+.modal-footer .btn-primary {
+  background-color: #2563eb; /* blue-600 */
+  border: none;
+  border-radius: 8px;
+  padding: 0.5rem 1.25rem;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.modal-footer .btn-primary:hover {
+  background-color: #1d4ed8; /* blue-700 */
+  transform: translateY(-1px);
+}
+
+.modal-footer .btn-secondary {
+  background-color: #e2e8f0;
+  color: #334155;
+  border: none;
+  border-radius: 8px;
+  padding: 0.5rem 1.25rem;
+  transition: background-color 0.2s ease;
+}
+
+.modal-footer .btn-secondary:hover {
+  background-color: #cbd5e1;
+}
+
+/* =========================================
+   Row action menu (three-dot)
+   ========================================= */
+.badge-actions-menu {
+  min-width: 140px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  padding: 4px 0;
+  position: absolute;
+  z-index: 2000;
+  animation: fadeIn 0.15s ease-in-out;
+}
+
+.badge-actions-menu .dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 6px 12px;
+  font-size: 14px;
+  color: #333;
+  background: none;
+  border: none;
+  text-align: left;
+}
+
+.badge-actions-menu .dropdown-item:hover {
+  background: #f8f9fa;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}

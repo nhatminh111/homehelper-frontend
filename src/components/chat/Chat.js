@@ -15,9 +15,11 @@ const PHONE_REGEX = /\b(?:\+?84|0)(?:[\s.\-]?\d){9,10}\b/g;
 const EMAIL_REGEX = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi; 
 const URL_REGEX = /(https?:\/\/|www\.)[\w\-]+(\.[\w\-]+)+[\w\-._~:/?#[\]@!$&'()*+,;=.]*\/??/gi;
 const BROKEN_SCHEME_URL_REGEX = /\bhttps?www\.[\w\-]+(\.[\w\-]+)+[\w\-._~:/?#[\]@!$&'()*+,;=.]*\/??/gi;
-const OBFUSCATED_DOT_FRAGMENT = '(?:\(\.\)|\(dot\)|\[\.\]|\{\.\}|\[dot\]|\{dot\}|\s+dot\s+)';
+const OBFUSCATED_DOT_FRAGMENT =
+  '(?:\\(\\.\\)|\\(dot\\)|\\[\\.\\]|\\{\\.\\}|\\[dot\\]|\\{dot\\})';
 const OBFUSCATED_URL_REGEX = new RegExp(`(https?:\\/\\/|www\\.)[\\w-]+${OBFUSCATED_DOT_FRAGMENT}[\\w-]+[\\w-._~:/?#\\[\\]@!$&'()*+,;=.]*`, 'gi');
-const OBFUSCATED_DOMAIN_REGEX = new RegExp(`\\b[\\w-]+${OBFUSCATED_DOT_FRAGMENT}[a-z]{2,}\\b`, 'gi');
+const OBFUSCATED_DOMAIN_REGEX =
+  new RegExp(`\\b[\\w-]{2,}${OBFUSCATED_DOT_FRAGMENT}(com|vn|net|org|info|biz|gov|edu)\\b`, 'gi');
 const SOCIAL_KEYWORDS = [
   'facebook', 'fb', 'zalo', 'telegram', 'whatsapp', 'instagram', 'ig', 'tiktok'
 ];
@@ -1720,13 +1722,13 @@ const Chat = () => {
                   Vì lý do an toàn, vui lòng không chia sẻ số điện thoại, email, link hay liên hệ ngoài ứng dụng.
                   Mọi giao dịch cần được thực hiện trong hệ thống.
                 </p>
-                {/* {policyReasons.length > 0 && (
+                {policyReasons.length > 0 && (
                   <ul className="mb-2">
                     {policyReasons.map((r, i) => (
                       <li key={i}>{r}</li>
                     ))}
                   </ul>
-                )} */}
+                )}
                 {pendingRedacted != null && (
                   <div className="border rounded p-2 bg-light">
                     <small className="text-muted">Nội dung sau khi được che:</small>

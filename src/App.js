@@ -66,7 +66,9 @@ import Wishlist from "./pages/Wishlist";
 import StaffApplications from "./pages/StaffApplications";
 import StaffCertifications from "./pages/StaffCertifications";
 import StaffBlogs from "./pages/StaffBlogs";
-import AdminUsers from "./pages/AdminUsers";
+import StaffBadges from "./pages/StaffBadges";
+import AdminUsers from "./pages/admin/AdminUsers";
+import AdminTaskers from "./pages/admin/AdminTaskers";
 
 function App() {
 
@@ -190,6 +192,7 @@ function App() {
               >
                 <Route index element={<AdminHome />} />
                 <Route path="users" element={<AdminUsers />} />
+                <Route path="taskers" element={<AdminTaskers />} />
               </Route>
 
               <Route
@@ -203,6 +206,7 @@ function App() {
                 <Route path="applications" element={<StaffApplications />} />
                 <Route path="certifications" element={<StaffCertifications />} />
                 <Route path="blogs" element={<StaffBlogs />} />
+                <Route path="badges" element={<StaffBadges />} />
               </Route>
               <Route
                 path="/staff"

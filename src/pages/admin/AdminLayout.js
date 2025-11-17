@@ -2,7 +2,7 @@ import React from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { NavLink, Outlet } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faGauge, faUsers, faRightFromBracket } from '@fortawesome/free-solid-svg-icons';
+import { faGauge, faUsers, faRightFromBracket, faIdBadge } from '@fortawesome/free-solid-svg-icons';
 import '../../css/AdminLayout.css';
 
 // Simple Admin layout with a left sidebar and main content area
@@ -29,6 +29,10 @@ export default function AdminLayout() {
               <NavLink to="/admin/users" className={linkClass}>
                 <FontAwesomeIcon icon={faUsers} />
                 <span>Users</span>
+              </NavLink>
+              <NavLink to="/admin/taskers" className={linkClass}>
+                <FontAwesomeIcon icon={faIdBadge} />
+                <span>Tasker</span>
               </NavLink>
             </nav>
           </div>
