@@ -35,6 +35,8 @@ import JobDescription from "./pages/JobDescription";
 import Contract from "./pages/Contract";
 import TaskerBookingDetail from "./pages/TaskerBookingDetail";
 import TaskerBookings from "./pages/TaskerBookings";
+import TaskerJobProgress from "./pages/TaskerJobProgress";
+import TaskerJobCompletion from "./pages/TaskerJobCompletion";
 
 // Import authentication pages
 import Login from "./pages/auth/Login";
@@ -132,6 +134,22 @@ function App() {
                 <Route path="/cccd" element={<CCCDExtractor />} />
                 <Route path="/booking/:taskerId" element={<Booking />} />
                 <Route path="/tasker/bookings/:id" element={<TaskerBookingDetail />} />
+                <Route
+                  path="/tasker/bookings/:id/progress"
+                  element={
+                    <ProtectedRoute requiredRole="Tasker">
+                      <TaskerJobProgress />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/tasker/bookings/:id/complete"
+                  element={
+                    <ProtectedRoute requiredRole="Tasker">
+                      <TaskerJobCompletion />
+                    </ProtectedRoute>
+                  }
+                />
                 <Route path="/tasker/bookings" element={
                   <ProtectedRoute requiredRole="Tasker">
                     <TaskerBookings />

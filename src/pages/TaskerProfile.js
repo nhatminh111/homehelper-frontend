@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import "../css/TaskerProfile.css";
 import { useAuth } from "../contexts/AuthContext";
-import { useParams} from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faStar,
@@ -15,7 +15,8 @@ import {
   faHeart as faHeartSolid,
 } from "@fortawesome/free-solid-svg-icons";
 import { faHeart as faHeartRegular } from "@fortawesome/free-regular-svg-icons";
-import TaskerCertificateRegister from '../components/TaskerCertificateRegister';
+import { showToast } from "../components/common/CustomToast";
+import TaskerCertificateRegister from "../components/TaskerCertificateRegister";
 
 // Certificate list section for the certification tab
 const TaskerCertificateList = ({ taskerId }) => {
@@ -25,15 +26,22 @@ const TaskerCertificateList = ({ taskerId }) => {
   const fetchSignedCertificateUrlByPublicId = useCallback(async (public_id) => {
     if (!public_id) return null;
     try {
-      const url = `${API_BASE_URL}/tasker/certifications/signed-url?public_id=${encodeURIComponent(public_id)}`;
+      const url = `${API_BASE_URL}/tasker/certifications/signed-url?public_id=${encodeURIComponent(
+        public_id
+      )}`;
       const res = await fetch(url, {
-        headers: { 'Authorization': localStorage.getItem('token') ? `Bearer ${localStorage.getItem('token')}` : '' }
+        headers: {
+          Authorization: localStorage.getItem("token")
+            ? `Bearer ${localStorage.getItem("token")}`
+            : "",
+        },
       });
       const json = await res.json();
-      if (!res.ok || !json.success) throw new Error(json.message || 'Failed signed URL by public_id');
+      if (!res.ok || !json.success)
+        throw new Error(json.message || "Failed signed URL by public_id");
       return json.data?.url || null;
     } catch (e) {
-      console.warn('fetchSignedCertificateUrlByPublicId error', e.message);
+      console.warn("fetchSignedCertificateUrlByPublicId error", e.message);
       return null;
     }
   }, []);
@@ -42,23 +50,33 @@ const TaskerCertificateList = ({ taskerId }) => {
     if (!taskerId) return;
     setLoading(true);
     fetch(`${API_BASE_URL}/taskers/${taskerId}/certifications`, {
-      headers: { 'Authorization': localStorage.getItem('token') ? `Bearer ${localStorage.getItem('token')}` : '' }
+      headers: {
+        Authorization: localStorage.getItem("token")
+          ? `Bearer ${localStorage.getItem("token")}`
+          : "",
+      },
     })
-      .then(res => res.json())
-      .then(async data => {
+      .then((res) => res.json())
+      .then(async (data) => {
         let certList = Array.isArray(data.data) ? data.data : [];
         // For certs with only cert_public_id, fetch signed URL
-        const updatedCerts = await Promise.all(certList.map(async cert => {
-          if (!cert.cert_file_url && cert.cert_public_id) {
-            try {
-              const url = await fetchSignedCertificateUrlByPublicId(cert.cert_public_id);
-              if (url) {
-                return { ...cert, cert_file_url: url };
+        const updatedCerts = await Promise.all(
+          certList.map(async (cert) => {
+            if (!cert.cert_file_url && cert.cert_public_id) {
+              try {
+                const url = await fetchSignedCertificateUrlByPublicId(
+                  cert.cert_public_id
+                );
+                if (url) {
+                  return { ...cert, cert_file_url: url };
+                }
+              } catch (e) {
+                /* ignore */
               }
-            } catch (e) { /* ignore */ }
-          }
-          return cert;
-        }));
+            }
+            return cert;
+          })
+        );
         setCerts(updatedCerts);
         setLoading(false);
       })
@@ -67,7 +85,7 @@ const TaskerCertificateList = ({ taskerId }) => {
 
   // Group by service and variant
   const grouped = {};
-  certs.forEach(cert => {
+  certs.forEach((cert) => {
     const service = cert.service_name || cert.service_id;
     const variant = cert.variant_name || cert.variant_id;
     if (!grouped[service]) grouped[service] = {};
@@ -76,7 +94,8 @@ const TaskerCertificateList = ({ taskerId }) => {
   });
 
   if (loading) return <div>Đang tải danh sách chứng chỉ...</div>;
-  if (certs.length === 0) return <div className="alert alert-info">Không có chứng chỉ nào.</div>;
+  if (certs.length === 0)
+    return <div className="alert alert-info">Không có chứng chỉ nào.</div>;
 
   return (
     <div>
@@ -86,40 +105,43 @@ const TaskerCertificateList = ({ taskerId }) => {
         {Object.entries(grouped).map(([service, variants]) =>
           Object.entries(variants).map(([variant, certList]) =>
             certList.map((cert, idx) => (
-              <div key={cert.cert_id || cert.cert_public_id || idx} className="col-12">
+              <div
+                key={cert.cert_id || cert.cert_public_id || idx}
+                className="col-12"
+              >
                 <div
                   className="card shadow-sm border-0 d-flex flex-column flex-md-row align-items-stretch position-relative"
                   style={{
-                    borderRadius: '12px',
-                    overflow: 'hidden',
-                    minHeight: '160px',
-                    transition: 'transform 0.2s ease'
+                    borderRadius: "12px",
+                    overflow: "hidden",
+                    minHeight: "160px",
+                    transition: "transform 0.2s ease",
                   }}
                 >
                   {/* Status góc phải trên */}
                   <div
                     style={{
-                      position: 'absolute',
+                      position: "absolute",
                       top: 8,
                       right: 8,
-                      zIndex: 2
+                      zIndex: 2,
                     }}
                   >
                     {cert.status && (
                       <span
                         className={`badge px-3 py-2 ${
-                          cert.status === 'approved'
-                            ? 'bg-success'
-                            : cert.status === 'pending'
-                            ? 'bg-warning text-dark'
-                            : 'bg-secondary'
+                          cert.status === "approved"
+                            ? "bg-success"
+                            : cert.status === "pending"
+                            ? "bg-warning text-dark"
+                            : "bg-secondary"
                         }`}
-                        style={{ fontSize: '0.9rem', fontWeight: 500 }}
+                        style={{ fontSize: "0.9rem", fontWeight: 500 }}
                       >
-                        {cert.status === 'approved'
-                          ? 'Đã duyệt'
-                          : cert.status === 'pending'
-                          ? 'Chờ duyệt'
+                        {cert.status === "approved"
+                          ? "Đã duyệt"
+                          : cert.status === "pending"
+                          ? "Chờ duyệt"
                           : cert.status}
                       </span>
                     )}
@@ -129,11 +151,11 @@ const TaskerCertificateList = ({ taskerId }) => {
                   <div
                     className="flex-shrink-0 bg-light d-flex align-items-center justify-content-center"
                     style={{
-                      width: '100%',
-                      maxWidth: '220px',
-                      height: 'auto',
-                      aspectRatio: '4 / 3',
-                      borderBottom: '1px solid #eee'
+                      width: "100%",
+                      maxWidth: "220px",
+                      height: "auto",
+                      aspectRatio: "4 / 3",
+                      borderBottom: "1px solid #eee",
                     }}
                   >
                     {cert.cert_file_url ? (
@@ -141,10 +163,10 @@ const TaskerCertificateList = ({ taskerId }) => {
                         src={cert.cert_file_url}
                         alt={cert.cert_name}
                         style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'contain', // giúp giữ tỉ lệ hình
-                          backgroundColor: '#f8f9fa'
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "contain", // giúp giữ tỉ lệ hình
+                          backgroundColor: "#f8f9fa",
                         }}
                       />
                     ) : (
@@ -177,13 +199,15 @@ const TaskerCertificateList = ({ taskerId }) => {
 
                     <div className="text-muted small mt-auto">
                       <div>
-                        <strong>Cấp bởi:</strong> {cert.issued_by || '—'}
+                        <strong>Cấp bởi:</strong> {cert.issued_by || "—"}
                       </div>
                       <div>
-                        <strong>Ngày cấp:</strong>{' '}
+                        <strong>Ngày cấp:</strong>{" "}
                         {cert.issued_date
-                          ? new Date(cert.issued_date).toLocaleDateString('vi-VN')
-                          : '—'}
+                          ? new Date(cert.issued_date).toLocaleDateString(
+                              "vi-VN"
+                            )
+                          : "—"}
                       </div>
                     </div>
                   </div>
@@ -476,8 +500,14 @@ const TaskerProfile = () => {
     }
   };
   const submitReview = async () => {
-    if (!newFeedback.trim()) return alert("Vui lòng nhập nội dung đánh giá.");
-    if (!bookingId) return alert("Thiếu thông tin booking.");
+    if (!newFeedback.trim()) {
+      showToast.warning("Vui lòng nhập nội dung đánh giá.");
+      return;
+    }
+    if (!bookingId) {
+      showToast.error("Thiếu thông tin booking.");
+      return;
+    }
 
     try {
       const res = await fetch(`${API_BASE_URL}/ratings`, {
@@ -497,7 +527,7 @@ const TaskerProfile = () => {
       const status = data.status ?? data.rating?.status;
 
       if (status === 1) {
-        alert(data.message || "Đánh giá đã được đăng thành công.");
+        showToast.success(data.message || "Đánh giá đã được đăng thành công.");
 
         // 🟢 Sau khi submit thành công -> Fetch lại toàn bộ danh sách review từ server
         await fetch(`${API_BASE_URL}/ratings/${id}`)
@@ -512,16 +542,19 @@ const TaskerProfile = () => {
         setNewRating(5);
         setNewFeedback("");
       } else {
-        alert(data.message || "Không xác định trạng thái đánh giá.");
+        showToast.error(data.message || "Không xác định trạng thái đánh giá.");
       }
     } catch (error) {
       console.error("❌ Error submitting review:", error);
-      alert("Lỗi kết nối hoặc máy chủ. Vui lòng thử lại.");
+      showToast.error("Lỗi kết nối hoặc máy chủ. Vui lòng thử lại.");
     }
   };
 
   const handleAddWishlist = async () => {
-    if (!user) return alert("Vui lòng đăng nhập để thêm vào wishlist!");
+    if (!user) {
+      showToast.info("Vui lòng đăng nhập để thêm vào wishlist!");
+      return;
+    }
     try {
       const res = await fetch(`${API_BASE_URL}/wishlists/`, {
         method: "POST",
@@ -534,12 +567,12 @@ const TaskerProfile = () => {
       const data = await res.json();
       if (res.ok) {
         setInWishlist(true);
-        alert("Đã thêm vào wishlist!");
+        showToast.success("Đã thêm vào wishlist!");
       } else {
-        alert(data.error || "Có lỗi xảy ra");
+        showToast.error(data.error || "Có lỗi xảy ra");
       }
     } catch (err) {
-      alert("Có lỗi xảy ra khi thêm vào wishlist!");
+      showToast.error("Có lỗi xảy ra khi thêm vào wishlist!");
       console.error(err);
     }
   };
@@ -548,15 +581,15 @@ const TaskerProfile = () => {
     return <div className="container py-5 text-center">Loading...</div>;
 
   const tabs = [
-  { id: "overview", label: "Overview", icon: faEye },
-  { id: "reviews", label: "Reviews", icon: faStar },
-  { id: "videos", label: "Videos", icon: faEye },
-  { id: "articles", label: "Articles", icon: faAward },
+    { id: "overview", label: "Overview", icon: faEye },
+    { id: "reviews", label: "Reviews", icon: faStar },
+    { id: "videos", label: "Videos", icon: faEye },
+    { id: "articles", label: "Articles", icon: faAward },
     // Only show Certification tab if user is viewing their own profile and is a tasker
-    ...(isTasker && user?.user_id === Number(id) ? [
-      { id: "certification", label: "Certification", icon: faAward },
-    ] : []),
-  { id: "achievements", label: "Achievements", icon: faCheckCircle },
+    ...(isTasker && user?.user_id === Number(id)
+      ? [{ id: "certification", label: "Certification", icon: faAward }]
+      : []),
+    { id: "achievements", label: "Achievements", icon: faCheckCircle },
   ];
 
   return (
@@ -601,7 +634,10 @@ const TaskerProfile = () => {
                 {!(isTasker && user?.user_id === Number(id)) && (
                   <>
                     <button className="btn btn-primary tp-btn-primary">
-                      <FontAwesomeIcon icon={faCalendarCheck} className="me-1" />
+                      <FontAwesomeIcon
+                        icon={faCalendarCheck}
+                        className="me-1"
+                      />
                       Book Now — ${tasker.pricePerHour || 25}/hr
                     </button>
                     <button className="btn btn-outline-secondary tp-btn-outline">
@@ -938,7 +974,9 @@ const TaskerProfile = () => {
                                           );
 
                                           if (res.ok) {
-                                            alert("Phản hồi đã được gửi!");
+                                            showToast.success(
+                                              "Phản hồi đã được gửi!"
+                                            );
 
                                             // 🟢 Cập nhật trực tiếp vào state để hiển thị ngay lập tức
                                             const updatedReviews =
@@ -963,8 +1001,8 @@ const TaskerProfile = () => {
                                             // setReviewsData(updated || { reviews: [] });
                                           } else {
                                             const err = await res.json();
-                                            alert(
-                                              `❌ Không thể gửi phản hồi: ${
+                                            showToast.error(
+                                              `Không thể gửi phản hồi: ${
                                                 err.message ||
                                                 "Lỗi không xác định."
                                               }`
@@ -975,7 +1013,7 @@ const TaskerProfile = () => {
                                             "❌ Lỗi khi gửi phản hồi:",
                                             error
                                           );
-                                          alert(
+                                          showToast.error(
                                             "Lỗi kết nối hoặc máy chủ. Vui lòng thử lại."
                                           );
                                         }
@@ -1012,7 +1050,7 @@ const TaskerProfile = () => {
 
                                         if (!res.ok) {
                                           const err = await res.json();
-                                          alert(
+                                          showToast.error(
                                             err.message ||
                                               "Không thể cập nhật lượt hữu ích."
                                           );
@@ -1042,7 +1080,9 @@ const TaskerProfile = () => {
                                           "❌ Lỗi khi bấm hữu ích:",
                                           error
                                         );
-                                        alert("Lỗi kết nối hoặc máy chủ.");
+                                        showToast.error(
+                                          "Lỗi kết nối hoặc máy chủ."
+                                        );
                                       }
                                     }}
                                   >
@@ -1237,19 +1277,21 @@ const TaskerProfile = () => {
               </div>
             )}
 
-            {activeTab === "certification" && isTasker && user?.user_id === Number(id) && (
-              <div className="row g-3">
-                <div className="col-12">
-                  <div className="p-4 rounded border bg-white h-100 shadow-sm">
-                    <h4 className="fw-bold mb-3">Đăng kí dịch vụ</h4>
-                    {/* List all certificates for the logged-in tasker */}
-                    <TaskerCertificateList taskerId={id} />
-                    <hr className="my-4" />
-                    <CertificationRegisterSection />
+            {activeTab === "certification" &&
+              isTasker &&
+              user?.user_id === Number(id) && (
+                <div className="row g-3">
+                  <div className="col-12">
+                    <div className="p-4 rounded border bg-white h-100 shadow-sm">
+                      <h4 className="fw-bold mb-3">Đăng kí dịch vụ</h4>
+                      {/* List all certificates for the logged-in tasker */}
+                      <TaskerCertificateList taskerId={id} />
+                      <hr className="my-4" />
+                      <CertificationRegisterSection />
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
             {activeTab === "achievements" && (
               <div className="row g-3">
                 {achievements.map((a, i) => (
@@ -1292,10 +1334,12 @@ const CertificationRegisterSection = () => {
     //   .catch(() => setExcludeServiceIds([]));
     // Fetch registered variant_ids
     fetch(`${API_BASE_URL}/tasker/${id}/registered-variants`)
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data.data)) setExcludeVariantIds(data.data.map(vid => String(vid)));
-        else if (Array.isArray(data)) setExcludeVariantIds(data.map(vid => String(vid)));
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data.data))
+          setExcludeVariantIds(data.data.map((vid) => String(vid)));
+        else if (Array.isArray(data))
+          setExcludeVariantIds(data.map((vid) => String(vid)));
       })
       .catch(() => setExcludeVariantIds([]));
   }, [id]);
@@ -1304,46 +1348,64 @@ const CertificationRegisterSection = () => {
   const handleSubmit = async (data) => {
     setResult(data);
     try {
-      const token = localStorage.getItem('token') || localStorage.getItem('accessToken') || localStorage.getItem('authToken');
+      const token =
+        localStorage.getItem("token") ||
+        localStorage.getItem("accessToken") ||
+        localStorage.getItem("authToken");
       const res = await fetch(`${API_BASE_URL}/tasker/certifications/pending`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           service_id: data.service_id,
           variant_ids: data.variants,
-          cert_ids: (data.certs || []).map(c => c.cert_public_id),
+          cert_ids: (data.certs || []).map((c) => c.cert_public_id),
           certs: data.certs,
-          status: 'pending'
-        })
+          status: "pending",
+        }),
       });
       const json = await res.json();
       if (res.ok && json.success) {
-        setPendingStatus('Đã tạo bản ghi đăng ký chứng chỉ, trạng thái: pending');
+        setPendingStatus(
+          "Đã tạo bản ghi đăng ký chứng chỉ, trạng thái: pending"
+        );
       } else {
-        setPendingStatus('Không thể tạo bản ghi pending: ' + (json.message || 'Lỗi không xác định'));
+        setPendingStatus(
+          "Không thể tạo bản ghi pending: " +
+            (json.message || "Lỗi không xác định")
+        );
       }
     } catch (e) {
-      setPendingStatus('Lỗi khi tạo bản ghi pending: ' + e.message);
+      setPendingStatus("Lỗi khi tạo bản ghi pending: " + e.message);
     }
   };
 
   return (
     <>
       {!showForm ? (
-        <button className="btn btn-success mt-3" onClick={() => setShowForm(true)}>
+        <button
+          className="btn btn-success mt-3"
+          onClick={() => setShowForm(true)}
+        >
           Đăng ký
         </button>
       ) : (
-  <TaskerCertificateRegister onSubmit={handleSubmit} excludeServiceIds={excludeServiceIds} excludeVariantIds={excludeVariantIds} />
+        <TaskerCertificateRegister
+          onSubmit={handleSubmit}
+          excludeServiceIds={excludeServiceIds}
+          excludeVariantIds={excludeVariantIds}
+        />
       )}
       {result && (
         <div className="alert alert-info mt-3">
-          <strong>Đã xác nhận đăng ký!</strong><br />
-          Dịch vụ: {result.service_id}<br />
-          Biến thể: {(result.variants || result.variant_ids || []).join(', ')}<br />
+          <strong>Đã xác nhận đăng ký!</strong>
+          <br />
+          Dịch vụ: {result.service_id}
+          <br />
+          Biến thể: {(result.variants || result.variant_ids || []).join(", ")}
+          <br />
           Số chứng chỉ: {(result.certs || []).length}
         </div>
       )}

@@ -3,6 +3,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faHeart, faStar } from "@fortawesome/free-solid-svg-icons";
 import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { showToast } from "../components/common/CustomToast";
 
 const API_BASE_URL = "http://localhost:3001/api";
 
@@ -51,9 +52,16 @@ const Wishlist = () => {
       });
       if (res.ok) {
         setWishlist((prev) => prev.filter((t) => t.tasker_id !== taskerId));
+        showToast.success("Đã xóa tasker khỏi wishlist.");
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showToast.error(
+          data.message || "Không thể xóa tasker. Vui lòng thử lại."
+        );
       }
     } catch (err) {
       console.error(err);
+      showToast.error("Lỗi kết nối. Vui lòng thử lại sau.");
     }
   };
 
