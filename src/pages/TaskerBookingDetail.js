@@ -13,6 +13,39 @@ export default function TaskerBookingDetail() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  const handleCancelTask = async () => {
+    try {
+      const token = api.getStoredToken();
+
+      const res = await fetch(
+        `http://localhost:3001/api/bookings/${booking_id}/cancel`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            cancelledBy: "tasker",
+          }),
+        }
+      );
+
+      const data = await res.json();
+
+      if (data.success) {
+        alert("Bạn đã hủy công việc thành công!");
+        navigate("/tasker/bookings");
+      } else {
+        alert(data.message || "Không thể hủy booking");
+      }
+
+    } catch (err) {
+      console.error("❌ Lỗi khi hủy booking:", err);
+      alert("Đã xảy ra lỗi khi hủy booking");
+    }
+  };
+
   useEffect(() => {
     if (!booking && id) {
       const fetchBooking = async () => {
@@ -368,15 +401,32 @@ export default function TaskerBookingDetail() {
         )}
 
         {status === "Đã chấp nhận" && (
-          <Button
-            variant="info"
-            size="lg"
-            className="px-5 fw-semibold"
-            style={{ borderRadius: "10px", minWidth: "160px" }}
-            onClick={() => handleStatusUpdate("Đang tiến hành")}
-          >
-            ▶ Bắt đầu công việc
-          </Button>
+          <>
+            <Button
+              variant="info"
+              size="lg"
+              className="px-5 fw-semibold"
+              style={{ borderRadius: "10px", minWidth: "160px" }}
+              onClick={() => handleStatusUpdate("Đang tiến hành")}
+            >
+              ▶ Bắt đầu công việc
+            </Button>
+
+            {/* ⭐ Nút hủy mới */}
+            <Button
+              variant="danger"
+              size="lg"
+              className="px-5 fw-semibold"
+              style={{
+                borderRadius: "10px",
+                minWidth: "160px",
+                marginLeft: "20px",
+              }}
+              onClick={() => handleCancelTask()}
+            >
+              ❌ Hủy công việc
+            </Button>
+          </>
         )}
 
         {status === "Đang tiến hành" && (
