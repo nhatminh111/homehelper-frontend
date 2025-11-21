@@ -7,8 +7,53 @@ export default function BookingHistory() {
     const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [statusFilter, setStatusFilter] = useState("all");
+    const [showCancelModal, setShowCancelModal] = useState(false);
+    const [selectedBooking, setSelectedBooking] = useState(null);
+    const [isCancelling, setIsCancelling] = useState(false);
 
     const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:3001";
+
+    const openCancelModal = (booking) => {
+        setSelectedBooking(booking);
+        setShowCancelModal(true);
+    };
+
+    const closeCancelModal = () => {
+        setSelectedBooking(null);
+        setShowCancelModal(false);
+    };
+
+    const handleConfirmCancel = async () => {
+        if (!selectedBooking) return;
+        setIsCancelling(true);
+
+        try {
+            const user = JSON.parse(localStorage.getItem("user"));
+            const res = await fetch(`${API_BASE}/api/bookings/${selectedBooking.booking_id}/cancel`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${user?.token}`,
+                },
+                body: JSON.stringify({ cancelledBy: "customer" }),
+            });
+
+            const data = await res.json();
+            if (data.success) {
+                alert(`✅ Hủy thành công!\nRule: ${data.rule}\nHoàn: ${data.refundAmount.toLocaleString("vi-VN")}₫`);
+                // Reload danh sách booking
+                window.location.reload();
+            } else {
+                alert(`❌ Hủy thất bại: ${data.message}`);
+            }
+        } catch (err) {
+            console.error("Cancel booking failed:", err);
+            alert("Lỗi khi gửi yêu cầu hủy!");
+        } finally {
+            setIsCancelling(false);
+            closeCancelModal();
+        }
+    };
 
     useEffect(() => {
         const fetchBookings = async () => {
@@ -98,6 +143,45 @@ export default function BookingHistory() {
           align-items: center;
           gap: 10px;
           flex-wrap: nowrap;
+        }
+          .cancel-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.4);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .cancel-box {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            max-width: 480px;
+            width: 90%;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .cancel-box h5 {
+            color: #d90429;
+            font-weight: bold;
+            margin-bottom: 12px;
+        }
+
+        .cancel-box ul {
+            font-size: 14px;
+            color: #555;
+            margin-bottom: 16px;
         }
       `}</style>
 
@@ -215,6 +299,17 @@ export default function BookingHistory() {
                                                     {b.status}
                                                 </Button>
                                             )}
+                                            {/* ➕ Nút Hủy (chỉ hiện khi còn có thể hủy) */}
+                                            {["Đã chấp nhận", "Đã thanh toán"].includes(b.status) && (
+                                                <Button
+                                                    variant="danger"
+                                                    size="sm"
+                                                    className="ms-2"
+                                                    onClick={() => openCancelModal(b)} // mở modal điều khoản
+                                                >
+                                                    ❌ Hủy
+                                                </Button>
+                                            )}
 
                                             {/* Nút Chat */}
                                             <NegotiatePriceButton
@@ -232,6 +327,33 @@ export default function BookingHistory() {
                             ))}
                         </tbody>
                     </Table>
+                </div>
+            )}
+            {showCancelModal && (
+                <div className="cancel-overlay" onClick={closeCancelModal}>
+                    <div className="cancel-box" onClick={(e) => e.stopPropagation()}>
+                        <h5>📜 Chính sách hủy & hoàn tiền</h5>
+                        <ul>
+                            <li>🕐 Trên 24h: Hoàn 100%</li>
+                            <li>⏰ 12–24h: Hoàn 75% – trừ 25%</li>
+                            <li>⌛ 4–12h: Hoàn 50% – đền 50%</li>
+                            <li>🚫 Dưới 4h: Không hoàn tiền</li>
+                            <li>⚡ Tasker hủy: Hoàn 100% + voucher 15%</li>
+                            <li>🏠 Khách không có mặt: Không hoàn tiền (xác minh)</li>
+                            <li>🌧️ Lỗi hệ thống: Hoàn 100%</li>
+                        </ul>
+                        <p className="fw-semibold text-danger">Bạn có chắc chắn muốn hủy đơn này không?</p>
+                        <div className="d-flex justify-content-end gap-2 mt-3">
+                            <Button variant="secondary" onClick={closeCancelModal}>Đóng</Button>
+                            <Button
+                                variant="danger"
+                                onClick={handleConfirmCancel}
+                                disabled={isCancelling}
+                            >
+                                {isCancelling ? "Đang hủy..." : "Xác nhận hủy"}
+                            </Button>
+                        </div>
+                    </div>
                 </div>
             )}
         </Container>

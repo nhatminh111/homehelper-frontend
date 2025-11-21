@@ -29,6 +29,8 @@ export default function JobDescription() {
 
   const [expectedPrice, setExpectedPrice] = useState("");
 
+  const [priceConfirmed, setPriceConfirmed] = useState(false);
+
   const [showSuccess, setShowSuccess] = useState(false);
   const [showError, setShowError] = useState(false);
 
@@ -42,15 +44,16 @@ export default function JobDescription() {
   const checkOutPrice = () => {
     if (!expectedPrice) {
       setPriceError("Vui lòng nhập giá mong muốn.");
+      setPriceConfirmed(false);
       return false;
     }
     if (priceVnd < minVnd || priceVnd > maxVnd) {
-      setPriceError(
-        `Giá mong muốn phải nằm trong khoảng từ ${minVnd.toLocaleString("vi-VN")}đ đến ${maxVnd.toLocaleString("vi-VN")}đ`
-      );
+      setPriceError(`Giá mong muốn phải nằm trong khoảng từ ${minVnd.toLocaleString("vi-VN")}đ đến ${maxVnd.toLocaleString("vi-VN")}đ`);
+      setPriceConfirmed(false);
       return false;
     }
     setPriceError("");
+    setPriceConfirmed(true); // ✅ đánh dấu đã xác nhận
     return true;
   };
 
@@ -122,18 +125,6 @@ export default function JobDescription() {
         expectedPrice: payload.expected_price,
       });
 
-      // ⏳ Sau 2 giây tự chuyển sang trang xem trước
-      setTimeout(() => {
-        navigate("/tasker/bookings/preview", {
-          state: {
-            ...bookingData,
-            ...payload,
-            expectedPrice: payload.expected_price,
-            total: bookingData.total || 0,
-            cleaner: bookingData.cleaner,
-          },
-        });
-      }, 2000);
     } catch (err) {
       console.error("❌ [JobDescription] Lỗi khi tạo booking:", err);
       setShowError(true);
@@ -307,33 +298,39 @@ export default function JobDescription() {
         }
 
         .overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background-color: rgba(0, 0, 0, 0.4);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 9999;
-  }
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100vw;
+          height: 100vh;
+          background-color: rgba(0, 0, 0, 0.4);
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          z-index: 9999;
+        }
 
-  .popup {
-    background: #fff;
-    padding: 2rem 3rem;
-    border-radius: 12px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-    text-align: center;
-    max-width: 420px;
-    width: 90%;
-    animation: fadeIn 0.3s ease;
-  }
+        .popup {
+          background: #fff;
+          padding: 2rem 3rem;
+          border-radius: 12px;
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+          text-align: center;
+          max-width: 420px;
+          width: 90%;
+          animation: fadeIn 0.3s ease;
+        }
 
-  @keyframes fadeIn {
-    from { opacity: 0; transform: scale(0.95); }
-    to { opacity: 1; transform: scale(1); }
-  }
+        .btn-confirmed {
+          background: linear-gradient(90deg, #4caf50, #81c784);
+          color: white !important;
+          transition: all 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
+        }
 
       `}</style>
       {/* Header */}
@@ -497,7 +494,7 @@ export default function JobDescription() {
                         <InputGroup
                           style={{
                             width: "180px",
-                            borderRadius: "12px",
+                            borderRadius: "0px",
                             overflow: "hidden",
                             boxShadow: "0 2px 6px rgba(0, 0, 0, 0.08)",
                           }}
@@ -521,9 +518,22 @@ export default function JobDescription() {
 
                           {priceError && <div className="text-danger mt-1">{priceError}</div>}
 
-                          <Button className="mt-2" variant="primary" onClick={checkOutPrice}>
-                            Xác nhận giá
+                          <Button
+                            className={`mt-2 ${priceConfirmed ? "btn-confirmed" : ""}`}
+                            variant="primary"
+                            onClick={checkOutPrice}
+                          >
+                            {priceConfirmed ? (
+                              <>
+                                <i className="bi bi-check-circle-fill me-2"></i>Đã xác nhận
+                              </>
+                            ) : (
+                              "Xác nhận giá"
+                            )}
                           </Button>
+                          {priceConfirmed && (
+                            <small className="text-success mt-1">✅ Giá mong muốn đã được xác nhận!</small>
+                          )}
                         </InputGroup>
                       </Form.Group>
                     </Card.Body>
@@ -673,7 +683,7 @@ export default function JobDescription() {
                       variant="outline-primary"
                       className="w-100 mb-2 custom-btn"
                       onClick={handleCreateBooking}
-                      disabled={!jobTitle || !description || !expectedPrice}
+                      disabled={!jobTitle || !description || !expectedPrice || photos.length === 0}
                     >
                       <i className="bi bi-send-check me-2"></i>Gửi yêu cầu cho người giúp việc
                     </Button>

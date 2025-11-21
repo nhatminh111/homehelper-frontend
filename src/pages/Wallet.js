@@ -1,4 +1,4 @@
-import  { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -35,7 +35,7 @@ export default function WalletPage() {
       setReloading(true);
 
       const balanceUrl = `${API_BASE}/api/wallet/balance`;
-      const historyUrl  = `${API_BASE}/api/wallet/history?limit=${lim}`;
+      const historyUrl = `${API_BASE}/api/wallet/history?limit=${lim}`;
       const auth = { Authorization: `Bearer ${token()}` };
 
       console.log('[WalletPage] GET', balanceUrl);
@@ -43,14 +43,14 @@ export default function WalletPage() {
 
       const [br, hr] = await Promise.all([
         fetch(balanceUrl, { headers: auth }),
-        fetch(historyUrl,  { headers: auth }),
+        fetch(historyUrl, { headers: auth }),
       ]);
 
       const bRaw = await br.text();
       const hRaw = await hr.text();
 
-      console.log('[WalletPage] balance status', br.status, 'raw:', bRaw.slice(0,300));
-      console.log('[WalletPage] history status', hr.status, 'raw:', hRaw.slice(0,300));
+      console.log('[WalletPage] balance status', br.status, 'raw:', bRaw.slice(0, 300));
+      console.log('[WalletPage] history status', hr.status, 'raw:', hRaw.slice(0, 300));
 
       let b, h;
       try { b = JSON.parse(bRaw); } catch { b = { _raw: bRaw }; }
@@ -80,11 +80,11 @@ export default function WalletPage() {
   }, [fetchAll, limit]);
 
   const loadMore = () => setLimit((x) => x + 10);
-  const refresh  = () => fetchAll(limit);
+  const refresh = () => fetchAll(limit);
 
   const downloadCsv = () => {
     const rows = [
-      ['created_at','type','purpose','amount','related_id','note'],
+      ['created_at', 'type', 'purpose', 'amount', 'related_id', 'note'],
       ...history.map(x => [
         new Date(x.created_at).toISOString(),
         x.type, x.purpose, x.amount, x.related_id || '', x.note || ''
@@ -92,10 +92,10 @@ export default function WalletPage() {
     ];
     const csv = rows.map(r => r.map(cell => {
       const s = String(cell ?? '');
-      return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     }).join(',')).join('\n');
 
-    const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url; a.download = `wallet-history-${Date.now()}.csv`;
@@ -106,11 +106,11 @@ export default function WalletPage() {
   // === TÍNH TỔNG NẠP / TỔNG TIÊU ===
   const creditSum = history
     .filter(x => x.type === 'credit')
-    .reduce((s,x)=> s + Number(x.amount || 0), 0);
+    .reduce((s, x) => s + Number(x.amount || 0), 0);
 
   const debitSum = history
     .filter(x => x.type !== 'credit')
-    .reduce((s,x)=> s + Number(x.amount || 0), 0);
+    .reduce((s, x) => s + Number(x.amount || 0), 0);
 
   // === LỌC BẢNG THEO YÊU CẦU ===
   const filtered = history.filter(x =>
@@ -132,7 +132,7 @@ export default function WalletPage() {
               <h1 className="mb-0 bread">Xem số dư & giao dịch ví</h1>
               {useCurrentUser && (
                 <p className="text-white-50 small mb-0">
-                  Xin chào, <b>{(JSON.parse(localStorage.getItem('currentUser')||'{}').name) || (JSON.parse(localStorage.getItem('currentUser')||'{}').email) || 'bạn'}</b>
+                  Xin chào, <b>{(JSON.parse(localStorage.getItem('currentUser') || '{}').name) || (JSON.parse(localStorage.getItem('currentUser') || '{}').email) || 'bạn'}</b>
                 </p>
               )}
             </div>
@@ -155,10 +155,10 @@ export default function WalletPage() {
               </div>
               <div className="d-flex">
                 <button className="btn-icon mr-2" onClick={refresh} disabled={reloading} title="Làm mới">
-                  <FontAwesomeIcon icon={faRotateRight} className={reloading ? 'fa-spin' : ''}/>
+                  <FontAwesomeIcon icon={faRotateRight} className={reloading ? 'fa-spin' : ''} />
                 </button>
                 <button className="btn-icon" onClick={downloadCsv} disabled={!history.length} title="Tải CSV">
-                  <FontAwesomeIcon icon={faDownload}/>
+                  <FontAwesomeIcon icon={faDownload} />
                 </button>
               </div>
             </div>
@@ -194,9 +194,9 @@ export default function WalletPage() {
             <div className="d-flex justify-content-between align-items-center p-3 border-bottom">
               <strong>Giao dịch gần đây</strong>
               <div className="filters d-flex">
-                <div className={`pill ${filter==='all'?'active':''}`} onClick={()=>setFilter('all')}>Tất cả</div>
-                <div className={`pill ${filter==='credit'?'active':''}`} onClick={()=>setFilter('credit')}>Chỉ cộng</div>
-                <div className={`pill ${filter==='debit'?'active':''}`} onClick={()=>setFilter('debit')}>Chỉ trừ</div>
+                <div className={`pill ${filter === 'all' ? 'active' : ''}`} onClick={() => setFilter('all')}>Tất cả</div>
+                <div className={`pill ${filter === 'credit' ? 'active' : ''}`} onClick={() => setFilter('credit')}>Chỉ cộng</div>
+                <div className={`pill ${filter === 'debit' ? 'active' : ''}`} onClick={() => setFilter('debit')}>Chỉ trừ</div>
               </div>
             </div>
 
@@ -219,12 +219,15 @@ export default function WalletPage() {
                   ) : filtered.length === 0 ? (
                     <tr>
                       <td colSpan="5" className="text-center p-4">
-                        <FontAwesomeIcon icon={faCircleCheck}/> Không có giao dịch phù hợp
+                        <FontAwesomeIcon icon={faCircleCheck} /> Không có giao dịch phù hợp
                       </td>
                     </tr>
                   ) : (
                     filtered.map(x => {
-                      const isCredit = x.type === 'credit';
+                      const isCredit =
+                        x.type === 'credit' ||
+                        x.type === 'refund' ||
+                        x.type === 'compensation';
                       return (
                         <tr key={`${x.id}-${x.created_at}`}>
                           <td>{new Date(x.created_at).toLocaleString('vi-VN')}</td>
@@ -264,7 +267,7 @@ export default function WalletPage() {
                 <div className="text-muted small">Thanh toán qua MoMo an toàn, cập nhật số dư tức thì.</div>
               </div>
               <Link to="/topUp" className="btn-gradient">
-                Nạp ngay <FontAwesomeIcon icon={faArrowUpRightFromSquare} className="ml-1"/>
+                Nạp ngay <FontAwesomeIcon icon={faArrowUpRightFromSquare} className="ml-1" />
               </Link>
             </div>
           </div>
