@@ -250,10 +250,10 @@ export default function AdminUsers() {
                         <span className="d-none d-lg-inline ms-1">Ban</span>
                       </button>
                     )}
-                    <button className="btn btn-sm btn-outline-danger icon-btn" onClick={() => deleteUser(u)} title="Xoá">
+                    {/* <button className="btn btn-sm btn-outline-danger icon-btn" onClick={() => deleteUser(u)} title="Xoá">
                       <FontAwesomeIcon icon={faTrash} />
                       <span className="d-none d-lg-inline ms-1">Xoá</span>
-                    </button>
+                    </button> */}
                   </div>
                 </td>
               </tr>

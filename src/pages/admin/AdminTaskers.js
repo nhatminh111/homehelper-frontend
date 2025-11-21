@@ -16,6 +16,8 @@ export default function AdminTaskers() {
   const [preview, setPreview] = useState(null); // { src, alt }
   // Badge modal state
   const [badgeModal, setBadgeModal] = useState({ open: false, tasker: null });
+  // Scan result modal state
+  const [scanModalOpen, setScanModalOpen] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -44,6 +46,8 @@ export default function AdminTaskers() {
   const triggerScan = async () => {
     setRunning(true);
     setError(null);
+    setScanModalOpen(true);
+    setLastResult(null);
     try {
       const data = await badgesAPI.scan(token);
       setLastResult(data.result || null);
@@ -56,25 +60,97 @@ export default function AdminTaskers() {
 
   return (
     <div className="container py-3">
-      <h4 className="mb-3">Quản lý Tasker & Huy hiệu</h4>
-      <div className="card mb-4 shadow-sm">
-        <div className="card-body">
-          <h5 className="card-title">Quét huy hiệu thủ công</h5>
-          <p className="text-muted mb-2">Chạy kiểm tra tất cả người dùng và cấp huy hiệu đạt điều kiện (thay vì đợi 02:00 sáng).</p>
-          <button className="btn btn-primary" disabled={running} onClick={triggerScan}>
-            {running ? 'Đang quét...' : 'Chạy quét ngay'}
-          </button>
-          {error && <div className="mt-3 alert alert-danger">{error}</div>}
-          {lastResult && (
-            <div className="mt-3">
-              <div className="alert alert-success mb-2">
-                ✅ Đã chạy xong. Cấp mới: <strong>{lastResult.granted}</strong> / kiểm tra: {lastResult.checked}. Thời gian: {lastResult.durationSeconds}s
-              </div>
-              <small className="text-muted">Bắt đầu: {new Date(lastResult.startedAt).toLocaleString('vi-VN')} | Kết thúc: {new Date(lastResult.finishedAt).toLocaleString('vi-VN')}</small>
-            </div>
-          )}
-        </div>
+      <div className="d-flex justify-content-between align-items-start mb-3">
+        <h4 className="mb-0">Quản lý Tasker & Huy hiệu</h4>
+        <button
+          type="button"
+          className="btn btn-success"
+          disabled={running}
+          onClick={triggerScan}
+          style={{ minWidth: '140px' }}
+        >
+          {running ? 'Đang quét...' : 'Trao huy hiệu'}
+        </button>
       </div>
+      {/* Scan result modal */}
+      {scanModalOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1100 }}
+          onClick={() => !running && setScanModalOpen(false)}
+        >
+          <div
+            className="bg-white rounded shadow"
+            style={{ maxWidth: '720px', width: '100%', margin: '60px auto', padding: '20px', position: 'relative' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="btn-close position-absolute top-0 end-0 m-3"
+              aria-label="Đóng"
+              onClick={() => !running && setScanModalOpen(false)}
+              disabled={running}
+            />
+            <h5 className="mb-3">Trao huy hiệu thủ công</h5>
+            <p className="text-muted mb-3">Chạy kiểm tra tất cả Tasker và cấp huy hiệu đạt điều kiện.</p>
+            {running && (
+              <div className="alert alert-info mb-3">Đang quét và đánh giá điều kiện...</div>
+            )}
+            {error && !running && (
+              <div className="alert alert-danger mb-3">{error}</div>
+            )}
+            {lastResult && !running && (
+              <>
+                <div className="alert alert-success mb-2">
+                  Hoàn tất. Cấp mới: <strong>{lastResult.granted}</strong> / kiểm tra: {lastResult.checked}. Thời gian: {lastResult.durationSeconds}s
+                </div>
+                <small className="text-muted d-block mb-3">
+                  Bắt đầu: {new Date(lastResult.startedAt).toLocaleString('vi-VN')} | Kết thúc: {new Date(lastResult.finishedAt).toLocaleString('vi-VN')}
+                </small>
+                {Array.isArray(lastResult.grants) && lastResult.grants.length > 0 ? (
+                  <div className="border rounded p-2 bg-light mb-3">
+                    <div className="fw-semibold mb-2">Danh sách cấp mới ({lastResult.grants.length}):</div>
+                    <div style={{ maxHeight: 260, overflowY: 'auto' }}>
+                      <ul className="mb-0 small">
+                        {lastResult.grants.map((g, i) => (
+                          <li key={`${g.user_id}_${g.badge_id}_${i}`} className="mb-1">
+                            <span className="me-2">{g.user_name || `User #${g.user_id}`}</span>
+                            <span className="text-muted">được cấp</span>
+                            <span className="ms-2 fw-semibold">{g.badge_name || `Badge #${g.badge_id}`}</span>
+                            {g.earned_at && (
+                              <span className="text-muted ms-2">({new Date(g.earned_at).toLocaleString('vi-VN')})</span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-muted mb-3">Không có huy hiệu mới được cấp.</div>
+                )}
+                <div className="d-flex justify-content-end">
+                  <button
+                    type="button"
+                    className="btn btn-outline-secondary me-2"
+                    onClick={() => setScanModalOpen(false)}
+                  >
+                    Đóng
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={triggerScan}
+                    disabled={running}
+                  >
+                    Chạy lại
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
       {/* Danh sách Tasker dạng thẻ, hiển thị dịch vụ + gói (variants) và chứng chỉ gắn với dịch vụ */}
       <div className="mb-3">
         <h5 className="mb-3">Danh sách Tasker</h5>
@@ -83,7 +159,6 @@ export default function AdminTaskers() {
         {!loadingList && taskers.length > 0 && (
           <div className="row g-3">
             {taskers.map((t, idx) => {
-              // Build map: service_id -> { name, variants: [variant_name] }
               const serviceMap = new Map();
               (t.variants || []).forEach(v => {
                 const sid = Number(v.service_id);
@@ -136,20 +211,53 @@ export default function AdminTaskers() {
                       <div className="d-flex justify-content-between align-items-start mb-2">
                         <div>
                           <h6 className="mb-1">{idx + 1}. {t.name}</h6>
-                          <div className="text-muted small">Rating: {t.rating ?? '-'} • Trạng thái: {t.status}</div>
+                          <div className="text-muted small">Rating: {t.rating ?? '-'}</div>
+                          <div className="text-muted small">
+                            Trạng thái: {t.status === 'Active' ? 'Hoạt động' : t.status === 'Inactive' ? 'Không hoạt động' : t.status}
+                          </div>
                         </div>
                         {t.badges && t.badges.length > 0 && (
                           <div className="d-flex align-items-center gap-2 flex-wrap ms-2">
-                            {t.badges.map(badge => (
-                              <img
-                                key={badge.badge_id}
-                                src={badge.icon_url}
-                                alt={badge.badge_name}
-                                title={badge.badge_name}
-                                style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: '50%', border: '2.5px solid #eee', background: '#fff', marginLeft: 2, cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}
-                                onClick={() => setBadgeModal({ open: true, tasker: t })}
-                              />
-                            ))}
+                            {(() => {
+                              const total = t.badges.length;
+                              const circleStyle = { width: 44, height: 44, borderRadius: '50%', border: '2.5px solid #eee', background: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.08)', cursor: 'pointer' };
+                              if (total <= 3) {
+                                return t.badges.map(badge => (
+                                  <img
+                                    key={badge.badge_id}
+                                    src={badge.icon_url}
+                                    alt={badge.badge_name}
+                                    title={badge.badge_name}
+                                    style={{ ...circleStyle, objectFit: 'cover' }}
+                                    onClick={() => setBadgeModal({ open: true, tasker: t })}
+                                  />
+                                ));
+                              }
+                              // total > 3: hiển thị 3 huy hiệu đầu + 1 vòng tròn "+n" (n = total - 3)
+                              const firstThree = t.badges.slice(0, 3);
+                              const more = total - 3;
+                              return (
+                                <>
+                                  {firstThree.map(badge => (
+                                    <img
+                                      key={badge.badge_id}
+                                      src={badge.icon_url}
+                                      alt={badge.badge_name}
+                                      title={badge.badge_name}
+                                      style={{ ...circleStyle, objectFit: 'cover' }}
+                                      onClick={() => setBadgeModal({ open: true, tasker: t })}
+                                    />
+                                  ))}
+                                  <div
+                                    title={`+${more} huy hiệu khác`}
+                                    onClick={() => setBadgeModal({ open: true, tasker: t })}
+                                    style={{ ...circleStyle, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, color: '#333' }}
+                                  >
+                                    +{more}
+                                  </div>
+                                </>
+                              );
+                            })()}
                           </div>
                         )}
                       </div>

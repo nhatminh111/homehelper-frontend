@@ -102,12 +102,11 @@
 .modal-content1 {
   border-radius: 12px;
   border: none;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); /* Đổ bóng nhẹ, hiện đại */
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); 
   overflow: hidden; /* Đảm bảo bo góc không bị che */
   background-color: #ffffff; /* Nền trắng tinh gọn */
   transition: all 0.3s ease;
   max-width: 1500px !important;
-    background: #ffffff;
   padding: 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   width: 100%;

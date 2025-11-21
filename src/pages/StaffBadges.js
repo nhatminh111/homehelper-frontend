@@ -80,6 +80,20 @@ export default function StaffBadges() {
     setForm(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
   };
 
+  // Criteria that return 0/1 (boolean-like)
+  const BOOLEAN_CRITERIA = React.useMemo(() => new Set(['VERIFIED_CCCD', 'NO_CANCELLATION_30D']), []);
+  const isBooleanCriteria = React.useMemo(() => BOOLEAN_CRITERIA.has(form.criteria_key), [BOOLEAN_CRITERIA, form.criteria_key]);
+
+  // When switching to a boolean criteria, default threshold to 1
+  useEffect(() => {
+    if (isBooleanCriteria) {
+      const num = Number(form.criteria_value);
+      if (!(num === 0 || num === 1)) {
+        setForm(prev => ({ ...prev, criteria_value: 1 }));
+      }
+    }
+  }, [isBooleanCriteria]);
+
   // Preview selected icon for both create and edit
   const onIconChange = (e) => {
     const file = e.target.files && e.target.files[0];
@@ -392,16 +406,43 @@ export default function StaffBadges() {
                     {/* Cột phải */}
                     <div className="col-md-6">
                         <div className="mb-3">
-                        <label className="form-label">Mốc</label>
-                        <input
-                            name="criteria_value"
-                            type="number"
-                            step="0.01"
-                            className="form-control"
-                            value={form.criteria_value}
-                            onChange={onChange}
-                            placeholder="vd: 50 hoặc 4.8"
-                        />
+                          <label className="form-label">Mốc</label>
+                          {isBooleanCriteria ? (
+                            <div>
+                              <div className="form-check form-check-inline">
+                                <input
+                                  className="form-check-input"
+                                  type="radio"
+                                  name="criteria_value_bool"
+                                  id="criteria_value_1"
+                                  checked={Number(form.criteria_value) === 1}
+                                  onChange={() => setForm(prev => ({ ...prev, criteria_value: 1 }))}
+                                />
+                                <label className="form-check-label" htmlFor="criteria_value_1">Đạt điều kiện</label>
+                              </div>
+                              <div className="form-check form-check-inline">
+                                <input
+                                  className="form-check-input"
+                                  type="radio"
+                                  name="criteria_value_bool"
+                                  id="criteria_value_0"
+                                  checked={Number(form.criteria_value) === 0}
+                                  onChange={() => setForm(prev => ({ ...prev, criteria_value: 0 }))}
+                                />
+                                <label className="form-check-label" htmlFor="criteria_value_0">Không đạt</label>
+                              </div>
+                            </div>
+                          ) : (
+                            <input
+                              name="criteria_value"
+                              type="number"
+                              step="0.01"
+                              className="form-control"
+                              value={form.criteria_value}
+                              onChange={onChange}
+                              placeholder="vd: 50 hoặc 4.8"
+                            />
+                          )}
                         </div>
 
                         <div className="mb-3">
