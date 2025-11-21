@@ -55,6 +55,9 @@ import AIInteraction from "./pages/AIInteraction";
 import SystemManagement from "./pages/SystemManagement";
 import QuotesPage from "./pages/QuotesPage";
 import VideoManager from "./pages/VideoManager";
+import ServiceManagement from "./pages/ServiceManagement";
+// import NegotiateSessionTest from './pages/NegotiateSessionTest';
+// Role landing pages
 import TaskerHome from "./pages/tasker/TaskerHome";
 import AdminHome from "./pages/admin/AdminHome";
 import CustomerHome from "./pages/customer/CustomerHome";
@@ -193,6 +196,7 @@ function App() {
                 <Route index element={<AdminHome />} />
                 <Route path="users" element={<AdminUsers />} />
                 <Route path="taskers" element={<AdminTaskers />} />
+                <Route path="service-management" element={<ServiceManagement />} />
               </Route>
 
               <Route

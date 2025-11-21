@@ -228,6 +228,7 @@ export const cccdAPI = {
     if (payload.gender) form.append('gender', payload.gender);
     if (payload.ocr_payload) form.append('ocr_payload', payload.ocr_payload);
     if (payload.face_cloud_url) form.append('face_cloud_url', payload.face_cloud_url);
+    if (payload.face_public_id) form.append('face_public_id', payload.face_public_id);
 
     // Thêm các file
     if (payload.front) {
@@ -259,6 +260,24 @@ export const cccdAPI = {
     const responseText = await response.clone().text();
     console.log('📡 Response body:', responseText);
 
+    return handleResponse(response);
+  },
+
+  // Get short-lived signed URL for verified CCCD front image
+  getSignedUrl: async (token) => {
+    const response = await fetch(`${API_BASE_URL}/cccd/signed-url`, {
+      method: "GET",
+      headers: createHeaders(token),
+    });
+    return handleResponse(response);
+  },
+
+  // Get short-lived signed URL for verified face image
+  getFaceSignedUrl: async (token) => {
+    const response = await fetch(`${API_BASE_URL}/cccd/face-signed-url`, {
+      method: "GET",
+      headers: createHeaders(token),
+    });
     return handleResponse(response);
   },
 
