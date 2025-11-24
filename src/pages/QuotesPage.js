@@ -2,7 +2,7 @@
 
 
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import QuoteService from '../services/quoteService';
 import NegotiatePriceButton from '../components/negotiation/NegotiatePriceButton';
@@ -12,6 +12,7 @@ import { showToast } from '../components/common/CustomToast'; // Thông báo toa
 
 const QuotesPage = () => {
   const { postId } = useParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [quotes, setQuotes] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -75,6 +76,21 @@ const QuotesPage = () => {
   const handleCloseModal = () => {
     setShowModal(false);
     setSelectedQuote(null);
+  };
+
+  const handleApprove = (quote) => {
+    // Điều hướng sang trang booking với dữ liệu báo giá đã duyệt
+    navigate(`/booking/${quote.tasker_id}`, {
+      state: {
+        fromQuote: true,
+        tasker_id: quote.tasker_id,
+        tasker_name: quote.tasker_name,
+        variant_name: quote.variant_name,
+        lockedPrice: quote.proposed_price,
+        quote_id: quote.quote_id,
+        post_id: postId,
+      }
+    });
   };
 
   return (
@@ -165,7 +181,7 @@ const QuotesPage = () => {
             <div className="quote-action-row">
               <button
                 className="quote-action-btn"
-                // onClick={...} // TODO: add approve handler
+                onClick={() => handleApprove(quote)}
                 title="Duyệt"
               >
                 <FaCheckCircle className="quote-action-icon" /> Duyệt

@@ -1343,19 +1343,25 @@ const CertificationRegisterSection = () => {
   const handleSubmit = async (data) => {
     try {
       const token = localStorage.getItem('token') || localStorage.getItem('accessToken') || localStorage.getItem('authToken');
+      const payload = {
+        service_id: Number(data.service_id),
+        variant_ids: (data.variant_ids || data.variants || []).map(v => Number(v)),
+        cert_ids: (data.certs || []).map(c => c.cert_public_id),
+        certs: data.certs,
+        status: 'pending'
+      };
+      // If service does NOT require certs and none provided, allow empty cert arrays
+      if (data.no_cert_required && payload.cert_ids.length === 0) {
+        payload.cert_ids = [];
+        payload.certs = [];
+      }
       const res = await fetch(`${API_BASE_URL}/tasker/certifications/pending`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         },
-        body: JSON.stringify({
-          service_id: data.service_id,
-          variant_ids: data.variant_ids || data.variants || [],
-          cert_ids: (data.certs || []).map(c => c.cert_public_id),
-          certs: data.certs,
-          status: 'pending'
-        })
+        body: JSON.stringify(payload)
       });
       const json = await res.json();
       if (res.ok && json.success) {
