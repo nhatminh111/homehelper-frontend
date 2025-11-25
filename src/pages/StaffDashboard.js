@@ -1,7 +1,7 @@
 import React from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faClipboardList, faCertificate, faNewspaper, faRightFromBracket } from "@fortawesome/free-solid-svg-icons";
+import { faClipboardList, faCertificate, faNewspaper, faRightFromBracket, faMedal } from "@fortawesome/free-solid-svg-icons";
 import { useAuth } from '../contexts/AuthContext';
 import '../css/StaffDashboard.css';
 
@@ -20,6 +20,11 @@ const tabs = [
     name: "Bài viết",
     path: "/staff/dashboard/blogs",
     icon: faNewspaper,
+  },
+  {
+    name: "Huy hiệu",
+    path: "/staff/dashboard/badges",
+    icon: faMedal,
   },
 ];
 

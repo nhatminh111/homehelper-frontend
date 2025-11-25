@@ -536,3 +536,61 @@ export const taskerApplicationsAPI = {
     return handleResponse(res);
   }
 };
+
+// Badges API (Staff/Admin restricted for create)
+export const badgesAPI = {
+  list: async (token = null) => {
+    const res = await fetch(`${API_BASE_URL}/badges`, {
+      method: 'GET',
+      headers: createHeaders(token)
+    });
+    return handleResponse(res);
+  },
+  create: async (badge, token = null) => {
+    const isFormData = badge instanceof FormData;
+    const headers = createHeaders(token, isFormData);
+    if (isFormData) delete headers['Content-Type'];
+    const res = await fetch(`${API_BASE_URL}/badges`, {
+      method: 'POST',
+      headers,
+      body: isFormData ? badge : JSON.stringify(badge)
+    });
+    return handleResponse(res);
+  },
+  update: async (id, payload, token = null) => {
+    const isFormData = payload instanceof FormData;
+    const headers = createHeaders(token, isFormData);
+    if (isFormData) delete headers['Content-Type'];
+    const res = await fetch(`${API_BASE_URL}/badges/${id}`, {
+      method: 'PUT',
+      headers,
+      body: isFormData ? payload : JSON.stringify(payload)
+    });
+    return handleResponse(res);
+  },
+  remove: async (id, token = null) => {
+    const res = await fetch(`${API_BASE_URL}/badges/${id}`, {
+      method: 'DELETE',
+      headers: createHeaders(token)
+    });
+    return handleResponse(res);
+  },
+  scan: async (token = null) => {
+    const res = await fetch(`${API_BASE_URL}/badges/scan`, {
+      method: 'POST',
+      headers: createHeaders(token)
+    });
+    return handleResponse(res); // { message, result: { granted, checked, ... } }
+  }
+};
+
+// Admin Taskers API
+export const adminTaskersAPI = {
+  summary: async (token = null) => {
+    const res = await fetch(`${API_BASE_URL}/admin/taskers/summary`, {
+      method: 'GET',
+      headers: createHeaders(token)
+    });
+    return handleResponse(res); // { data: [...] }
+  }
+};

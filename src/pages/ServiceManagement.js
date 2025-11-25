@@ -759,9 +759,6 @@ const ServiceManagement = () => {
                             <FontAwesomeIcon icon={faLayerGroup} className="mr-1" />
                             Quản lý biến thể
                           </button>
-                          <small className="text-muted">
-                            Quản lý cấu hình giá cho từng biến thể
-                          </small>
                         </div>
 
                         {/* Inline variant list removed; managed via popup */}
@@ -924,11 +921,12 @@ const ServiceManagement = () => {
               onClick={(e) => e.stopPropagation()}
             >
             <div 
-              className="modal-content border-0 shadow-lg"
+              className=" border-0 shadow-lg"
               style={{ 
                 borderRadius: '20px', 
                 overflow: 'hidden',
                 background: 'white',
+                width: '90% !important',
                 boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
               }}
             >

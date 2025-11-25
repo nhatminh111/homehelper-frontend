@@ -2,11 +2,12 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import QuoteService from '../../services/quoteService';
+import TaskerService from '../../services/taskerService';
 
 const currencyVND = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(n || 0));
 
 export default function CreateQuoteButton({ postId, services = [] }) {
-  const { isTasker } = useAuth();
+  const { isTasker, user } = useAuth();
   const [open, setOpen] = useState(false);
   const [variantId, setVariantId] = useState('');
   const [price, setPrice] = useState('');
@@ -14,6 +15,9 @@ export default function CreateQuoteButton({ postId, services = [] }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [myQuote, setMyQuote] = useState(null);
+  const [eligibleVariantIds, setEligibleVariantIds] = useState(new Set());
+  const [eligibilityChecked, setEligibilityChecked] = useState(false);
+  const [eligibilityLoading, setEligibilityLoading] = useState(false);
 
   // Flatten variants from services
   const variants = useMemo(() => {
@@ -35,11 +39,52 @@ export default function CreateQuoteButton({ postId, services = [] }) {
     return arr;
   }, [services]);
 
+  // Filter only variants the current tasker actually registered (eligibility)
+  const eligibleVariants = useMemo(() => {
+    if (!eligibilityChecked) return [];
+    return variants.filter(v => eligibleVariantIds.has(v.variant_id));
+  }, [variants, eligibleVariantIds, eligibilityChecked]);
+
   const selectedVariant = useMemo(
-    () => variants.find((v) => String(v.variant_id) === String(variantId)) || null,
-    [variants, variantId]
+    () => eligibleVariants.find((v) => String(v.variant_id) === String(variantId)) || null,
+    [eligibleVariants, variantId]
   );
-  const hasSingleVariant = variants.length === 1;
+  const hasSingleVariant = eligibleVariants.length === 1;
+  // Check eligibility by intersecting registered variants with post variants (single request)
+  useEffect(() => {
+    if (!isTasker() || !user?.user_id || !services.length) return;
+    let cancelled = false;
+    setEligibilityLoading(true);
+    (async () => {
+      try {
+        // Collect variant ids from blog services (support fallback keys)
+        const blogVariantIds = [...new Set(services.map(s => s.variant_id || s.service_variant_id || s.variantId).filter(Boolean))];
+        if (blogVariantIds.length === 0) {
+          if (!cancelled) {
+            setEligibleVariantIds(new Set());
+            setEligibilityChecked(true);
+          }
+          return;
+        }
+        // Fetch registered variants for current tasker
+        const reg = await TaskerService.getRegisteredVariants(user.user_id);
+        const registeredIds = Array.isArray(reg?.data) ? reg.data.map(v => parseInt(v,10)).filter(Number.isFinite) : [];
+        const eligible = blogVariantIds.filter(id => registeredIds.includes(parseInt(id,10)));
+        if (!cancelled) {
+          setEligibleVariantIds(new Set(eligible.map(e => parseInt(e,10))));
+          setEligibilityChecked(true);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setEligibleVariantIds(new Set());
+          setEligibilityChecked(true);
+        }
+      } finally {
+        if (!cancelled) setEligibilityLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isTasker, user?.user_id, services]);
 
   // Live validation message for price
   const priceError = useMemo(() => {
@@ -107,7 +152,7 @@ export default function CreateQuoteButton({ postId, services = [] }) {
 
   if (!isTasker()) return null;
 
-  const canOpen = !myQuote || myQuote.status === 'Đã từ chối';
+  const canOpen = (!myQuote || myQuote.status === 'Đã từ chối') && eligibleVariants.length > 0;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -154,7 +199,13 @@ export default function CreateQuoteButton({ postId, services = [] }) {
   return (
     <div className="mt-3">
       {!open && (
-        canOpen ? (
+        eligibilityLoading ? (
+          <span className="text-muted">Đang kiểm tra dịch vụ...</span>
+        ) : eligibleVariants.length === 0 ? (
+          <div className="badge rounded-pill text-bg-danger" style={{ whiteSpace: 'nowrap' }}>
+            Bạn chưa đăng ký dịch vụ tương ứng
+          </div>
+        ) : canOpen ? (
           <button className="btn btn-primary" onClick={() => setOpen(true)}>
             Gửi báo giá
           </button>
@@ -195,11 +246,11 @@ export default function CreateQuoteButton({ postId, services = [] }) {
                       <div className="mb-3">
                         <label className="form-label">Dịch vụ/Nhóm</label>
                         {hasSingleVariant ? (
-                          <input className="form-control" value={`${variants[0].service_name} · ${variants[0].variant_name}`} disabled />
+                          <input className="form-control" value={`${eligibleVariants[0].service_name} · ${eligibleVariants[0].variant_name}`} disabled />
                         ) : (
                           <select className="form-select" value={variantId} onChange={(e) => setVariantId(e.target.value)} required>
                             <option value="">-- Chọn --</option>
-                            {variants.map((v) => (
+                            {eligibleVariants.map((v) => (
                               <option key={v.variant_id} value={v.variant_id}>
                                 {v.service_name} · {v.variant_name}
                               </option>

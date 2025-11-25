@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import CompletionStatus from "../components/CompletionStatus"
 import { useLocation, useNavigate } from "react-router-dom";
+import blogService from "../services/blogService";
 import { Container, Row, Col, Card, Button, Nav, Form, InputGroup } from "react-bootstrap";
 
 export default function JobDescription() {
@@ -28,6 +29,42 @@ export default function JobDescription() {
   const isComplete = jobTitle.trim() !== "" && description.trim() !== "" && photos.length > 0;
 
   const [expectedPrice, setExpectedPrice] = useState("");
+  // Prefill expected price if coming from a quote or previous steps.
+  // Form expects "thousands" (e.g. user enters 150 -> 150.000đ).
+  useEffect(() => {
+    // Chỉ tự động điền giá khi đến từ QuotesPage.
+    if (!bookingData.fromQuote) return;
+    const raw = Number(bookingData.lockedPrice);
+    if (Number.isFinite(raw) && raw > 0) {
+      // lockedPrice giả định là VND đầy đủ, chuyển sang đơn vị nghìn cho input.
+      const thousands = raw >= 1000 ? Math.round(raw / 1000) : Math.round(raw);
+      setExpectedPrice(String(thousands));
+    } else {
+      // Nếu từ quote nhưng thiếu lockedPrice: không tự đoán theo variant để tránh sai ý người dùng.
+      setExpectedPrice("");
+    }
+  }, [bookingData.fromQuote, bookingData.lockedPrice]);
+
+  // Load blog photos if navigated from quotes and photos not already injected
+  useEffect(() => {
+    if (photos.length > 0) return; // already have
+    if (bookingData.photo_urls && Array.isArray(bookingData.photo_urls)) {
+      setPhotos(bookingData.photo_urls);
+      return;
+    }
+    if (bookingData.fromQuote && bookingData.post_id) {
+      (async () => {
+        try {
+          const res = await blogService.getPostById(bookingData.post_id);
+          const urls = Array.isArray(res?.data?.photo_urls) ? res.data.photo_urls : [];
+          if (urls.length) setPhotos(urls);
+        } catch (err) {
+          // Silent fail; user can still upload manually
+          console.warn("[JobDescription] Không thể tải ảnh post:", err?.message);
+        }
+      })();
+    }
+  }, [bookingData.photo_urls, bookingData.fromQuote, bookingData.post_id, photos.length]);
 
   const [priceConfirmed, setPriceConfirmed] = useState(false);
 
@@ -512,6 +549,7 @@ export default function JobDescription() {
                               onKeyDown={(e) => { if (e.key === "Enter") checkOutPrice(); }}
                               onBlur={() => { if (expectedPrice !== "") checkOutPrice(); }}
                               style={{ textAlign: "center", fontWeight: 600 }}
+                              readOnly={Boolean(bookingData.fromQuote)}
                             />
                             <InputGroup.Text>.000đ</InputGroup.Text>
                           </InputGroup>

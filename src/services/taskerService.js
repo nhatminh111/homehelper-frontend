@@ -30,10 +30,21 @@ class TaskerService {
 
   async getTaskersByVariant(variantId) {
     try {
-      const response = await api.get(`/taskers/variant/${variantId}`);
+      // Backend uses singular prefix and 'by-variant' according to blogService
+      const response = await api.get(`/tasker/by-variant/${variantId}`);
       return response.data;
     } catch (error) {
       console.error('Lỗi khi lấy tasker theo variant:', error);
+      throw error;
+    }
+  }
+
+  async getRegisteredVariants(taskerId) {
+    try {
+      const response = await api.get(`/tasker/${taskerId}/registered-variants`);
+      return response.data; // { success, data: [variantIds] }
+    } catch (error) {
+      console.error('Lỗi khi lấy danh sách variant đã đăng ký:', error);
       throw error;
     }
   }
