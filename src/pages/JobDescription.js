@@ -32,46 +32,18 @@ export default function JobDescription() {
   // Prefill expected price if coming from a quote or previous steps.
   // Form expects "thousands" (e.g. user enters 150 -> 150.000đ).
   useEffect(() => {
-    const normalizeToThousands = (val) => {
-      if (!Number.isFinite(val) || val <= 0) return "";
-      // Nếu là số lớn và chia hết cho 1000 thì xem là VND cần /1000
-      if (val >= 1000 && val % 1000 === 0) return String(Math.round(val / 1000));
-      // Nếu nhỏ hơn 2000 giả sử đã là đơn vị nghìn (ví dụ 150 -> 150.000)
-      if (val < 2000) return String(Math.round(val));
-      // Trường hợp khác: cố gắng chia 1000 (phòng trường hợp nhận VND lẻ)
-      return String(Math.round(val / 1000));
-    };
-
-    // 1. Ưu tiên lockedPrice nếu đến từ quote
-    if (bookingData.fromQuote && bookingData.lockedPrice) {
-      const raw = Number(bookingData.lockedPrice);
-      const normalized = normalizeToThousands(raw);
-      if (normalized) {
-        setExpectedPrice(normalized);
-        return;
-      }
+    // Chỉ tự động điền giá khi đến từ QuotesPage.
+    if (!bookingData.fromQuote) return;
+    const raw = Number(bookingData.lockedPrice);
+    if (Number.isFinite(raw) && raw > 0) {
+      // lockedPrice giả định là VND đầy đủ, chuyển sang đơn vị nghìn cho input.
+      const thousands = raw >= 1000 ? Math.round(raw / 1000) : Math.round(raw);
+      setExpectedPrice(String(thousands));
+    } else {
+      // Nếu từ quote nhưng thiếu lockedPrice: không tự đoán theo variant để tránh sai ý người dùng.
+      setExpectedPrice("");
     }
-    // 2. Fallback nếu không phải quote: expected_price trước đó, selection.expected_price, total
-    const sources = [];
-    if (bookingData.expected_price) sources.push(Number(bookingData.expected_price));
-    if (selection?.expected_price) sources.push(Number(selection.expected_price));
-    if (bookingData.total) sources.push(Number(bookingData.total));
-    const candidate = sources.find(v => Number.isFinite(v) && v > 0);
-    if (candidate) {
-      setExpectedPrice(normalizeToThousands(candidate));
-      return;
-    }
-    // 3. Cuối cùng lấy midpoint của khoảng giá variant đầu tiên (nếu có)
-    if (chosenVariants?.length) {
-      const v = chosenVariants[0];
-      const min = Number(v.price_min || 0);
-      const max = Number(v.price_max || 0);
-      if (min > 0 && max > 0) {
-        const midpointThousands = Math.round(((min + max) / 2)); // vì min/max đang là đơn vị nghìn
-        setExpectedPrice(String(midpointThousands));
-      }
-    }
-  }, [bookingData.fromQuote, bookingData.lockedPrice, bookingData.expected_price, bookingData.total, selection?.expected_price, chosenVariants]);
+  }, [bookingData.fromQuote, bookingData.lockedPrice]);
 
   // Load blog photos if navigated from quotes and photos not already injected
   useEffect(() => {

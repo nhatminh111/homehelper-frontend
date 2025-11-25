@@ -78,19 +78,32 @@ const QuotesPage = () => {
     setSelectedQuote(null);
   };
 
-  const handleApprove = (quote) => {
-    // Điều hướng sang trang booking với dữ liệu báo giá đã duyệt
-    navigate(`/booking/${quote.tasker_id}`, {
-      state: {
-        fromQuote: true,
-        tasker_id: quote.tasker_id,
-        tasker_name: quote.tasker_name,
-        variant_name: quote.variant_name,
-        lockedPrice: quote.proposed_price,
-        quote_id: quote.quote_id,
-        post_id: postId,
+  const handleApprove = async (quote) => {
+    try {
+      // Gọi API duyệt báo giá (chấp nhận)
+      const res = await QuoteService.approveQuote(quote.quote_id);
+      if (!res?.success) {
+        showToast.error(res?.message || 'Duyệt báo giá thất bại');
+        return;
       }
-    });
+      showToast.success('Đã chấp nhận báo giá');
+      // Cập nhật trạng thái trong local state để ẩn nút
+      setQuotes(prev => prev.map(q => q.quote_id === quote.quote_id ? { ...q, status: 'Chấp nhận' } : q));
+      // Điều hướng sang booking
+      navigate(`/booking/${quote.tasker_id}`, {
+        state: {
+          fromQuote: true,
+          tasker_id: quote.tasker_id,
+          tasker_name: quote.tasker_name,
+          variant_name: quote.variant_name,
+          lockedPrice: quote.proposed_price,
+          quote_id: quote.quote_id,
+          post_id: postId,
+        }
+      });
+    } catch (err) {
+      showToast.error(err.message || 'Lỗi duyệt báo giá');
+    }
   };
 
   return (
@@ -138,7 +151,7 @@ const QuotesPage = () => {
             <div
               className={
                 'quote-status-badge ' +
-                (quote.status === 'Đã duyệt' ? 'quote-status-approved' : 'quote-status-pending')
+                ((quote.status === 'Đã duyệt' || quote.status === 'Chấp nhận') ? 'quote-status-approved' : 'quote-status-pending')
               }
               style={{ position: 'absolute', top: 0, right: 0, left: 'auto', zIndex: 2 }}
             >
@@ -177,7 +190,7 @@ const QuotesPage = () => {
             </div>
           </div>
           {/* Action buttons row (ẩn nếu đã từ chối) */}
-          {quote.status !== 'Đã từ chối' && quote.status !== 'Từ chối' && (
+          {quote.status !== 'Đã từ chối' && quote.status !== 'Từ chối' && quote.status !== 'Chấp nhận' && quote.status !== 'Đã duyệt' && (
             <div className="quote-action-row">
               <button
                 className="quote-action-btn"
