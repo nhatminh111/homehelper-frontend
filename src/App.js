@@ -140,9 +140,9 @@ function App() {
                   }
                 />
                 <Route
-  path="/tasker/bookings/:bookingId/jobdone"
-  element={<TaskerJobDone />}
-/>
+                  path="/tasker/bookings/:bookingId/jobdone"
+                  element={<TaskerJobDone />}
+                />
                 <Route path="/tasker/bookings" element={
                   <ProtectedRoute requiredRole="Tasker"> <TaskerBookings /> </ProtectedRoute>
                 } />
