@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useAuth } from "../contexts/AuthContext";
+import { showToast } from "../components/common/CustomToast";
 
 const API_BASE_URL =
   process.env.REACT_APP_API_URL || "http://localhost:3001/api";
@@ -55,10 +56,12 @@ export default function StaffBlogs() {
         prev.map((p) => (p.post_id === post_id ? { ...p, status } : p))
       );
 
-      alert(`${status === "Approved" ? "Đã duyệt" : "Đã từ chối"} thành công!`);
+      showToast.success(
+        `${status === "Approved" ? "Đã duyệt" : "Đã từ chối"} thành công!`
+      );
     } catch (err) {
       console.error("Lỗi khi cập nhật trạng thái:", err);
-      alert("Không thể cập nhật trạng thái bài viết.");
+      showToast.error("Không thể cập nhật trạng thái bài viết.");
     }
   };
 
@@ -69,9 +72,9 @@ export default function StaffBlogs() {
         headers: { Authorization: `Bearer ${token}` },
       });
       setBlogs((prev) => prev.filter((b) => b.post_id !== post_id));
-      alert("Đã xoá bài viết thành công!");
+      showToast.success("Đã xoá bài viết thành công!");
     } catch (err) {
-      alert("Không thể xoá bài viết.");
+      showToast.error("Không thể xoá bài viết.");
     }
   };
 

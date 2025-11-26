@@ -10,6 +10,7 @@ export default function PaymentPage() {
   const [wallet, setWallet] = useState(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
+  const [remainingTime, setRemainingTime] = useState(null);
 
   const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:3001";
 
@@ -40,6 +41,27 @@ export default function PaymentPage() {
 
     fetchData();
   }, [API_BASE, bookingId]);
+
+  useEffect(() => {
+    if (!booking?.booking_time) return;
+
+    const countdownTimer = setInterval(() => {
+      const bookingCreated = new Date(booking.booking_time.replace("Z", ""));
+      const now = new Date();
+      const diffMs = 30 * 60 * 1000 - (now - bookingCreated);
+
+      if (diffMs <= 0) {
+        setRemainingTime(0);
+        clearInterval(countdownTimer);
+      } else {
+        const minutes = Math.floor(diffMs / 60000);
+        const seconds = Math.floor((diffMs % 60000) / 1000);
+        setRemainingTime(`${minutes}:${seconds.toString().padStart(2, "0")}`);
+      }
+    }, 1000);
+
+    return () => clearInterval(countdownTimer);
+  }, [booking]);
 
   const handleConfirmPayment = async () => {
     if (!wallet || !booking) return;
@@ -72,6 +94,28 @@ export default function PaymentPage() {
       setMessage("❌ Thanh toán thất bại, thử lại sau.");
     }
   };
+
+  useEffect(() => {
+    if (!booking?.booking_id || booking?.status === "Hủy" || booking?.status === "Đã thanh toán") return;
+
+    const interval = setInterval(async () => {
+      try {
+        const user = JSON.parse(localStorage.getItem("user"));
+        const res = await fetch(`${API_BASE}/api/bookings/${booking.booking_id}`, {
+          headers: { Authorization: `Bearer ${user.token}` },
+        });
+        const data = await res.json();
+        if (data?.data?.status && data.data.status !== booking.status) {
+          console.log("🔄 Booking status changed:", data.data.status);
+          setBooking(prev => ({ ...prev, status: data.data.status }));
+        }
+      } catch (err) {
+        console.error("Polling booking failed:", err);
+      }
+    }, 10000); // 🔁 Kiểm tra mỗi 10 giây
+
+    return () => clearInterval(interval);
+  }, [booking, API_BASE]);
 
   if (loading) return <div className="text-center py-5"><Spinner animation="border" /></div>;
 
@@ -114,7 +158,21 @@ export default function PaymentPage() {
           <p><strong>Số dư ví hiện tại:</strong> <span className="price">{wallet?.balance.toLocaleString("vi-VN")} ₫</span></p>
         </div>
 
-        <Button variant="success" className="w-100" size="lg" onClick={handleConfirmPayment}>
+        {remainingTime !== null && (
+          <div className="text-center text-danger fw-semibold mb-3">
+            {remainingTime === 0
+              ? "⏰ Đơn này đã hết thời gian thanh toán (30 phút) và sẽ bị hủy."
+              : `🕒 Đơn sẽ tự hủy sau ${remainingTime}`}
+          </div>
+        )}
+
+        <Button
+          variant="success"
+          className="w-100"
+          size="lg"
+          onClick={handleConfirmPayment}
+          disabled={remainingTime === 0}
+        >
           ✅ Xác nhận thanh toán
         </Button>
 
