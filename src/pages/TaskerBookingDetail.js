@@ -2,6 +2,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Container, Row, Col, Card, Button, Badge, Spinner, Alert } from "react-bootstrap";
 import NegotiatePriceButton from "../components/negotiation/NegotiatePriceButton";
+import NoShowReportModal from "../components/tasker/NoShowReportModal";
 import api from "../services/api";
 
 export default function TaskerBookingDetail() {
@@ -13,12 +14,14 @@ export default function TaskerBookingDetail() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  const [showNoShowModal, setShowNoShowModal] = useState(false);
+
   const handleCancelTask = async () => {
     try {
       const token = api.getStoredToken();
 
       const res = await fetch(
-        `http://localhost:3001/api/bookings/${booking_id}/cancel`,
+        `http://localhost:3001/api/bookings/${booking.booking_id}/cancel`,
         {
           method: "POST",
           headers: {
@@ -131,6 +134,8 @@ export default function TaskerBookingDetail() {
     variant_name,
   } = booking;
 
+  const canCancelFree = (status === "Đã chấp nhận" && !booking.isPaid);
+
   const formatPrice = (price) => {
     if (!price) return "Chưa có giá";
     return new Intl.NumberFormat("vi-VN").format(price) + "đ";
@@ -201,6 +206,37 @@ export default function TaskerBookingDetail() {
     } catch (err) {
       console.error("Lỗi khi cập nhật trạng thái:", err);
       alert("Có lỗi xảy ra khi cập nhật trạng thái");
+    }
+  };
+
+  const now = new Date();
+  const start = new Date(start_time);
+  const diffHours = (start - now) / (1000 * 60 * 60);
+
+  const handleCancelLate = async () => {
+    try {
+      const token = api.getStoredToken();
+      const res = await fetch(
+        `http://localhost:3001/api/bookings/${booking_id}/cancel`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ cancelledBy: "tasker_late" }),
+        }
+      );
+      const data = await res.json();
+      if (data.success) {
+        alert("Hủy (sát giờ) thành công. Điểm uy tín -20, khách được hoàn tiền.");
+        navigate("/tasker/bookings");
+      } else {
+        alert(data.message || "Không thể hủy booking");
+      }
+    } catch (err) {
+      console.error("❌ Lỗi khi hủy sát giờ:", err);
+      alert("Đã xảy ra lỗi khi hủy sát giờ");
     }
   };
 
@@ -402,30 +438,77 @@ export default function TaskerBookingDetail() {
 
         {status === "Đã chấp nhận" && (
           <>
-            <Button
-              variant="info"
-              size="lg"
-              className="px-5 fw-semibold"
-              style={{ borderRadius: "10px", minWidth: "160px" }}
-              onClick={() => handleStatusUpdate("Đang tiến hành")}
-            >
-              ▶ Bắt đầu công việc
-            </Button>
+            {/* ====================== */}
+            {/* 1️⃣ TRƯỜNG HỢP CHƯA THANH TOÁN */}
+            {/* ====================== */}
+            {!booking.isPaid && (
+              <Button
+                variant="danger"
+                size="lg"
+                className="px-5 fw-semibold"
+                style={{ borderRadius: "10px", minWidth: "200px" }}
+                onClick={handleCancelTask}
+              >
+                ❌ Hủy công việc (Không trừ điểm)
+              </Button>
+            )}
 
-            {/* ⭐ Nút hủy mới */}
-            <Button
-              variant="danger"
-              size="lg"
-              className="px-5 fw-semibold"
-              style={{
-                borderRadius: "10px",
-                minWidth: "160px",
-                marginLeft: "20px",
-              }}
-              onClick={() => handleCancelTask()}
-            >
-              ❌ Hủy công việc
-            </Button>
+            {/* 2️⃣ TRƯỜNG HỢP ĐÃ THANH TOÁN */}
+            {booking.isPaid && (
+              <>
+                {/* Nút bắt đầu công việc */}
+                <Button
+                  variant="info"
+                  size="lg"
+                  className="px-5 fw-semibold"
+                  style={{ borderRadius: "10px", minWidth: "160px" }}
+                  onClick={() => handleStatusUpdate("Đang tiến hành")}
+                >
+                  ▶ Bắt đầu công việc
+                </Button>
+
+                {/* >2h: hủy bình thường */}
+                {diffHours > 2 ? (
+                  <Button
+                    variant="danger"
+                    size="lg"
+                    className="px-5 fw-semibold"
+                    style={{ borderRadius: "10px", minWidth: "160px", marginLeft: "20px" }}
+                    onClick={handleCancelTask}
+                  >
+                    ❌ Hủy công việc (–10)
+                  </Button>
+                ) : (
+                  <>
+                    {/* <2h: hủy sát giờ */}
+                    <Button
+                      variant="danger"
+                      size="lg"
+                      className="px-5 fw-semibold"
+                      style={{
+                        borderRadius: "10px",
+                        minWidth: "180px",
+                        marginLeft: "20px",
+                      }}
+                      onClick={handleCancelLate}
+                    >
+                      ❌ Hủy (sát giờ –20)
+                    </Button>
+
+                    {/* Báo cáo khách no-show */}
+                    <Button
+                      variant="warning"
+                      size="lg"
+                      className="px-5 fw-semibold text-dark"
+                      style={{ borderRadius: "10px", minWidth: "240px" }}
+                      onClick={() => setShowNoShowModal(true)}
+                    >
+                      📣 Báo cáo khách vắng mặt
+                    </Button>
+                  </>
+                )}
+              </>
+            )}
           </>
         )}
 
@@ -453,6 +536,13 @@ export default function TaskerBookingDetail() {
           />
         )}
       </div>
+
+      <NoShowReportModal
+        show={showNoShowModal}
+        onClose={() => setShowNoShowModal(false)}
+        bookingId={booking_id}
+      />
     </Container>
   );
 }
+

@@ -70,6 +70,7 @@ import StaffApplications from "./pages/StaffApplications";
 import StaffCertifications from "./pages/StaffCertifications";
 import StaffBlogs from "./pages/StaffBlogs";
 import AdminUsers from "./pages/AdminUsers";
+import AdminEvidenceReview from "./pages/admin/AdminEvidenceReview";
 
 function App() {
 
@@ -205,6 +206,9 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
+                <Route path="/admin/evidence-review" element={<ProtectedRoute requiredRole="Admin">
+                      <AdminEvidenceReview />
+                    </ProtectedRoute>} />
                 <Route
                   path="/staff/dashboard"
                   element={
