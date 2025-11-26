@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import "../css/TaskerProfile.css";
 import { useAuth } from "../contexts/AuthContext";
-import { useParams} from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faStar,
@@ -25,15 +25,22 @@ const TaskerCertificateList = ({ taskerId }) => {
   const fetchSignedCertificateUrlByPublicId = useCallback(async (public_id) => {
     if (!public_id) return null;
     try {
-      const url = `${API_BASE_URL}/tasker/certifications/signed-url?public_id=${encodeURIComponent(public_id)}`;
+      const url = `${API_BASE_URL}/tasker/certifications/signed-url?public_id=${encodeURIComponent(
+        public_id
+      )}`;
       const res = await fetch(url, {
-        headers: { 'Authorization': localStorage.getItem('token') ? `Bearer ${localStorage.getItem('token')}` : '' }
+        headers: {
+          Authorization: localStorage.getItem("token")
+            ? `Bearer ${localStorage.getItem("token")}`
+            : "",
+        },
       });
       const json = await res.json();
-      if (!res.ok || !json.success) throw new Error(json.message || 'Failed signed URL by public_id');
+      if (!res.ok || !json.success)
+        throw new Error(json.message || "Failed signed URL by public_id");
       return json.data?.url || null;
     } catch (e) {
-      console.warn('fetchSignedCertificateUrlByPublicId error', e.message);
+      console.warn("fetchSignedCertificateUrlByPublicId error", e.message);
       return null;
     }
   }, []);
@@ -42,23 +49,33 @@ const TaskerCertificateList = ({ taskerId }) => {
     if (!taskerId) return;
     setLoading(true);
     fetch(`${API_BASE_URL}/taskers/${taskerId}/certifications`, {
-      headers: { 'Authorization': localStorage.getItem('token') ? `Bearer ${localStorage.getItem('token')}` : '' }
+      headers: {
+        Authorization: localStorage.getItem("token")
+          ? `Bearer ${localStorage.getItem("token")}`
+          : "",
+      },
     })
-      .then(res => res.json())
-      .then(async data => {
+      .then((res) => res.json())
+      .then(async (data) => {
         let certList = Array.isArray(data.data) ? data.data : [];
         // For certs with only cert_public_id, fetch signed URL
-        const updatedCerts = await Promise.all(certList.map(async cert => {
-          if (!cert.cert_file_url && cert.cert_public_id) {
-            try {
-              const url = await fetchSignedCertificateUrlByPublicId(cert.cert_public_id);
-              if (url) {
-                return { ...cert, cert_file_url: url };
+        const updatedCerts = await Promise.all(
+          certList.map(async (cert) => {
+            if (!cert.cert_file_url && cert.cert_public_id) {
+              try {
+                const url = await fetchSignedCertificateUrlByPublicId(
+                  cert.cert_public_id
+                );
+                if (url) {
+                  return { ...cert, cert_file_url: url };
+                }
+              } catch (e) {
+                /* ignore */
               }
-            } catch (e) { /* ignore */ }
-          }
-          return cert;
-        }));
+            }
+            return cert;
+          })
+        );
         setCerts(updatedCerts);
         setLoading(false);
       })
@@ -67,7 +84,7 @@ const TaskerCertificateList = ({ taskerId }) => {
 
   // Group by service and variant
   const grouped = {};
-  certs.forEach(cert => {
+  certs.forEach((cert) => {
     const service = cert.service_name || cert.service_id;
     const variant = cert.variant_name || cert.variant_id;
     if (!grouped[service]) grouped[service] = {};
@@ -76,7 +93,8 @@ const TaskerCertificateList = ({ taskerId }) => {
   });
 
   if (loading) return <div>Đang tải danh sách chứng chỉ...</div>;
-  if (certs.length === 0) return <div className="alert alert-info">Không có chứng chỉ nào.</div>;
+  if (certs.length === 0)
+    return <div className="alert alert-info">Không có chứng chỉ nào.</div>;
 
   return (
     <div>
@@ -86,23 +104,26 @@ const TaskerCertificateList = ({ taskerId }) => {
         {Object.entries(grouped).map(([service, variants]) =>
           Object.entries(variants).map(([variant, certList]) =>
             certList.map((cert, idx) => (
-              <div key={cert.cert_id || cert.cert_public_id || idx} className="col-12">
+              <div
+                key={cert.cert_id || cert.cert_public_id || idx}
+                className="col-12"
+              >
                 <div
                   className="card shadow-sm border-0 d-flex flex-column flex-md-row align-items-stretch position-relative"
                   style={{
-                    borderRadius: '12px',
-                    overflow: 'hidden',
-                    minHeight: '160px',
-                    transition: 'transform 0.2s ease'
+                    borderRadius: "12px",
+                    overflow: "hidden",
+                    minHeight: "160px",
+                    transition: "transform 0.2s ease",
                   }}
                 >
                   {/* Status góc phải trên */}
                   <div
                     style={{
-                      position: 'absolute',
+                      position: "absolute",
                       top: 8,
                       right: 8,
-                      zIndex: 2
+                      zIndex: 2,
                     }}
                   >
                     {cert.status && (
@@ -114,7 +135,7 @@ const TaskerCertificateList = ({ taskerId }) => {
                             ? 'bg-warning text-dark'
                             : 'bg-secondary'
                         }`}
-                        style={{ fontSize: '0.9rem', fontWeight: 500 }}
+                        style={{ fontSize: "0.9rem", fontWeight: 500 }}
                       >
                       {cert.status === 'Approved'
                         ? 'Đã duyệt'
@@ -131,11 +152,11 @@ const TaskerCertificateList = ({ taskerId }) => {
                   <div
                     className="flex-shrink-0 bg-light d-flex align-items-center justify-content-center"
                     style={{
-                      width: '100%',
-                      maxWidth: '220px',
-                      height: 'auto',
-                      aspectRatio: '4 / 3',
-                      borderBottom: '1px solid #eee'
+                      width: "100%",
+                      maxWidth: "220px",
+                      height: "auto",
+                      aspectRatio: "4 / 3",
+                      borderBottom: "1px solid #eee",
                     }}
                   >
                     {cert.cert_file_url ? (
@@ -143,10 +164,10 @@ const TaskerCertificateList = ({ taskerId }) => {
                         src={cert.cert_file_url}
                         alt={cert.cert_name}
                         style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'contain', // giúp giữ tỉ lệ hình
-                          backgroundColor: '#f8f9fa'
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "contain", // giúp giữ tỉ lệ hình
+                          backgroundColor: "#f8f9fa",
                         }}
                       />
                     ) : (
@@ -188,13 +209,15 @@ const TaskerCertificateList = ({ taskerId }) => {
 
                     <div className="text-muted small mt-auto">
                       <div>
-                        <strong>Cấp bởi:</strong> {cert.issued_by || '—'}
+                        <strong>Cấp bởi:</strong> {cert.issued_by || "—"}
                       </div>
                       <div>
-                        <strong>Ngày cấp:</strong>{' '}
+                        <strong>Ngày cấp:</strong>{" "}
                         {cert.issued_date
-                          ? new Date(cert.issued_date).toLocaleDateString('vi-VN')
-                          : '—'}
+                          ? new Date(cert.issued_date).toLocaleDateString(
+                              "vi-VN"
+                            )
+                          : "—"}
                       </div>
                     </div>
                   </div>
@@ -550,15 +573,15 @@ const TaskerProfile = () => {
     return <div className="container py-5 text-center">Loading...</div>;
 
   const tabs = [
-  { id: "overview", label: "Overview", icon: faEye },
-  { id: "reviews", label: "Reviews", icon: faStar },
-  { id: "videos", label: "Videos", icon: faEye },
-  { id: "articles", label: "Articles", icon: faAward },
+    { id: "overview", label: "Overview", icon: faEye },
+    { id: "reviews", label: "Reviews", icon: faStar },
+    { id: "videos", label: "Videos", icon: faEye },
+    { id: "articles", label: "Articles", icon: faAward },
     // Only show Certification tab if user is viewing their own profile and is a tasker
-    ...(isTasker && user?.user_id === Number(id) ? [
-      { id: "certification", label: "Certification", icon: faAward },
-    ] : []),
-  { id: "achievements", label: "Achievements", icon: faCheckCircle },
+    ...(isTasker && user?.user_id === Number(id)
+      ? [{ id: "certification", label: "Certification", icon: faAward }]
+      : []),
+    { id: "achievements", label: "Achievements", icon: faCheckCircle },
   ];
 
   return (
@@ -605,7 +628,10 @@ const TaskerProfile = () => {
                 {!(isTasker && user?.user_id === Number(id)) && (
                   <>
                     <button className="btn btn-primary tp-btn-primary">
-                      <FontAwesomeIcon icon={faCalendarCheck} className="me-1" />
+                      <FontAwesomeIcon
+                        icon={faCalendarCheck}
+                        className="me-1"
+                      />
                       Book Now — ${tasker.pricePerHour || 25}/hr
                     </button>
                     <button className="btn btn-outline-secondary tp-btn-outline">
@@ -1241,19 +1267,21 @@ const TaskerProfile = () => {
               </div>
             )}
 
-            {activeTab === "certification" && isTasker && user?.user_id === Number(id) && (
-              <div className="row g-3">
-                <div className="col-12">
-                  <div className="p-4 rounded border bg-white h-100 shadow-sm">
-                    <h4 className="fw-bold mb-3">Đăng kí dịch vụ</h4>
-                    {/* List all certificates for the logged-in tasker */}
-                    <TaskerCertificateList taskerId={id} />
-                    <hr className="my-4" />
-                    <CertificationRegisterSection />
+            {activeTab === "certification" &&
+              isTasker &&
+              user?.user_id === Number(id) && (
+                <div className="row g-3">
+                  <div className="col-12">
+                    <div className="p-4 rounded border bg-white h-100 shadow-sm">
+                      <h4 className="fw-bold mb-3">Đăng kí dịch vụ</h4>
+                      {/* List all certificates for the logged-in tasker */}
+                      <TaskerCertificateList taskerId={id} />
+                      <hr className="my-4" />
+                      <CertificationRegisterSection />
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
             {activeTab === "achievements" && (
               <div>
                 <h5 className="mb-3">Huy hiệu đạt được</h5>
@@ -1331,10 +1359,12 @@ const CertificationRegisterSection = () => {
     //   .catch(() => setExcludeServiceIds([]));
     // Fetch registered variant_ids
     fetch(`${API_BASE_URL}/tasker/${id}/registered-variants`)
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data.data)) setExcludeVariantIds(data.data.map(vid => String(vid)));
-        else if (Array.isArray(data)) setExcludeVariantIds(data.map(vid => String(vid)));
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data.data))
+          setExcludeVariantIds(data.data.map((vid) => String(vid)));
+        else if (Array.isArray(data))
+          setExcludeVariantIds(data.map((vid) => String(vid)));
       })
       .catch(() => setExcludeVariantIds([]));
   }, [id]);
@@ -1356,10 +1386,10 @@ const CertificationRegisterSection = () => {
         payload.certs = [];
       }
       const res = await fetch(`${API_BASE_URL}/tasker/certifications/pending`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify(payload)
       });
@@ -1379,11 +1409,18 @@ const CertificationRegisterSection = () => {
   return (
     <>
       {!showForm ? (
-        <button className="btn btn-success mt-3" onClick={() => setShowForm(true)}>
+        <button
+          className="btn btn-success mt-3"
+          onClick={() => setShowForm(true)}
+        >
           Đăng ký
         </button>
       ) : (
-  <TaskerCertificateRegister onSubmit={handleSubmit} excludeServiceIds={excludeServiceIds} excludeVariantIds={excludeVariantIds} />
+        <TaskerCertificateRegister
+          onSubmit={handleSubmit}
+          excludeServiceIds={excludeServiceIds}
+          excludeVariantIds={excludeVariantIds}
+        />
       )}
       {/* Kết quả và trạng thái được hiển thị qua toast, không cần block hiển thị chi tiết tại đây */}
     </>
