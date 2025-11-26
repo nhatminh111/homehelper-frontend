@@ -70,6 +70,8 @@ import StaffApplications from "./pages/StaffApplications";
 import StaffCertifications from "./pages/StaffCertifications";
 import StaffBlogs from "./pages/StaffBlogs";
 import AdminUsers from "./pages/AdminUsers";
+import ReportIssue from "./pages/ReportIssue";
+import AdminReports from "./pages/AdminReports";
 
 function App() {
 
@@ -124,6 +126,12 @@ function App() {
                 <Route path="/contract" element={<Contract />} />
                 <Route path="/become-tasker" element={<BecomeTasker />} />
 
+                <Route path="/report-issue" element={
+                  <ProtectedRoute> <ReportIssue /> </ProtectedRoute>
+                } />
+                <Route path="/admin/reports" element={
+                  <ProtectedRoute requiredRole="Admin"> <AdminReports /> </ProtectedRoute>
+                } />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -183,48 +191,48 @@ function App() {
                 } />
               </Route>
 
-                <Route
-                  path="/customer/bookings"
-                  element={
-                    <ProtectedRoute requiredRole="Customer">
-                      <BookingHistory />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/service-management"
+              <Route
+                path="/customer/bookings"
+                element={
+                  <ProtectedRoute requiredRole="Customer">
+                    <BookingHistory />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/service-management"
                   element={ <ProtectedRoute requiredRole="Admin">
-                    <ServiceManagement />
-                  </ProtectedRoute>}
-                />
+                  <ServiceManagement />
+                </ProtectedRoute>}
+              />
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute requiredRole="Admin">
+                    <AdminHome />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/staff/dashboard"
+                element={
+                  <ProtectedRoute requiredRole="Staff">
+                    <StaffDashboard />
+                  </ProtectedRoute>
+                }
+              >
+                <Route path="applications" element={<StaffApplications />} />
                 <Route
-                  path="/admin"
-                  element={
-                    <ProtectedRoute requiredRole="Admin">
-                      <AdminHome />
-                    </ProtectedRoute>
-                  }
+                  path="certifications"
+                  element={<StaffCertifications />}
                 />
-                <Route
-                  path="/staff/dashboard"
-                  element={
-                    <ProtectedRoute requiredRole="Staff">
-                      <StaffDashboard />
-                    </ProtectedRoute>
-                  }
-                >
-                  <Route path="applications" element={<StaffApplications />} />
-                  <Route
-                    path="certifications"
-                    element={<StaffCertifications />}
-                  />
-                  <Route path="blogs" element={<StaffBlogs />} />
-                </Route>
-                <Route
-                  path="/staff"
-                  element={<Navigate to="/staff/applications" replace />}
-                />
-              </Routes>            
+                <Route path="blogs" element={<StaffBlogs />} />
+              </Route>
+              <Route
+                path="/staff"
+                element={<Navigate to="/staff/applications" replace />}
+              />
+            </Routes>
           </div>
         </Router>
       </SocketProvider>
