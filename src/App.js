@@ -73,6 +73,9 @@ import Wishlist from "./pages/Wishlist";
 import StaffApplications from "./pages/StaffApplications";
 import StaffCertifications from "./pages/StaffCertifications";
 import StaffBlogs from "./pages/StaffBlogs";
+import AdminUsers from "./pages/AdminUsers";
+import ReportIssue from "./pages/ReportIssue";
+import AdminReports from "./pages/AdminReports";
 import StaffBadges from "./pages/StaffBadges";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminTaskers from "./pages/admin/AdminTaskers";
@@ -150,6 +153,12 @@ function App() {
                 <Route path="/contract" element={<Contract />} />
                 <Route path="/become-tasker" element={<BecomeTasker />} />
 
+                <Route path="/report-issue" element={
+                  <ProtectedRoute> <ReportIssue /> </ProtectedRoute>
+                } />
+                <Route path="/admin/reports" element={
+                  <ProtectedRoute requiredRole="Admin"> <AdminReports /> </ProtectedRoute>
+                } />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -210,19 +219,27 @@ function App() {
               </Route>
 
               <Route
+                path="/customer/bookings"
+                element={
+                  <ProtectedRoute requiredRole="Customer">
+                    <BookingHistory />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/service-management"
+                  element={ <ProtectedRoute requiredRole="Admin">
+                  <ServiceManagement />
+                </ProtectedRoute>}
+              />
+              <Route
                 path="/admin"
                 element={
                   <ProtectedRoute requiredRole="Admin">
-                    <AdminLayout />
+                    <AdminHome />
                   </ProtectedRoute>
                 }
-              >
-                <Route index element={<AdminHome />} />
-                <Route path="users" element={<AdminUsers />} />
-                <Route path="taskers" element={<AdminTaskers />} />
-                <Route path="service-management" element={<ServiceManagement />} />
-              </Route>
-
+              />
               <Route
                 path="/staff/dashboard"
                 element={
