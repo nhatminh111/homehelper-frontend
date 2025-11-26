@@ -37,8 +37,15 @@ const Login = () => {
   // Redirect nếu đã đăng nhập
   useEffect(() => {
     if (isAuthenticated()) {
-      const from = "/";
-      navigate(from, { replace: true });
+      // Redirect based on stored role if already authenticated
+      const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+      const role = storedUser.role;
+      let dest = "/";
+      if (role === "Customer") dest = "/";
+      else if (role === "Tasker") dest = "/";
+      else if (role === "Admin") dest = "/admin";
+      else if (role === "Staff") dest = "/staff/dashboard";
+      navigate(dest, { replace: true });
     }
   }, [isAuthenticated, navigate, location]);
 
@@ -92,9 +99,13 @@ const Login = () => {
     setError(null);
 
     try {
-      // Gọi login từ AuthContext
-
       const response = await login(formData);
+
+      // Nếu backend trả về trạng thái banned (403) thì xử lý ở catch; tuy nhiên nếu API wrapper vẫn trả user
+      if (response?.user?.is_banned) {
+        setError('Tài khoản của bạn đã bị khóa. Vui lòng liên hệ hỗ trợ.');
+        return; // không điều hướng
+      }
 
       // ✅ Lấy user có token từ AuthContext (đã gắn sẵn)
       const storedUser = JSON.parse(localStorage.getItem("user"));
@@ -113,13 +124,18 @@ const Login = () => {
 
       // Redirect theo role
       const role = response.user.role;
-      if (role === "Customer") navigate("/customer", { replace: true });
-      else if (role === "Tasker") navigate("/tasker", { replace: true });
-      else if (role === "Admin") navigate("/admin", { replace: true });
-      else navigate("/", { replace: true });
+  if (role === "Customer") navigate("/customer", { replace: true });
+  else if (role === "Tasker") navigate("/tasker", { replace: true });
+  else if (role === "Admin") navigate("/admin", { replace: true });
+  else if (role === "Staff") navigate("/staff/dashboard", { replace: true });
+  else navigate("/", { replace: true });
     } catch (error) {
       console.error("Login error:", error);
-      setError(error.message || "Login failed");
+      if (error?.response?.status === 403 || error?.banned) {
+        setError('Tài khoản của bạn đã bị khóa. Vui lòng liên hệ hỗ trợ.');
+      } else {
+        setError(error.message || 'Login failed');
+      }
     } finally {
       setLoading(false);
     }

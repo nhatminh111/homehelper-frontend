@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { formatDistanceToNow } from 'date-fns';
-import { vi } from 'date-fns/locale';
 import './Chat.css';
 
 const ChatHeader = ({
@@ -10,7 +8,6 @@ const ChatHeader = ({
   onMenuClick,
   isUserOnline
 }) => {
-  const [showDropdown, setShowDropdown] = useState(false);
   const [showMembersModal, setShowMembersModal] = useState(false);
   const { user } = useAuth();
   const currentUserId = user?.user_id || user?.userId;
@@ -69,61 +66,6 @@ const ChatHeader = ({
       .join('')
       .toUpperCase()
       .slice(0, 2);
-  };
-
-  const formatLastSeen = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    return formatDistanceToNow(date, {
-      addSuffix: true,
-      locale: vi
-    });
-  };
-
-  // --- Dropdown handlers ---
-  const handleDropdownToggle = () => setShowDropdown(!showDropdown);
-  const handleDropdownClose = () => setShowDropdown(false);
-
-  const handleCall = (type) => {
-    console.log(`Starting ${type} call with conversation:`, conversation.conversation_id);
-    handleDropdownClose();
-  };
-
-  const handleSearchMessages = () => {
-    console.log('Search messages in conversation:', conversation.conversation_id);
-    handleDropdownClose();
-  };
-
-  const handleViewProfile = () => {
-    if (conversation.type === 'direct') {
-      const other = getOtherParticipant();
-      console.log('View profile:', other?.user_id);
-    }
-    handleDropdownClose();
-  };
-
-  const handleConversationInfo = () => {
-    if (conversation.type === 'group') {
-      setShowMembersModal(true);
-    }
-    handleDropdownClose();
-  };
-
-  const handleMuteConversation = () => {
-    console.log('Mute conversation:', conversation.conversation_id);
-    handleDropdownClose();
-  };
-
-  const handleArchiveConversation = () => {
-    console.log('Archive conversation:', conversation.conversation_id);
-    handleDropdownClose();
-  };
-
-  const handleDeleteConversation = () => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa cuộc trò chuyện này?')) {
-      console.log('Delete conversation:', conversation.conversation_id);
-    }
-    handleDropdownClose();
   };
 
   return (
@@ -195,22 +137,11 @@ const ChatHeader = ({
             </div>
             <div className="chat-subtitle">
               <span className="chat-subtitle-text">{getConversationSubtitle()}</span>
-              {conversation.type === 'direct' && (
-                <span className="chat-last-seen">
-                  {(() => {
-                    const other = getOtherParticipant();
-                    return !isUserOnline?.(other?.user_id)
-                      ? `Hoạt động ${formatLastSeen(other?.last_seen)}`
-                      : '';
-                  })()}
-                </span>
-              )}
             </div>
           </div>
 
           {/* Actions */}
-          <div className="chat-actions">
-            {/* Call Buttons */}
+          {/* <div className="chat-actions">
             <div className="chat-call-actions">
               <button
                 className="btn btn-link chat-action-btn"
@@ -227,64 +158,7 @@ const ChatHeader = ({
                 <i className="fas fa-video"></i>
               </button>
             </div>
-
-            {/* More Actions Dropdown */}
-            <div className="chat-more-actions">
-              <button
-                className="btn btn-link chat-action-btn"
-                onClick={handleDropdownToggle}
-                title="Thêm tùy chọn"
-              >
-                <i className="fas fa-ellipsis-v"></i>
-              </button>
-
-              {showDropdown && (
-                <>
-                  <div className="dropdown-backdrop" onClick={handleDropdownClose}></div>
-                  <div className="dropdown-menu show chat-dropdown">
-                    <button className="dropdown-item" onClick={handleSearchMessages}>
-                      <i className="fas fa-search me-2"></i>
-                      Tìm kiếm tin nhắn
-                    </button>
-
-                    {conversation.type === 'direct' && (
-                      <button className="dropdown-item" onClick={handleViewProfile}>
-                        <i className="fas fa-user me-2"></i>
-                        Xem trang cá nhân
-                      </button>
-                    )}
-
-                    <button className="dropdown-item" onClick={handleConversationInfo}>
-                      <i className="fas fa-info-circle me-2"></i>
-                      Thông tin cuộc trò chuyện
-                    </button>
-
-                    <div className="dropdown-divider"></div>
-
-                    <button className="dropdown-item" onClick={handleMuteConversation}>
-                      <i className="fas fa-bell-slash me-2"></i>
-                      Tắt thông báo
-                    </button>
-
-                    <button className="dropdown-item" onClick={handleArchiveConversation}>
-                      <i className="fas fa-archive me-2"></i>
-                      Lưu trữ
-                    </button>
-
-                    <div className="dropdown-divider"></div>
-
-                    <button
-                      className="dropdown-item text-danger"
-                      onClick={handleDeleteConversation}
-                    >
-                      <i className="fas fa-trash me-2"></i>
-                      Xóa cuộc trò chuyện
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
+          </div> */}
         </div>
       </div>
 

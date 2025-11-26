@@ -15,8 +15,8 @@ import {
   faHeart as faHeartSolid,
 } from "@fortawesome/free-solid-svg-icons";
 import { faHeart as faHeartRegular } from "@fortawesome/free-regular-svg-icons";
-import { showToast } from "../components/common/CustomToast";
-import TaskerCertificateRegister from "../components/TaskerCertificateRegister";
+import TaskerCertificateRegister from '../components/TaskerCertificateRegister';
+import { CustomToastContainer, showToast } from '../components/common/CustomToast';
 
 // Certificate list section for the certification tab
 const TaskerCertificateList = ({ taskerId }) => {
@@ -130,19 +130,21 @@ const TaskerCertificateList = ({ taskerId }) => {
                     {cert.status && (
                       <span
                         className={`badge px-3 py-2 ${
-                          cert.status === "approved"
-                            ? "bg-success"
-                            : cert.status === "pending"
-                            ? "bg-warning text-dark"
-                            : "bg-secondary"
+                          cert.status === 'Approved'
+                            ? 'bg-success'
+                            : cert.status === 'pending'
+                            ? 'bg-warning text-dark'
+                            : 'bg-secondary'
                         }`}
                         style={{ fontSize: "0.9rem", fontWeight: 500 }}
                       >
-                        {cert.status === "approved"
-                          ? "Đã duyệt"
-                          : cert.status === "pending"
-                          ? "Chờ duyệt"
-                          : cert.status}
+                      {cert.status === 'Approved'
+                        ? 'Đã duyệt'
+                        : cert.status === 'pending'
+                        ? 'Chờ duyệt'
+                        : cert.status === 'rejected'
+                        ? 'Bị từ chối'
+                        : cert.status}
                       </span>
                     )}
                   </div>
@@ -191,9 +193,18 @@ const TaskerCertificateList = ({ taskerId }) => {
                         <span className="badge bg-primary-subtle text-primary me-2">
                           {service}
                         </span>
-                        <span className="badge bg-secondary-subtle text-secondary">
-                          {variant}
-                        </span>
+
+                        {variant &&
+                          ((Array.isArray(variant) && variant.length > 0 && (
+                            <span className="badge bg-secondary-subtle text-secondary">
+                              {variant.join(', ')}
+                            </span>
+                          )) ||
+                            (typeof variant === 'string' && variant.trim() && (
+                              <span className="badge bg-secondary-subtle text-secondary">
+                                {variant}
+                              </span>
+                            )))}
                       </div>
                     </div>
 
@@ -500,14 +511,8 @@ const TaskerProfile = () => {
     }
   };
   const submitReview = async () => {
-    if (!newFeedback.trim()) {
-      showToast.warning("Vui lòng nhập nội dung đánh giá.");
-      return;
-    }
-    if (!bookingId) {
-      showToast.error("Thiếu thông tin booking.");
-      return;
-    }
+    if (!newFeedback.trim()) return showToast.warning("Vui lòng nhập nội dung đánh giá.");
+    if (!bookingId) return showToast.error("Thiếu thông tin booking.");
 
     try {
       const res = await fetch(`${API_BASE_URL}/ratings`, {
@@ -542,7 +547,7 @@ const TaskerProfile = () => {
         setNewRating(5);
         setNewFeedback("");
       } else {
-        showToast.error(data.message || "Không xác định trạng thái đánh giá.");
+        showToast.warning(data.message || "Không xác định trạng thái đánh giá.");
       }
     } catch (error) {
       console.error("❌ Error submitting review:", error);
@@ -551,10 +556,7 @@ const TaskerProfile = () => {
   };
 
   const handleAddWishlist = async () => {
-    if (!user) {
-      showToast.info("Vui lòng đăng nhập để thêm vào wishlist!");
-      return;
-    }
+    if (!user) return showToast.info("Vui lòng đăng nhập để thêm vào wishlist!");
     try {
       const res = await fetch(`${API_BASE_URL}/wishlists/`, {
         method: "POST",
@@ -598,6 +600,8 @@ const TaskerProfile = () => {
       <div className="tp-hero" />
 
       <div className="container tp-container">
+        {/* Global toast container for this page */}
+        <CustomToastContainer />
         {/* Header Card */}
         <div className="tp-card tp-header">
           <div className="row align-items-center gx-4">
@@ -974,9 +978,7 @@ const TaskerProfile = () => {
                                           );
 
                                           if (res.ok) {
-                                            showToast.success(
-                                              "Phản hồi đã được gửi!"
-                                            );
+                                            showToast.success("Phản hồi đã được gửi!");
 
                                             // 🟢 Cập nhật trực tiếp vào state để hiển thị ngay lập tức
                                             const updatedReviews =
@@ -1080,9 +1082,7 @@ const TaskerProfile = () => {
                                           "❌ Lỗi khi bấm hữu ích:",
                                           error
                                         );
-                                        showToast.error(
-                                          "Lỗi kết nối hoặc máy chủ."
-                                        );
+                                        showToast.error("Lỗi kết nối hoặc máy chủ.");
                                       }
                                     }}
                                   >
@@ -1317,8 +1317,6 @@ const TaskerProfile = () => {
 
 const CertificationRegisterSection = () => {
   const [showForm, setShowForm] = useState(false);
-  const [result, setResult] = useState(null);
-  const [pendingStatus, setPendingStatus] = useState(null);
   const [excludeServiceIds, setExcludeServiceIds] = useState([]);
   const [excludeVariantIds, setExcludeVariantIds] = useState([]);
   const { id } = useParams();
@@ -1346,7 +1344,6 @@ const CertificationRegisterSection = () => {
 
   // Gửi đăng ký và tạo bản ghi TaskerCertifications với status pending
   const handleSubmit = async (data) => {
-    setResult(data);
     try {
       const token =
         localStorage.getItem("token") ||
@@ -1360,25 +1357,22 @@ const CertificationRegisterSection = () => {
         },
         body: JSON.stringify({
           service_id: data.service_id,
-          variant_ids: data.variants,
-          cert_ids: (data.certs || []).map((c) => c.cert_public_id),
+          variant_ids: data.variant_ids || data.variants || [],
+          cert_ids: (data.certs || []).map(c => c.cert_public_id),
           certs: data.certs,
           status: "pending",
         }),
       });
       const json = await res.json();
       if (res.ok && json.success) {
-        setPendingStatus(
-          "Đã tạo bản ghi đăng ký chứng chỉ, trạng thái: pending"
-        );
+        showToast.success('Đăng ký thành công! Chờ duyệt.');
+        // Đóng form sau khi đăng ký thành công
+        setShowForm(false);
       } else {
-        setPendingStatus(
-          "Không thể tạo bản ghi pending: " +
-            (json.message || "Lỗi không xác định")
-        );
+        showToast.error('Không thể tạo đăng ký: ' + (json.message || 'Lỗi không xác định'));
       }
     } catch (e) {
-      setPendingStatus("Lỗi khi tạo bản ghi pending: " + e.message);
+      showToast.error('Lỗi khi tạo đăng ký: ' + e.message);
     }
   };
 
@@ -1398,20 +1392,7 @@ const CertificationRegisterSection = () => {
           excludeVariantIds={excludeVariantIds}
         />
       )}
-      {result && (
-        <div className="alert alert-info mt-3">
-          <strong>Đã xác nhận đăng ký!</strong>
-          <br />
-          Dịch vụ: {result.service_id}
-          <br />
-          Biến thể: {(result.variants || result.variant_ids || []).join(", ")}
-          <br />
-          Số chứng chỉ: {(result.certs || []).length}
-        </div>
-      )}
-      {pendingStatus && (
-        <div className="alert alert-warning mt-2">{pendingStatus}</div>
-      )}
+      {/* Kết quả và trạng thái được hiển thị qua toast, không cần block hiển thị chi tiết tại đây */}
     </>
   );
 };

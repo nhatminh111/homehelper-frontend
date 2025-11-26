@@ -12,12 +12,26 @@ import {
   Spinner,
 } from "react-bootstrap";
 import api from "../services/api";
+import { showToast } from "../components/common/CustomToast";
+import MediaUpload from "../components/MediaUpload";
 
 const DEFAULT_TASKS = [
-  { id: "default-1", label: "Clean all kitchen surfaces and countertops", status: "completed" },
-  { id: "default-2", label: "Deep clean appliances (oven, microwave, refrigerator)", status: "completed" },
+  {
+    id: "default-1",
+    label: "Clean all kitchen surfaces and countertops",
+    status: "completed",
+  },
+  {
+    id: "default-2",
+    label: "Deep clean appliances (oven, microwave, refrigerator)",
+    status: "completed",
+  },
   { id: "default-3", label: "Sanitize sink and faucet", status: "completed" },
-  { id: "default-4", label: "Clean and organize cabinets", status: "completed" },
+  {
+    id: "default-4",
+    label: "Clean and organize cabinets",
+    status: "completed",
+  },
   { id: "default-5", label: "Mop and vacuum floors", status: "completed" },
 ];
 
@@ -26,7 +40,8 @@ const parseChecklist = (rawChecklist) => {
   if (Array.isArray(rawChecklist)) {
     return rawChecklist.map((item, index) => ({
       id: item?.id || `task-${index}`,
-      label: typeof item === "string" ? item : item?.label || `Task ${index + 1}`,
+      label:
+        typeof item === "string" ? item : item?.label || `Task ${index + 1}`,
       status: item?.status || "completed",
     }));
   }
@@ -37,14 +52,20 @@ const parseChecklist = (rawChecklist) => {
       if (Array.isArray(parsed)) {
         return parsed.map((item, index) => ({
           id: item?.id || `task-${index}`,
-          label: typeof item === "string" ? item : item?.label || `Task ${index + 1}`,
+          label:
+            typeof item === "string"
+              ? item
+              : item?.label || `Task ${index + 1}`,
           status: item?.status || "completed",
         }));
       }
       if (parsed && Array.isArray(parsed.items)) {
         return parsed.items.map((item, index) => ({
           id: item?.id || `task-${index}`,
-          label: typeof item === "string" ? item : item?.label || `Task ${index + 1}`,
+          label:
+            typeof item === "string"
+              ? item
+              : item?.label || `Task ${index + 1}`,
           status: item?.status || "completed",
         }));
       }
@@ -83,7 +104,9 @@ export default function TaskerJobCompletion() {
   const location = useLocation();
 
   const [booking, setBooking] = useState(location.state?.booking || null);
-  const [tasks, setTasks] = useState(() => location.state?.tasks || DEFAULT_TASKS);
+  const [tasks, setTasks] = useState(
+    () => location.state?.tasks || DEFAULT_TASKS
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [notes, setNotes] = useState("");
@@ -107,7 +130,8 @@ export default function TaskerJobCompletion() {
           });
 
           const payload = response?.data;
-          const bookingData = (payload && (payload.booking || payload.data)) || payload;
+          const bookingData =
+            (payload && (payload.booking || payload.data)) || payload;
 
           if (bookingData && bookingData.booking_id) {
             setBooking(bookingData);
@@ -132,7 +156,9 @@ export default function TaskerJobCompletion() {
 
   const completionStats = useMemo(() => {
     const total = tasks.length;
-    const completed = tasks.filter((task) => task.status === "completed").length;
+    const completed = tasks.filter(
+      (task) => task.status === "completed"
+    ).length;
     return { total, completed };
   }, [tasks]);
 
@@ -163,9 +189,114 @@ export default function TaskerJobCompletion() {
       });
     }
   };
+  const uploadPhotos = async (type) => {
+    const files = type === "before" ? beforePhotos : afterPhotos;
+    if (!files.length) return;
 
-  const handleCompleteSubmission = () => {
-    navigate("/tasker/bookings");
+    const formData = new FormData();
+    files.forEach((f) => formData.append("photos", f.file));
+
+    // Backend cần task_id từ bảng Tasks
+    // Nếu không có task_id, có thể cần tạo task trước hoặc backend sẽ tự xử lý
+    const taskId = booking.task_id || booking.booking_id;
+
+    if (!taskId) {
+      throw new Error("Không tìm thấy task_id hoặc booking_id");
+    }
+
+    // Backend routes: /task-photos/before/:taskId hoặc /task-photos/after/:taskId
+    const endpoint = `/uploads/task-photos/${type}/${taskId}`;
+
+    try {
+      const response = await api.post(endpoint, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return response.data;
+    } catch (error) {
+      console.error(`Error uploading ${type} photos:`, error);
+      const errorMessage =
+        error?.response?.data?.message ||
+        error?.message ||
+        `Lỗi upload ${type} photos`;
+      throw new Error(errorMessage);
+    }
+  };
+
+  const handleCompleteSubmission = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      let uploadedBeforePhotos = [];
+      let uploadedAfterPhotos = [];
+
+      // Upload photos nếu có và lưu URLs
+      if (beforePhotos.length > 0) {
+        const beforeResult = await uploadPhotos("before");
+        uploadedBeforePhotos = beforeResult?.files || [];
+      }
+      if (afterPhotos.length > 0) {
+        const afterResult = await uploadPhotos("after");
+        uploadedAfterPhotos = afterResult?.files || [];
+      }
+
+      // Thêm gửi notes nếu muốn (best-effort)
+      try {
+        if (notes.trim()) {
+          await api.patch(`/bookings/${booking.booking_id}`, { notes });
+        }
+      } catch (e) {
+        console.warn("Non-fatal: failed to save notes", e);
+        showToast?.warning(
+          "Ghi chú không lưu được — tiếp tục hoàn tất nhiệm vụ."
+        );
+      }
+
+      // Use the shared status endpoint so route exists on backend
+      try {
+        await api.patch(`/bookings/${booking.booking_id}/status`, {
+          status: "Hoàn thành",
+        });
+      } catch (e) {
+        // If the status update fails, surface error but still attempt to navigate
+        console.error("Failed to update booking status:", e);
+        const msg = e?.message || "Không thể cập nhật trạng thái";
+        showToast?.error(msg);
+        // continue — we'll still navigate to the completion screen so tasker can proceed
+      }
+
+      // Format tasks để truyền sang TaskerJobDone (expect array of strings)
+      const taskLabels = tasks.map((task) =>
+        typeof task === "string" ? task : task.label || task.id
+      );
+      // Lưu checklist theo ngày
+      localStorage.setItem(
+        `task-${booking.booking_id}`,
+        JSON.stringify({
+          date: new Date().toDateString(),
+          tasks,
+        })
+      );
+
+      // Navigate đến TaskerJobDone với state
+      navigate(`/tasker/bookings/${booking.booking_id}/jobdone`, {
+        state: {
+          booking,
+          tasks: taskLabels,
+          notes,
+          beforePhotos: uploadedBeforePhotos,
+          afterPhotos: uploadedAfterPhotos,
+        },
+      });
+    } catch (err) {
+      console.error("Error completing submission:", err);
+      const errorMessage =
+        err?.response?.data?.message || err?.message || "Upload photos failed";
+      setError(errorMessage);
+      alert(`Lỗi: ${errorMessage}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (loading && !booking) {
@@ -192,7 +323,10 @@ export default function TaskerJobCompletion() {
     return (
       <Container className="py-5 text-center">
         <p className="text-muted">Không tìm thấy thông tin công việc.</p>
-        <Button variant="secondary" onClick={() => navigate("/tasker/bookings")}>
+        <Button
+          variant="secondary"
+          onClick={() => navigate("/tasker/bookings")}
+        >
           ← Quay lại danh sách
         </Button>
       </Container>
@@ -232,12 +366,16 @@ export default function TaskerJobCompletion() {
       <Row className="align-items-center mb-4">
         <Col>
           <div>
-            <span className="text-uppercase text-muted small fw-semibold">Task detail</span>
+            <span className="text-uppercase text-muted small fw-semibold">
+              Task detail
+            </span>
             <h3 className="fw-bold mb-1">
-              Task #{booking.booking_id} – {booking.task_description || "Công việc đã hoàn thành"}
+              Task #{booking.booking_id} –{" "}
+              {booking.task_description || "Công việc đã hoàn thành"}
             </h3>
             <div className="text-muted">
-              {booking.service_name || "Dịch vụ"} • {booking.variant_name || "Gói"} •{" "}
+              {booking.service_name || "Dịch vụ"} •{" "}
+              {booking.variant_name || "Gói"} •{" "}
               {booking.location || "Địa chỉ chưa cập nhật"}
             </div>
           </div>
@@ -299,93 +437,28 @@ export default function TaskerJobCompletion() {
           <h5 className="fw-semibold mb-3">Media Upload</h5>
           <Row className="g-4">
             <Col md={6}>
-              <h6 className="text-muted mb-3">Before Photos</h6>
-              <label
-                className="d-flex flex-column align-items-center justify-content-center border border-dashed rounded-3 py-5 text-center text-muted"
-                style={{ cursor: "pointer", borderColor: "#d8dbe0" }}
-              >
-                <i className="bi bi-cloud-arrow-up fs-1 mb-2"></i>
-                <span className="fw-semibold">Drag & drop photos here</span>
-                <small className="text-muted">or click to browse</small>
-                <Form.Control
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={handleBeforePhotosChange}
-                  className="d-none"
-                />
-              </label>
-              <div className="d-flex flex-wrap gap-3 mt-3">
-                {beforePhotos.map((item, index) => (
-                  <div
-                    key={`${item.preview}-${index}`}
-                    className="position-relative rounded overflow-hidden"
-                    style={{ width: 120, height: 90 }}
-                  >
-                    <img
-                      src={item.preview}
-                      alt="Before"
-                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                    />
-                    <Button
-                      variant="light"
-                      size="sm"
-                      className="position-absolute top-0 end-0 m-1 p-1"
-                      onClick={() => removePhoto("before", index)}
-                    >
-                      <i className="bi bi-x-lg"></i>
-                    </Button>
-                  </div>
-                ))}
-              </div>
+              <MediaUpload
+                label="Before Photos"
+                photos={beforePhotos}
+                setPhotos={setBeforePhotos}
+              />
             </Col>
             <Col md={6}>
-              <h6 className="text-muted mb-3">After Photos</h6>
-              <label
-                className="d-flex flex-column align-items-center justify-content-center border border-dashed rounded-3 py-5 text-center text-muted"
-                style={{ cursor: "pointer", borderColor: "#d8dbe0" }}
-              >
-                <i className="bi bi-cloud-arrow-up fs-1 mb-2"></i>
-                <span className="fw-semibold">Drag & drop photos here</span>
-                <small className="text-muted">or click to browse</small>
-                <Form.Control
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={handleAfterPhotosChange}
-                  className="d-none"
-                />
-              </label>
-              <div className="d-flex flex-wrap gap-3 mt-3">
-                {afterPhotos.map((item, index) => (
-                  <div
-                    key={`${item.preview}-${index}`}
-                    className="position-relative rounded overflow-hidden"
-                    style={{ width: 120, height: 90 }}
-                  >
-                    <img
-                      src={item.preview}
-                      alt="After"
-                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                    />
-                    <Button
-                      variant="light"
-                      size="sm"
-                      className="position-absolute top-0 end-0 m-1 p-1"
-                      onClick={() => removePhoto("after", index)}
-                    >
-                      <i className="bi bi-x-lg"></i>
-                    </Button>
-                  </div>
-                ))}
-              </div>
+              <MediaUpload
+                label="After Photos"
+                photos={afterPhotos}
+                setPhotos={setAfterPhotos}
+              />
             </Col>
           </Row>
         </Card.Body>
       </Card>
 
       <div className="d-flex justify-content-between align-items-center mt-4 flex-wrap gap-3">
-        <Button variant="outline-secondary" onClick={() => navigate("/tasker/bookings")}>
+        <Button
+          variant="outline-secondary"
+          onClick={() => navigate("/tasker/bookings")}
+        >
           ← Quay lại danh sách
         </Button>
         <Button
@@ -401,4 +474,3 @@ export default function TaskerJobCompletion() {
     </Container>
   );
 }
-

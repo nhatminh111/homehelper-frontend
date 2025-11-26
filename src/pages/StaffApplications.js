@@ -1,7 +1,78 @@
+
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import '../css/StaffApplications.css';
 import { useAuth } from '../contexts/AuthContext';
 import { taskerApplicationsAPI, servicesAPI } from '../services/api';
+import CustomToastContainer, { showToast } from '../components/common/CustomToast';
+// Toast confirm using showToast.confirm (extend if not present)
+if (!showToast.confirm) {
+  showToast.confirm = (message) => {
+    return new Promise((resolve) => {
+      const id = showToast.info(
+        <div>
+          <div className="mb-2">{message}</div>
+          <div className="d-flex gap-2 justify-content-end">
+            <button
+              className="btn btn-sm btn-success"
+              onClick={() => {
+                if (window.toast?.dismiss) window.toast.dismiss(id);
+                resolve(true);
+              }}
+            >
+              Đồng ý
+            </button>
+            <button
+              className="btn btn-sm btn-secondary"
+              onClick={() => {
+                if (window.toast?.dismiss) window.toast.dismiss(id);
+                resolve(false);
+              }}
+            >
+              Huỷ
+            </button>
+          </div>
+        </div>,
+        {
+          autoClose: false,
+          closeOnClick: false,
+          draggable: false,
+          closeButton: false,
+          className: 'toast-confirm',
+          containerId: 'custom-toast',
+        }
+      );
+      if (!window.toast) window.toast = require('react-toastify').toast;
+    });
+  };
+}
+
+// Toast prompt using showToast.prompt (extend if not present)
+if (!showToast.prompt) {
+  showToast.prompt = (message, defaultValue = '') => {
+    return new Promise((resolve) => {
+      let inputValue = defaultValue;
+      const id = showToast.info(
+        <div>
+          <div className="mb-2">{message}</div>
+          <input className="form-control mb-2" defaultValue={defaultValue} autoFocus onChange={e => { inputValue = e.target.value; }} />
+          <div className="d-flex gap-2 justify-content-end">
+            <button className="btn btn-sm btn-success" onClick={() => { if (window.toast?.dismiss) window.toast.dismiss(id); resolve(inputValue); }}>OK</button>
+            <button className="btn btn-sm btn-secondary" onClick={() => { if (window.toast?.dismiss) window.toast.dismiss(id); resolve(null); }}>Huỷ</button>
+          </div>
+        </div>,
+        {
+          autoClose: false,
+          closeOnClick: false,
+          draggable: false,
+          closeButton: false,
+          className: 'toast-confirm',
+          containerId: 'custom-toast',
+        }
+      );
+      if (!window.toast) window.toast = require('react-toastify').toast;
+    });
+  };
+}
 
 // Use same base URL strategy as other pages
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
@@ -165,19 +236,39 @@ export default function StaffApplications() {
   useEffect(()=>{ load(); }, [load]);
 
   const approve = async (id) => {
-    if (!window.confirm('Duyệt đơn #' + id + '?')) return;
-    try { setActionLoading(id); await taskerApplicationsAPI.approve(id, token); await load(); if (showDetail) { // refresh detail
-        try { const data = await taskerApplicationsAPI.detail(id, token); setDetail(data.data || data); } catch(_){}
-      } }
-    catch(e){ alert('Approve lỗi: '+ e.message); }
-    finally { setActionLoading(null); }
+    const confirmed = await showToast.confirm('Duyệt đơn #' + id + '?');
+    if (!confirmed) return;
+    try {
+      setActionLoading(id);
+      await taskerApplicationsAPI.approve(id, token);
+      await load();
+      if (showDetail) {
+        try {
+          const data = await taskerApplicationsAPI.detail(id, token);
+          setDetail(data.data || data);
+        } catch (_) {}
+      }
+    } catch (e) {
+      showToast.error('Approve lỗi: ' + e.message);
+    } finally {
+      setActionLoading(null);
+    }
   };
   const reject = async (id) => {
-    const note = window.prompt('Lý do từ chối (tuỳ chọn):','');
+    const note = await showToast.prompt('Lý do từ chối (tuỳ chọn):', '');
     if (note === null) return;
-    try { setActionLoading(id); await taskerApplicationsAPI.reject(id, note, token); await load(); if (showDetail) { setDetail(d => d ? { ...d, application: { ...d.application, status: 'Rejected', note } } : d ); } }
-    catch(e){ alert('Reject lỗi: '+ e.message); }
-    finally { setActionLoading(null); }
+    try {
+      setActionLoading(id);
+      await taskerApplicationsAPI.reject(id, note, token);
+      await load();
+      if (showDetail) {
+        setDetail(d => d ? { ...d, application: { ...d.application, status: 'Rejected', note } } : d );
+      }
+    } catch (e) {
+      showToast.error('Reject lỗi: ' + e.message);
+    } finally {
+      setActionLoading(null);
+    }
   };
   const openDetail = async (id) => {
     setShowDetail(true); setDetail(null); setDetailError(null); setDetailLoading(true);
@@ -215,6 +306,7 @@ export default function StaffApplications() {
 
   return (
     <div className="staff-applications-container">
+      <CustomToastContainer />
       <div className="staff-applications-header">
         <h2>Đơn đăng ký Tasker ({status})</h2>
         <div className="filters">
