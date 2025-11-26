@@ -16,13 +16,25 @@ export default function useWalletBalance({ autoRefreshMs = 0 } = {}) {
   const [balance, setBalance] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const safeDecode = (token) => {
+    try {
+      if (!token || token.split('.').length !== 3) {
+        console.warn("⚠️ Token invalid, skip decode:", token);
+        return null;
+      }
+      return JSON.parse(atob(token.split('.')[1]));
+    } catch (e) {
+      console.warn("⚠️ Failed to decode token:", e);
+      return null;
+    }
+  };
 
   const fetchBalance = useCallback(async () => {
     const url = `${API_BASE}/wallet/balance`;
     const token = authToken || getStoredToken();
     console.log("=== FE DEBUG ===");
     console.log("User FE đang dùng token:", token);
-    console.log("User FE decode JWT:", JSON.parse(atob(token.split('.')[1])));
+    console.log("User FE decode JWT:", safeDecode(token));
     console.log("================");
 
     try {
