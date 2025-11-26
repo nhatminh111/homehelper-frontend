@@ -10,7 +10,7 @@ const getStoredToken = () => {
 };
 
 export default function useWalletBalance({ autoRefreshMs = 0 } = {}) {
-  const { token: authToken } = (function() {
+  const { token: authToken } = (function () {
     try { return require('../contexts/AuthContext'); } catch { return {}; }
   })?.useAuth?.() || { token: null };
   const [balance, setBalance] = useState(0);
@@ -20,6 +20,10 @@ export default function useWalletBalance({ autoRefreshMs = 0 } = {}) {
   const fetchBalance = useCallback(async () => {
     const url = `${API_BASE}/wallet/balance`;
     const token = authToken || getStoredToken();
+    console.log("=== FE DEBUG ===");
+    console.log("User FE đang dùng token:", token);
+    console.log("User FE decode JWT:", JSON.parse(atob(token.split('.')[1])));
+    console.log("================");
 
     try {
       setError('');

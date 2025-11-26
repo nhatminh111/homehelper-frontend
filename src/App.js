@@ -73,7 +73,9 @@ import Wishlist from "./pages/Wishlist";
 import StaffApplications from "./pages/StaffApplications";
 import StaffCertifications from "./pages/StaffCertifications";
 import StaffBlogs from "./pages/StaffBlogs";
-import AdminUsers from "./pages/AdminUsers";
+import StaffBadges from "./pages/StaffBadges";
+import AdminUsers from "./pages/admin/AdminUsers";
+import AdminTaskers from "./pages/admin/AdminTaskers";
 
 function App() {
 
@@ -207,48 +209,38 @@ function App() {
                 } />
               </Route>
 
-                <Route
-                  path="/customer/bookings"
-                  element={
-                    <ProtectedRoute requiredRole="Customer">
-                      <BookingHistory />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/service-management"
-                  element={ <ProtectedRoute requiredRole="Admin">
-                    <ServiceManagement />
-                  </ProtectedRoute>}
-                />
-                <Route
-                  path="/admin"
-                  element={
-                    <ProtectedRoute requiredRole="Admin">
-                      <AdminHome />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/staff/dashboard"
-                  element={
-                    <ProtectedRoute requiredRole="Staff">
-                      <StaffDashboard />
-                    </ProtectedRoute>
-                  }
-                >
-                  <Route path="applications" element={<StaffApplications />} />
-                  <Route
-                    path="certifications"
-                    element={<StaffCertifications />}
-                  />
-                  <Route path="blogs" element={<StaffBlogs />} />
-                </Route>
-                <Route
-                  path="/staff"
-                  element={<Navigate to="/staff/applications" replace />}
-                />
-              </Routes>            
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute requiredRole="Admin">
+                    <AdminLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<AdminHome />} />
+                <Route path="users" element={<AdminUsers />} />
+                <Route path="taskers" element={<AdminTaskers />} />
+                <Route path="service-management" element={<ServiceManagement />} />
+              </Route>
+
+              <Route
+                path="/staff/dashboard"
+                element={
+                  <ProtectedRoute requiredRole="Staff">
+                    <StaffDashboard />
+                  </ProtectedRoute>
+                }
+              >
+                <Route path="applications" element={<StaffApplications />} />
+                <Route path="certifications" element={<StaffCertifications />} />
+                <Route path="blogs" element={<StaffBlogs />} />
+                <Route path="badges" element={<StaffBadges />} />
+              </Route>
+              <Route
+                path="/staff"
+                element={<Navigate to="/staff/dashboard/applications" replace />}
+              />              
+            </Routes>
           </div>
         </Router>
       </SocketProvider>

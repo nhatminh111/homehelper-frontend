@@ -12,9 +12,8 @@ import {
   faMapMarkerAlt,
   faCalendarCheck,
   faComments,
-  faHeart as faHeartSolid,
 } from "@fortawesome/free-solid-svg-icons";
-import { faHeart as faHeartRegular } from "@fortawesome/free-regular-svg-icons";
+import { faClock as faClockRegular } from "@fortawesome/free-regular-svg-icons";
 import TaskerCertificateRegister from '../components/TaskerCertificateRegister';
 import { CustomToastContainer, showToast } from '../components/common/CustomToast';
 
@@ -358,38 +357,10 @@ const TaskerProfile = () => {
       img: "https://images.unsplash.com/photo-1495433324511-bf8e92934d90?auto=format&fit=crop&w=1200&q=60",
     },
   ];
-  const achievements = [
-    {
-      icon: "🏆",
-      title: "Top Rated Cleaner 2024",
-      subtitle: "Ranked #1 downtown",
-      when: "Jan 2024",
-    },
-    {
-      icon: "⭐",
-      title: "Customer Choice Award",
-      subtitle: "95% satisfaction rate",
-      when: "Dec 2023",
-    },
-    {
-      icon: "🌱",
-      title: "Eco-Friendly Specialist",
-      subtitle: "Certified green methods",
-      when: "Nov 2023",
-    },
-    {
-      icon: "⚡",
-      title: "Quick Response Champion",
-      subtitle: "Avg response under 30m",
-      when: "Oct 2023",
-    },
-    {
-      icon: "💎",
-      title: "5-Star Professional",
-      subtitle: "4.9+ for 6 months",
-      when: "Sep 2023",
-    },
-  ];
+  // Badges state (achievements tab will use this instead of static demo achievements)
+  const [badges, setBadges] = useState([]);
+  const [badgesLoading, setBadgesLoading] = useState(false);
+  const [badgesError, setBadgesError] = useState(null);
 
   const demoTasker = {
     name: "Sarah Johnson",
@@ -449,6 +420,25 @@ const TaskerProfile = () => {
       .then((data) => setTasker(data))
       .catch((err) => console.error(err));
   }, [id]);
+
+  // Load badges for achievements tab
+  useEffect(() => {
+    if (!id) return;
+    setBadgesLoading(true);
+    setBadgesError(null);
+    fetch(`${API_BASE_URL}/taskers/${id}/badges`, { headers: createHeaders(token) })
+      .then(res => res.json())
+      .then(json => {
+        // Expect json.data as array; fallback to json if array
+        const arr = Array.isArray(json?.data) ? json.data : (Array.isArray(json) ? json : []);
+        setBadges(arr || []);
+        setBadgesLoading(false);
+      })
+      .catch(err => {
+        setBadgesError(err.message || 'Không tải được huy hiệu');
+        setBadgesLoading(false);
+      });
+  }, [id, token]);
 
   // Load reviews (only if an id exists)
   useEffect(() => {
@@ -1293,19 +1283,56 @@ const TaskerProfile = () => {
                 </div>
               )}
             {activeTab === "achievements" && (
-              <div className="row g-3">
-                {achievements.map((a, i) => (
-                  <div key={i} className="col-md-4">
-                    <div className="p-4 rounded border bg-white h-100 shadow-sm">
-                      <div className="display-6 mb-2">{a.icon}</div>
-                      <div className="fw-semibold">{a.title}</div>
-                      <div className="text-muted small mb-2">{a.subtitle}</div>
-                      <span className="badge bg-light text-dark border">
-                        {a.when}
-                      </span>
+              <div>
+                <h5 className="mb-3">Huy hiệu đạt được</h5>
+                {badgesLoading && <div>Đang tải huy hiệu...</div>}
+                {badgesError && <div className="alert alert-danger small">{badgesError}</div>}
+                {!badgesLoading && !badgesError && badges.length === 0 && (
+                  <div className="alert alert-info">Chưa có huy hiệu nào.</div>
+                )}
+                <div className="row g-3">
+                  {badges.map((b) => (
+                    <div key={b.badge_id} className="col-12 col-sm-6 col-md-4 col-lg-3">
+                      <div className="p-3 rounded border bg-white h-100 shadow-sm d-flex flex-column">
+                        <div className="d-flex align-items-center mb-2" style={{ minHeight: 54 }}>
+                          {b.icon_url ? (
+                            <img
+                              src={b.icon_url}
+                              alt={b.badge_name}
+                              style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: '50%', border: '2px solid #eee', background: '#fff' }}
+                            />
+                          ) : (
+                            <div className="rounded-circle bg-light d-flex align-items-center justify-content-center" style={{ width:48, height:48 }}>🏅</div>
+                          )}
+                          <div className="ms-2 flex-grow-1">
+                            <div className="fw-semibold small mb-1" title={b.badge_name}>
+                              {b.badge_name}
+                            </div>
+
+                            {b.earned_at && (
+                              <div className="text-muted d-flex align-items-center gap-1" style={{ fontSize: '0.7rem' }}>
+                                <FontAwesomeIcon icon={faClockRegular} className="me-1" />
+                                {new Date(b.earned_at).toLocaleDateString('vi-VN')}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        {b.description && (
+                          <div className="text-muted small flex-grow-1" style={{ minHeight: 40 }}>
+                            {b.description.length > 110 ? b.description.slice(0, 107) + '…' : b.description}
+                          </div>
+                        )}
+                        <div className="mt-auto pt-2 small d-flex justify-content-between align-items-center">
+                          {b.criteria_key && (
+                            <span className="badge bg-secondary-subtle text-secondary border" style={{ fontSize: '0.65rem' }}>
+                              {b.criteria_key}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -1345,23 +1372,26 @@ const CertificationRegisterSection = () => {
   // Gửi đăng ký và tạo bản ghi TaskerCertifications với status pending
   const handleSubmit = async (data) => {
     try {
-      const token =
-        localStorage.getItem("token") ||
-        localStorage.getItem("accessToken") ||
-        localStorage.getItem("authToken");
+      const token = localStorage.getItem('token') || localStorage.getItem('accessToken') || localStorage.getItem('authToken');
+      const payload = {
+        service_id: Number(data.service_id),
+        variant_ids: (data.variant_ids || data.variants || []).map(v => Number(v)),
+        cert_ids: (data.certs || []).map(c => c.cert_public_id),
+        certs: data.certs,
+        status: 'pending'
+      };
+      // If service does NOT require certs and none provided, allow empty cert arrays
+      if (data.no_cert_required && payload.cert_ids.length === 0) {
+        payload.cert_ids = [];
+        payload.certs = [];
+      }
       const res = await fetch(`${API_BASE_URL}/tasker/certifications/pending`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({
-          service_id: data.service_id,
-          variant_ids: data.variant_ids || data.variants || [],
-          cert_ids: (data.certs || []).map(c => c.cert_public_id),
-          certs: data.certs,
-          status: "pending",
-        }),
+        body: JSON.stringify(payload)
       });
       const json = await res.json();
       if (res.ok && json.success) {

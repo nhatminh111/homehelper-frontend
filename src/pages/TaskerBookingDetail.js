@@ -57,6 +57,39 @@ export default function TaskerBookingDetail() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  const handleCancelTask = async () => {
+    try {
+      const token = api.getStoredToken();
+
+      const res = await fetch(
+        `http://localhost:3001/api/bookings/${booking_id}/cancel`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            cancelledBy: "tasker",
+          }),
+        }
+      );
+
+      const data = await res.json();
+
+      if (data.success) {
+        alert("Bạn đã hủy công việc thành công!");
+        navigate("/tasker/bookings");
+      } else {
+        alert(data.message || "Không thể hủy booking");
+      }
+
+    } catch (err) {
+      console.error("❌ Lỗi khi hủy booking:", err);
+      alert("Đã xảy ra lỗi khi hủy booking");
+    }
+  };
+
   useEffect(() => {
     if (!booking && id) {
       const fetchBooking = async () => {

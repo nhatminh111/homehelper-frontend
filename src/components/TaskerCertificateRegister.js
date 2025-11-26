@@ -215,9 +215,11 @@ const TaskerCertificateRegister = ({ onSubmit, excludeServiceIds = [], excludeVa
 
   // Compute whether submit should be disabled due to any exceptions/errors
   const submitDisabled = useMemo(() => {
-    // Base disables
+    // Determine certificate presence
     const hasCerts = !!(serviceCerts[selectedServiceId] && serviceCerts[selectedServiceId].length > 0);
-    const base = uploading || !selectedServiceId || selectedVariants.length === 0 || !hasCerts;
+    const requiresCert = !!currentService?.requires_certificate;
+    // Base rules: only require certs if service itself demands them
+    const base = uploading || !selectedServiceId || selectedVariants.length === 0 || (requiresCert && !hasCerts);
     if (base) return true;
 
     const certs = serviceCerts[selectedServiceId] || [];
@@ -250,7 +252,7 @@ const TaskerCertificateRegister = ({ onSubmit, excludeServiceIds = [], excludeVa
     const extractingNow = !!extracting;
 
     return hasServiceMismatch || hasUnconfirmedHolderMismatch || hasLocalDuplicates || extractingNow;
-  }, [selectedServiceId, selectedVariants, serviceCerts, uploading, extracting]);
+  }, [selectedServiceId, selectedVariants, serviceCerts, uploading, extracting, currentService?.requires_certificate]);
 
   return (
     <div className="p-3">
@@ -510,12 +512,15 @@ const TaskerCertificateRegister = ({ onSubmit, excludeServiceIds = [], excludeVa
             }
           }
 
+          const requiresCert = !!currentService?.requires_certificate;
+          const numericServiceId = selectedServiceId ? Number(selectedServiceId) : null;
           onSubmit && onSubmit({
-            service_id: selectedServiceId,
-            variant_ids: selectedVariants,
+            service_id: numericServiceId,
+            variant_ids: selectedVariants.map(v => Number(v)),
             certs: certsFull,
             cert_ids: certsFull.map(c => c.cert_public_id),
-            status: 'pending'
+            status: 'pending',
+            no_cert_required: !requiresCert,
           });
         }}
         disabled={submitDisabled}
