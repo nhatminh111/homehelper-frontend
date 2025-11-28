@@ -38,6 +38,10 @@ export default function AdminLayout() {
                 <FontAwesomeIcon icon={faCogs} />
                 <span>Service Management</span>
               </NavLink>
+              <NavLink to="/admin/reports" className={linkClass}>
+                <FontAwesomeIcon icon={faCogs} />
+                <span>Report Issues</span>
+              </NavLink>
             </nav>
           </div>
           <div className="p-3 border-top">
