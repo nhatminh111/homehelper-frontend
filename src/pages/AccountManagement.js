@@ -30,9 +30,11 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { addressAPI, cccdAPI, pythonOCRAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const AccountManagement = () => {
-  const { token, logout } = useAuth();
+  const { user, token, logout, isCustomer, isTasker } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('profile');
   const [isEditing, setIsEditing] = useState(false);
   const [userType, setUserType] = useState('customer'); // 'customer' or 'tasker'
@@ -84,6 +86,17 @@ const AccountManagement = () => {
     { id: 'history', label: 'History', icon: faHistory },
     { id: 'settings', label: 'Settings', icon: faCog }
   ];
+
+  // Redirect to appropriate profile based on role
+  useEffect(() => {
+    if (!token) return;
+    
+    if (isCustomer()) {
+      navigate('/user-profile', { replace: true });
+    } else if (isTasker()) {
+      navigate('/tasker-profile', { replace: true });
+    }
+  }, [token, isCustomer, isTasker, navigate]);
 
   useEffect(() => {
     const fetchAddresses = async () => {

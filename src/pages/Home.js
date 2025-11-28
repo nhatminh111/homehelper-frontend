@@ -27,6 +27,12 @@ const Home = () => {
   const [searchName, setSearchName] = useState("");
   const [selectedService, setSelectedService] = useState("");
   const [taskers, setTaskers] = useState([]);
+  
+  // Debug: Log taskers state changes
+  useEffect(() => {
+    console.log('🔄 Taskers state updated:', taskers);
+    console.log('🔄 Taskers length:', taskers.length);
+  }, [taskers]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showResults, setShowResults] = useState(false);
@@ -150,19 +156,54 @@ const Home = () => {
     setShowResults(true);
     
     try {
-      const res = await fetch(
-        `http://localhost:3001/api/tasker?search=${searchName}&serviceId=${selectedService}`
-      );
-      if (!res.ok) throw new Error(`Phản hồi mạng không ổn: ${res.status}`);
+      const searchUrl = `http://localhost:3001/api/tasker?search=${encodeURIComponent(searchName)}&serviceId=${selectedService}`;
+      console.log('🔍 Search URL:', searchUrl);
+      console.log('🔍 Search params:', { searchName, selectedService });
+      
+      const res = await fetch(searchUrl);
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error('❌ API Error:', res.status, errorText);
+        throw new Error(`Phản hồi mạng không ổn: ${res.status}`);
+      }
       const result = await res.json();
-      const taskersData = Array.isArray(result.data) ? result.data : [];
+      console.log('📦 API Response:', result);
+      console.log('📦 Response type:', typeof result);
+      console.log('📦 Is array?', Array.isArray(result));
+      
+      // Handle multiple response structures
+      let taskersData = [];
+      if (Array.isArray(result)) {
+        // Response is directly an array
+        taskersData = result;
+      } else if (result && Array.isArray(result.data)) {
+        // Response has data property with array
+        taskersData = result.data;
+      } else if (result && Array.isArray(result.users)) {
+        // Response has users property with array
+        taskersData = result.users;
+      } else if (result && result.success && Array.isArray(result.data)) {
+        // Response has success and data properties
+        taskersData = result.data;
+      } else {
+        console.warn('⚠️ Unexpected response structure:', result);
+        taskersData = [];
+      }
+      
+      console.log('📋 Taskers Data:', taskersData);
+      console.log('📊 Taskers Count:', taskersData.length);
+      if (taskersData.length > 0) {
+        console.log('📋 First tasker:', taskersData[0]);
+      }
 
       if (!user || !token) {
-        setTaskers(taskersData.map(t => ({
+        const mappedTaskers = taskersData.map(t => ({
           ...t,
           tasker_id: t.tasker_id || t.user_id,
           distance_km: null
-        })));
+        }));
+        console.log('✅ Setting taskers (no user):', mappedTaskers);
+        setTaskers(mappedTaskers);
         setLoading(false);
         return;
       }
@@ -172,11 +213,13 @@ const Home = () => {
         distanceResult = await TaskerService.getTaskersWithDistance();
       } catch (distanceError) {
         console.warn('Không thể lấy dữ liệu khoảng cách:', distanceError);
-        setTaskers(taskersData.map(t => ({
+        const mappedTaskers = taskersData.map(t => ({
           ...t,
           tasker_id: t.tasker_id || t.user_id,
           distance_km: null
-        })));
+        }));
+        console.log('✅ Setting taskers (no distance):', mappedTaskers);
+        setTaskers(mappedTaskers);
         setLoading(false);
         return;
       }
@@ -188,6 +231,7 @@ const Home = () => {
         distance_km: distanceMap.get(tasker.tasker_id || tasker.user_id) || null
       }));
 
+      console.log('✅ Setting taskers with distance:', taskersWithDistance);
       setTaskers(taskersWithDistance);
     } catch (err) {
       console.error("Lỗi khi tải danh sách Tasker:", err);

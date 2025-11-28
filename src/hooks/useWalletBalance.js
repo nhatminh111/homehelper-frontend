@@ -22,7 +22,20 @@ export default function useWalletBalance({ autoRefreshMs = 0 } = {}) {
     const token = authToken || getStoredToken();
     console.log("=== FE DEBUG ===");
     console.log("User FE đang dùng token:", token);
-    console.log("User FE decode JWT:", JSON.parse(atob(token.split('.')[1])));
+    // Safely decode JWT for debugging
+    try {
+      if (token && token.includes('.')) {
+        const parts = token.split('.');
+        if (parts.length === 3) {
+          const payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+          // Add padding if needed
+          const padded = payload + '='.repeat((4 - payload.length % 4) % 4);
+          console.log("User FE decode JWT:", JSON.parse(decodeURIComponent(escape(window.atob(padded)))));
+        }
+      }
+    } catch (e) {
+      console.log("User FE decode JWT failed:", e.message);
+    }
     console.log("================");
 
     try {

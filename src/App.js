@@ -48,6 +48,8 @@ import AuthDemo from "./pages/auth/AuthDemo";
 import Dashboard from "./pages/Dashboard";
 import TaskerSearch from "./pages/TaskerSearch";
 import TaskerProfile from "./pages/TaskerProfile";
+import UserProfile from "./pages/UserProfile";
+import TaskerMyProfile from "./pages/TaskerMyProfile";
 import AccountManagement from "./pages/AccountManagement";
 import TaskManagement from "./pages/TaskManagement";
 import PaymentInvoicing from "./pages/PaymentInvoicing";
@@ -73,7 +75,6 @@ import Wishlist from "./pages/Wishlist";
 import StaffApplications from "./pages/StaffApplications";
 import StaffCertifications from "./pages/StaffCertifications";
 import StaffBlogs from "./pages/StaffBlogs";
-import AdminUsers from "./pages/AdminUsers";
 import ReportIssue from "./pages/ReportIssue";
 import AdminReports from "./pages/AdminReports";
 import StaffBadges from "./pages/StaffBadges";
@@ -169,8 +170,14 @@ function App() {
                   <ProtectedRoute> <Dashboard /> </ProtectedRoute>
                 } />
                 <Route path="/tasker-search" element={<TaskerSearch />} />
-                <Route path="/tasker-profile" element={<TaskerProfile />} />
                 <Route path="/tasker-profile/:id" element={<TaskerProfile />} />
+                {/* Profile routes - separate for User and Tasker */}
+                <Route path="/user-profile" element={
+                  <ProtectedRoute requiredRole="Customer"> <UserProfile /> </ProtectedRoute>
+                } />
+                <Route path="/tasker-profile" element={
+                  <ProtectedRoute requiredRole="Tasker"> <TaskerMyProfile /> </ProtectedRoute>
+                } />
                 <Route path="/account" element={
                   <ProtectedRoute> <AccountManagement /> </ProtectedRoute>
                 } />
@@ -226,20 +233,20 @@ function App() {
                   </ProtectedRoute>
                 }
               />
-              <Route
-                path="/service-management"
-                  element={ <ProtectedRoute requiredRole="Admin">
-                  <ServiceManagement />
-                </ProtectedRoute>}
-              />
+              {/* Admin routes with AdminLayout */}
               <Route
                 path="/admin"
                 element={
                   <ProtectedRoute requiredRole="Admin">
-                    <AdminHome />
+                    <AdminLayout />
                   </ProtectedRoute>
                 }
-              />
+              >
+                <Route index element={<AdminHome />} />
+                <Route path="users" element={<AdminUsers />} />
+                <Route path="taskers" element={<AdminTaskers />} />
+                <Route path="service-management" element={<ServiceManagement />} />
+              </Route>
               <Route
                 path="/staff/dashboard"
                 element={
