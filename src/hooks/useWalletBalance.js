@@ -6,35 +6,61 @@ import { useAuth } from '../contexts/AuthContext';
 const API_BASE = (process.env.REACT_APP_API_URL || 'http://localhost:3001/api').replace(/\/+$/, '');
 
 const getStoredToken = () => {
-  try { return localStorage.getItem('token') || ''; } catch { return ''; }
+  try {
+    // Ưu tiên token trong object 'user' nếu có
+    const rawUser = localStorage.getItem('user');
+    if (rawUser) {
+      try {
+        const u = JSON.parse(rawUser);
+        if (u?.token && typeof u.token === 'string') return u.token;
+      } catch {}
+    }
+    // Fallback key 'token'
+    const t = localStorage.getItem('token');
+    return t || '';
+  } catch {
+    return '';
+  }
+};
+
+const stripBearer = (token) => {
+  if (typeof token !== 'string') return '';
+  return token.startsWith('Bearer ') ? token.slice(7) : token;
+};
+
+const safeDecodeJwtPayload = (token) => {
+  try {
+    const t = stripBearer(token);
+    if (!t) return null;
+    const parts = t.split('.');
+    if (parts.length < 2) return null;
+    // atob cần chuỗi base64url -> chuyển về base64
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64 + '==='.slice((base64.length + 3) % 4);
+    const json = atob(padded);
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
 };
 
 export default function useWalletBalance({ autoRefreshMs = 0 } = {}) {
-  const { token: authToken } = (function () {
-    try { return require('../contexts/AuthContext'); } catch { return {}; }
-  })?.useAuth?.() || { token: null };
+  // Dùng hook context đúng cách
+  const { user } = useAuth() || {};
   const [balance, setBalance] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   const fetchBalance = useCallback(async () => {
     const url = `${API_BASE}/wallet/balance`;
-    const token = authToken || getStoredToken();
+    const token = stripBearer((user && (user.token || user.accessToken)) || getStoredToken());
     console.log("=== FE DEBUG ===");
-    console.log("User FE đang dùng token:", token);
-    // Safely decode JWT for debugging
-    try {
-      if (token && token.includes('.')) {
-        const parts = token.split('.');
-        if (parts.length === 3) {
-          const payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-          // Add padding if needed
-          const padded = payload + '='.repeat((4 - payload.length % 4) % 4);
-          console.log("User FE decode JWT:", JSON.parse(decodeURIComponent(escape(window.atob(padded)))));
-        }
-      }
-    } catch (e) {
-      console.log("User FE decode JWT failed:", e.message);
+    console.log("User FE đang dùng token:", token ? `***.${token.slice(-10)}` : '(empty)');
+    const decoded = safeDecodeJwtPayload(token);
+    if (decoded) {
+      console.log("User FE decode JWT:", decoded);
+    } else {
+      console.log("User FE decode JWT: (invalid or empty)");
     }
     console.log("================");
 
@@ -44,7 +70,7 @@ export default function useWalletBalance({ autoRefreshMs = 0 } = {}) {
       console.log('[WalletBalance] GET', url);
       console.log('[WalletBalance] hasToken =', !!token);
 
-      const headers = { Authorization: `Bearer ${token}` };
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
       const r = await fetch(url, { headers });
       const contentType = r.headers.get('content-type') || '';
       const raw = await r.text();

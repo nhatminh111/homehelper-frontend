@@ -144,9 +144,9 @@ function App() {
                   }
                 />
                 <Route
-  path="/tasker/bookings/:bookingId/jobdone"
-  element={<TaskerJobDone />}
-/>
+                  path="/tasker/bookings/:bookingId/jobdone"
+                  element={<TaskerJobDone />}
+                />
                 <Route path="/tasker/bookings" element={
                   <ProtectedRoute requiredRole="Tasker"> <TaskerBookings /> </ProtectedRoute>
                 } />
@@ -157,9 +157,7 @@ function App() {
                 <Route path="/report-issue" element={
                   <ProtectedRoute> <ReportIssue /> </ProtectedRoute>
                 } />
-                <Route path="/admin/reports" element={
-                  <ProtectedRoute requiredRole="Admin"> <AdminReports /> </ProtectedRoute>
-                } />
+
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -246,7 +244,9 @@ function App() {
                 <Route path="users" element={<AdminUsers />} />
                 <Route path="taskers" element={<AdminTaskers />} />
                 <Route path="service-management" element={<ServiceManagement />} />
+                <Route path="reports" element={<AdminReports  />} />
               </Route>
+
               <Route
                 path="/staff/dashboard"
                 element={

@@ -87,7 +87,7 @@ const QuotesPage = () => {
         return;
       }
       showToast.success('Đã chấp nhận báo giá');
-      // Cập nhật trạng thái trong local state để ẩn nút
+      // Cập nhật trạng thái trong local state để ẩn nút (khớp với DB)
       setQuotes(prev => prev.map(q => q.quote_id === quote.quote_id ? { ...q, status: 'Chấp nhận' } : q));
       // Điều hướng sang booking
       navigate(`/booking/${quote.tasker_id}`, {
