@@ -73,7 +73,6 @@ import Wishlist from "./pages/Wishlist";
 import StaffApplications from "./pages/StaffApplications";
 import StaffCertifications from "./pages/StaffCertifications";
 import StaffBlogs from "./pages/StaffBlogs";
-import AdminUsers from "./pages/AdminUsers";
 import ReportIssue from "./pages/ReportIssue";
 import AdminReports from "./pages/AdminReports";
 import StaffBadges from "./pages/StaffBadges";
@@ -156,9 +155,7 @@ function App() {
                 <Route path="/report-issue" element={
                   <ProtectedRoute> <ReportIssue /> </ProtectedRoute>
                 } />
-                <Route path="/admin/reports" element={
-                  <ProtectedRoute requiredRole="Admin"> <AdminReports /> </ProtectedRoute>
-                } />
+
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -236,10 +233,17 @@ function App() {
                 path="/admin"
                 element={
                   <ProtectedRoute requiredRole="Admin">
-                    <AdminHome />
+                    <AdminLayout />
                   </ProtectedRoute>
                 }
-              />
+              >
+                <Route index element={<AdminHome />} />
+                <Route path="users" element={<AdminUsers />} />
+                <Route path="taskers" element={<AdminTaskers />} />
+                <Route path="service-management" element={<ServiceManagement />} />
+                <Route path="reports" element={<AdminReports  />} />
+              </Route>
+
               <Route
                 path="/staff/dashboard"
                 element={
