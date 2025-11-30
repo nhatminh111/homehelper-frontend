@@ -11,7 +11,7 @@ export default function AdminEvidenceReview() {
     setLoading(true);
 
     try {
-      const res = await api.get("/admin/evidence/pending");
+      const res = await api.get("/evidence/pending");
       if (res.data.success) {
         setList(res.data.data);
       }
@@ -79,13 +79,13 @@ export default function AdminEvidenceReview() {
 
 function EvidenceDetailModal({ review, onClose }) {
   const approve = async () => {
-    const res = await api.post(`/admin/evidence/${review.id}/approve`);
+    const res = await api.post(`/evidence/${review.id}/approve`);
     alert(res.data.message);
     onClose();
   };
 
   const reject = async () => {
-    const res = await api.post(`/admin/evidence/${review.id}/reject`);
+    const res = await api.post(`/evidence/${review.id}/reject`);
     alert(res.data.message);
     onClose();
   };

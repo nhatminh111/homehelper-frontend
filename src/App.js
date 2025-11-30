@@ -71,6 +71,7 @@ import StaffCertifications from "./pages/StaffCertifications";
 import StaffBlogs from "./pages/StaffBlogs";
 import AdminUsers from "./pages/AdminUsers";
 import AdminEvidenceReview from "./pages/admin/AdminEvidenceReview";
+import NoShowReportPage from "./pages/tasker/NoShowReportPage";
 
 function App() {
 
@@ -176,6 +177,9 @@ function App() {
                 <Route path="/tasker" element={
                   <ProtectedRoute requiredRole="Tasker"> <TaskerHome /> </ProtectedRoute>
                 } />
+                <Route path="/tasker/no-show-report/:bookingId" element={
+                  <ProtectedRoute requiredRole="Tasker"> <NoShowReportPage /> </ProtectedRoute>
+                } />
                 <Route path="/customer" element={
                   <ProtectedRoute requiredRole="Customer"> <CustomerHome /> </ProtectedRoute>
                 } />
@@ -228,7 +232,7 @@ function App() {
                   path="/staff"
                   element={<Navigate to="/staff/applications" replace />}
                 />
-              </Routes>            
+              </Routes>         
           </div>
         </Router>
       </SocketProvider>
