@@ -445,75 +445,70 @@ export default function TaskerBookingDetail() {
 
         {status === "Đã chấp nhận" && (
           <>
-            {/* ====================== */}
-            {/* 1️⃣ TRƯỜNG HỢP CHƯA THANH TOÁN */}
-            {/* ====================== */}
-            {!booking.isPaid && (
+            {/* KHÁCH CHƯA THANH TOÁN */}
+            <Button
+              variant="danger"
+              size="lg"
+              className="px-5 fw-semibold"
+              style={{ borderRadius: "10px", minWidth: "200px" }}
+              onClick={handleCancelTask}
+            >
+              ❌ Hủy công việc (Không trừ điểm)
+            </Button>
+          </>
+        )}
+
+        {status === "Đã thanh toán" && (
+          <>
+            {/* BẮT ĐẦU CÔNG VIỆC */}
+            <Button
+              variant="info"
+              size="lg"
+              className="px-5 fw-semibold"
+              style={{ borderRadius: "10px", minWidth: "160px" }}
+              onClick={() => handleStatusUpdate("Đang tiến hành")}
+            >
+              ▶ việc6
+            </Button>
+
+            {/* >2h: hủy bình thường */}
+            {diffHours > 2 ? (
               <Button
                 variant="danger"
                 size="lg"
                 className="px-5 fw-semibold"
-                style={{ borderRadius: "10px", minWidth: "200px" }}
+                style={{ borderRadius: "10px", minWidth: "160px", marginLeft: "20px" }}
                 onClick={handleCancelTask}
               >
-                ❌ Hủy công việc (Không trừ điểm)
+                ❌ Hủy công việc (–10)
               </Button>
-            )}
-
-            {/* 2️⃣ TRƯỜNG HỢP ĐÃ THANH TOÁN */}
-            {booking.isPaid && (
+            ) : (
               <>
-                {/* Nút bắt đầu công việc */}
+                {/* <2h: hủy sát giờ */}
                 <Button
-                  variant="info"
+                  variant="danger"
                   size="lg"
                   className="px-5 fw-semibold"
-                  style={{ borderRadius: "10px", minWidth: "160px" }}
-                  onClick={() => handleStatusUpdate("Đang tiến hành")}
+                  style={{
+                    borderRadius: "10px",
+                    minWidth: "180px",
+                    marginLeft: "20px",
+                  }}
+                  onClick={handleCancelLate}
                 >
-                  ▶ Bắt đầu công việc
+                  ❌ Hủy (sát giờ –20)
                 </Button>
 
-                {/* >2h: hủy bình thường */}
-                {diffHours > 2 ? (
-                  <Button
-                    variant="danger"
-                    size="lg"
-                    className="px-5 fw-semibold"
-                    style={{ borderRadius: "10px", minWidth: "160px", marginLeft: "20px" }}
-                    onClick={handleCancelTask}
-                  >
-                    ❌ Hủy công việc (–10)
-                  </Button>
-                ) : (
-                  <>
-                    {/* <2h: hủy sát giờ */}
-                    <Button
-                      variant="danger"
-                      size="lg"
-                      className="px-5 fw-semibold"
-                      style={{
-                        borderRadius: "10px",
-                        minWidth: "180px",
-                        marginLeft: "20px",
-                      }}
-                      onClick={handleCancelLate}
-                    >
-                      ❌ Hủy (sát giờ –20)
-                    </Button>
-
-                    {/* Báo cáo khách no-show */}
-                    <Button
-                      variant="warning"
-                      size="lg"
-                      className="px-5 fw-semibold text-dark"
-                      style={{ borderRadius: "10px", minWidth: "240px" }}
-                      onClick={() => setShowNoShowModal(true)}
-                    >
-                      📣 Báo cáo khách vắng mặt
-                    </Button>
-                  </>
-                )}
+                {/* Báo cáo khách no-show */}
+                <Button
+                  variant="warning"
+                  size="lg"
+                  className="px-5 fw-semibold text-dark"
+                  style={{ borderRadius: "10px", minWidth: "240px" }}
+                  onClick={() => navigate(`/tasker/no-show-report/${booking_id}`)}
+                >
+                  📣 Báo cáo khách vắng mặt
+                </Button>
               </>
             )}
           </>
