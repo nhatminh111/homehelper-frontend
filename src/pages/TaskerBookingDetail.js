@@ -134,6 +134,8 @@ export default function TaskerBookingDetail() {
     variant_name,
   } = booking;
 
+  const canCancelFree = (status === "Đã chấp nhận" && !booking.isPaid);
+
   const formatPrice = (price) => {
     if (!price) return "Chưa có giá";
     return new Intl.NumberFormat("vi-VN").format(price) + "đ";
@@ -525,7 +527,7 @@ export default function TaskerBookingDetail() {
               style={{ borderRadius: "10px", minWidth: "160px" }}
               onClick={() => handleStatusUpdate("Đang tiến hành")}
             >
-              ▶ Bắt đầu công việc
+              ▶ việc6
             </Button>
 
             {/* >2h: hủy bình thường */}
@@ -570,7 +572,8 @@ export default function TaskerBookingDetail() {
             )}
           </>
         )}
-        
+
+
         {status === "Đang tiến hành" && (
           <Button
             variant="primary"

@@ -42,6 +42,10 @@ export default function AdminLayout() {
                 <FontAwesomeIcon icon={faCogs} />
                 <span>Report Issues</span>
               </NavLink>
+              <NavLink to="/admin/evidence-review" className={linkClass}>
+                <FontAwesomeIcon icon={faCogs} />
+                <span>Evidence Review</span>
+              </NavLink>
             </nav>
           </div>
           <div className="p-3 border-top">
