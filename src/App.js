@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import "./App.css";
-import CustomToastContainer from './components/common/CustomToast';
+import CustomToastContainer from "./components/common/CustomToast";
 
 import { AuthProvider } from "./contexts/AuthContext";
 import { SocketProvider } from "./contexts/SocketContext";
@@ -36,6 +36,10 @@ import JobDescription from "./pages/JobDescription";
 import Contract from "./pages/Contract";
 import TaskerBookingDetail from "./pages/TaskerBookingDetail";
 import TaskerBookings from "./pages/TaskerBookings";
+import TaskerJobProgress from "./pages/TaskerJobProgress";
+import TaskerJobCompletion from "./pages/TaskerJobCompletion";
+import TaskerJobDone from "./pages/TaskerJobDone";
+// Import authentication pages
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import ForgotPassword from "./pages/auth/ForgotPassword";
@@ -69,9 +73,15 @@ import Wishlist from "./pages/Wishlist";
 import StaffApplications from "./pages/StaffApplications";
 import StaffCertifications from "./pages/StaffCertifications";
 import StaffBlogs from "./pages/StaffBlogs";
+import ReportIssue from "./pages/ReportIssue";
+import AdminReports from "./pages/AdminReports";
+import StaffBadges from "./pages/StaffBadges";
+import AdminUsers from "./pages/admin/AdminUsers";
+import AdminTaskers from "./pages/admin/AdminTaskers";
 import AdminUsers from "./pages/AdminUsers";
 import AdminEvidenceReview from "./pages/admin/AdminEvidenceReview";
 import NoShowReportPage from "./pages/tasker/NoShowReportPage";
+import AdminEvidenceReview from "./pages/admin/AdminEvidenceReview";
 
 function App() {
 
@@ -119,12 +129,36 @@ function App() {
                 <Route path="/cccd" element={<CCCDExtractor />} />
                 <Route path="/booking/:taskerId" element={<Booking />} />
                 <Route path="/tasker/bookings/:id" element={<TaskerBookingDetail />} />
+                <Route
+                  path="/tasker/bookings/:id/progress"
+                  element={
+                    <ProtectedRoute requiredRole="Tasker">
+                      <TaskerJobProgress />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/tasker/bookings/:id/complete"
+                  element={
+                    <ProtectedRoute requiredRole="Tasker">
+                      <TaskerJobCompletion />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/tasker/bookings/:bookingId/jobdone"
+                  element={<TaskerJobDone />}
+                />
                 <Route path="/tasker/bookings" element={
                   <ProtectedRoute requiredRole="Tasker"> <TaskerBookings /> </ProtectedRoute>
                 } />
                 <Route path="/job-description" element={<JobDescription />} />
                 <Route path="/contract" element={<Contract />} />
                 <Route path="/become-tasker" element={<BecomeTasker />} />
+
+                <Route path="/report-issue" element={
+                  <ProtectedRoute> <ReportIssue /> </ProtectedRoute>
+                } />
 
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
@@ -188,16 +222,16 @@ function App() {
                 } />
               </Route>
 
-                <Route
-                  path="/customer/bookings"
-                  element={
-                    <ProtectedRoute requiredRole="Customer">
-                      <BookingHistory />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/service-management"
+              <Route
+                path="/customer/bookings"
+                element={
+                  <ProtectedRoute requiredRole="Customer">
+                    <BookingHistory />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/service-management"
                   element={ <ProtectedRoute requiredRole="Admin">
                     <ServiceManagement />
                   </ProtectedRoute>}

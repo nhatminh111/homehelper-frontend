@@ -2,15 +2,17 @@
 
 
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import QuoteService from '../services/quoteService';
 import NegotiatePriceButton from '../components/negotiation/NegotiatePriceButton';
 import { FaArrowLeft, FaCheckCircle, FaTimesCircle, FaHandshake } from 'react-icons/fa';
 import '../css/QuotesPage.css';
+import { showToast } from '../components/common/CustomToast'; // Thông báo toast
 
 const QuotesPage = () => {
   const { postId } = useParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [quotes, setQuotes] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -49,22 +51,59 @@ const QuotesPage = () => {
   };
 
   const handleConfirm = async () => {
+    if (!selectedQuote) return;
     try {
       setError(null);
-      await QuoteService.rejectQuote(selectedQuote.quote_id);
+      const res = await QuoteService.rejectQuote(selectedQuote.quote_id);
+      if (res?.success) {
+        showToast.success('Đã từ chối báo giá thành công');
+      } else {
+        showToast.error(res?.message || 'Từ chối báo giá thất bại');
+      }
       const response = await QuoteService.getPostQuotes(postId);
       if (response.success) {
         setQuotes(response.data || []);
       }
       setShowModal(false);
+      setSelectedQuote(null);
     } catch (err) {
-      setError(err.message || 'Lỗi khi từ chối báo giá.');
+      const msg = err.message || 'Lỗi khi từ chối báo giá.';
+      setError(msg);
+      showToast.error(msg);
     }
   };
 
   const handleCloseModal = () => {
     setShowModal(false);
     setSelectedQuote(null);
+  };
+
+  const handleApprove = async (quote) => {
+    try {
+      // Gọi API duyệt báo giá (chấp nhận)
+      const res = await QuoteService.approveQuote(quote.quote_id);
+      if (!res?.success) {
+        showToast.error(res?.message || 'Duyệt báo giá thất bại');
+        return;
+      }
+      showToast.success('Đã chấp nhận báo giá');
+      // Cập nhật trạng thái trong local state để ẩn nút (khớp với DB)
+      setQuotes(prev => prev.map(q => q.quote_id === quote.quote_id ? { ...q, status: 'Chấp nhận' } : q));
+      // Điều hướng sang booking
+      navigate(`/booking/${quote.tasker_id}`, {
+        state: {
+          fromQuote: true,
+          tasker_id: quote.tasker_id,
+          tasker_name: quote.tasker_name,
+          variant_name: quote.variant_name,
+          lockedPrice: quote.proposed_price,
+          quote_id: quote.quote_id,
+          post_id: postId,
+        }
+      });
+    } catch (err) {
+      showToast.error(err.message || 'Lỗi duyệt báo giá');
+    }
   };
 
   return (
@@ -112,7 +151,7 @@ const QuotesPage = () => {
             <div
               className={
                 'quote-status-badge ' +
-                (quote.status === 'Đã duyệt' ? 'quote-status-approved' : 'quote-status-pending')
+                ((quote.status === 'Đã duyệt' || quote.status === 'Chấp nhận') ? 'quote-status-approved' : 'quote-status-pending')
               }
               style={{ position: 'absolute', top: 0, right: 0, left: 'auto', zIndex: 2 }}
             >
@@ -150,36 +189,38 @@ const QuotesPage = () => {
               <span className="quote-service-name">{quote.proposal || 'Không có đề xuất'}</span>
             </div>
           </div>
-          {/* Action buttons row */}
-          <div className="quote-action-row">
-            <button
-              className="quote-action-btn"
-              // onClick={...} // TODO: add approve handler
-              title="Duyệt"
-            >
-              <FaCheckCircle className="quote-action-icon" /> Duyệt
-            </button>
-            <button
-              className="quote-action-btn"
-              onClick={() => handleReject(quote)}
-              title="Từ chối"
-            >
-              <FaTimesCircle className="quote-action-icon" /> Từ chối
-            </button>
-            <button
-              className="quote-action-btn"
-              title="Thương lượng giá"
-            >
-              <FaHandshake className="quote-action-icon" />
-              <NegotiatePriceButton
-                peerId={quote.tasker_id || quote.taskerUserId}
-                quoteId={quote.quote_id}
-                label="Thương lượng giá"
-                className="btn"
-                size="md"
-              />
-            </button>
-          </div>
+          {/* Action buttons row (ẩn nếu đã từ chối) */}
+          {quote.status !== 'Đã từ chối' && quote.status !== 'Từ chối' && quote.status !== 'Chấp nhận' && quote.status !== 'Đã duyệt' && (
+            <div className="quote-action-row">
+              <button
+                className="quote-action-btn"
+                onClick={() => handleApprove(quote)}
+                title="Duyệt"
+              >
+                <FaCheckCircle className="quote-action-icon" /> Duyệt
+              </button>
+              <button
+                className="quote-action-btn"
+                onClick={() => handleReject(quote)}
+                title="Từ chối"
+              >
+                <FaTimesCircle className="quote-action-icon" /> Từ chối
+              </button>
+              <button
+                className="quote-action-btn"
+                title="Thương lượng giá"
+              >
+                <FaHandshake className="quote-action-icon" />
+                <NegotiatePriceButton
+                  peerId={quote.tasker_id || quote.taskerUserId}
+                  quoteId={quote.quote_id}
+                  label="Thương lượng giá"
+                  className="btn"
+                  size="md"
+                />
+              </button>
+            </div>
+          )}
         </div>
       ))}
 

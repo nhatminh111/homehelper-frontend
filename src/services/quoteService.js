@@ -78,6 +78,17 @@ class QuoteService {
       throw new Error(error.response?.data?.error || 'Không thể từ chối báo giá.');
     }
   }
+
+  // Duyệt / chấp nhận quote
+  async approveQuote(quoteId) {
+    try {
+      const response = await api.post(`/quotes/${quoteId}/approve`);
+      return response.data;
+    } catch (error) {
+      console.error('Lỗi khi duyệt báo giá:', error);
+      throw new Error(error.response?.data?.error || 'Không thể duyệt báo giá.');
+    }
+  }
 }
 
 export default new QuoteService();
