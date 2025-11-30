@@ -2,6 +2,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Container, Row, Col, Card, Button, Badge, Spinner, Alert } from "react-bootstrap";
 import NegotiatePriceButton from "../components/negotiation/NegotiatePriceButton";
+import NoShowReportModal from "../components/tasker/NoShowReportModal";
 import api from "../services/api";
 
 export default function TaskerBookingDetail() {
