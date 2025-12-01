@@ -10,109 +10,93 @@ const MessageList = ({
   onUpdateMessage,
   onDeleteMessage
 }) => {
-  // Log dữ liệu messages để kiểm tra created_at
   const [editingMessage, setEditingMessage] = useState(null);
   const [replyingToMessage, setReplyingToMessage] = useState(null);
 
-  // Group messages by date (support synthetic system messages)
-  const groupedMessages = messages.reduce((groups, message, index) => {
-    // Group theo ngày UTC để không bị lệch ngày khi dữ liệu là ISO UTC
-    const messageDate = new Date(message.created_at);
-    // Lấy yyyy-MM-dd theo UTC
-    const dateKey = messageDate.toISOString().slice(0, 10);
-    if (!groups[dateKey]) {
-      groups[dateKey] = [];
-    }
-    groups[dateKey].push({
-      ...message,
-      index
+  const buildMessageGroups = () => {
+    const groups = [];
+    let currentGroup = null;
+
+    messages.forEach((msg, idx) => {
+      const prev = idx > 0 ? messages[idx - 1] : null;
+      const timeDiff = prev ? new Date(msg.created_at) - new Date(prev.created_at) : Infinity;
+
+      const isImage = msg.message_type === 'image';
+      const sameSender = prev && prev.sender_id === msg.sender_id;
+      const veryCloseInTime = timeDiff < 2000; // dưới 2 giây → coi như gửi cùng lúc
+
+      if (isImage && sameSender && veryCloseInTime && currentGroup?.isImageGroup) {
+        // Tiếp tục nhóm ảnh
+        currentGroup.messages.push(msg);
+        currentGroup.lastMessage = msg;
+      } else {
+        // Kết thúc nhóm cũ (nếu có)
+        if (currentGroup) groups.push(currentGroup);
+
+        // Bắt đầu nhóm mới
+        currentGroup = {
+          representative: msg,
+          messages: [msg],
+          lastMessage: msg,
+          isImageGroup: isImage
+        };
+      }
     });
+
+    if (currentGroup) groups.push(currentGroup);
     return groups;
+  };
+
+  const messageGroups = buildMessageGroups();
+
+  // Group theo ngày (giữ nguyên)
+  const groupedByDate = messages.reduce((acc, msg) => {
+    const dateKey = new Date(msg.created_at).toISOString().slice(0, 10);
+    if (!acc[dateKey]) acc[dateKey] = [];
+    acc[dateKey].push(msg);
+    return acc;
   }, {});
 
-  // Format date header
   const formatDateHeader = (dateString) => {
-
-    const [year, month, day] = dateString.split('-');
-    const date = new Date(Date.UTC(year, month - 1, day));
-    const today = new Date();
-    const todayYMD = today.toISOString().slice(0, 10);
-    const yesterday = new Date(today);
-    yesterday.setDate(today.getDate() - 1);
-    const yesterdayYMD = yesterday.toISOString().slice(0, 10);
-    if (dateString === todayYMD) {
-      return 'Hôm nay';
-    } else if (dateString === yesterdayYMD) {
-      return 'Hôm qua';
-    } else {
-      return format(date, 'EEEE, dd/MM/yyyy', { locale: vi });
-    }
+    const [y, m, d] = dateString.split('-');
+    const date = new Date(Date.UTC(y, m - 1, d));
+    const today = new Date().toISOString().slice(0, 10);
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    if (dateString === today) return 'Hôm nay';
+    if (dateString === yesterday) return 'Hôm qua';
+    return format(date, 'EEEE, dd/MM/yyyy', { locale: vi });
   };
 
-  // Check if message should show timestamp
-  const shouldShowTimestamp = (currentMessage, previousMessage) => {
-    if (!previousMessage) return true;
-    
-    const currentTime = new Date(currentMessage.created_at);
-    const previousTime = new Date(previousMessage.created_at);
-    const timeDiff = currentTime - previousTime;
-    
-    // Show timestamp if more than 5 minutes apart
-    return timeDiff > 5 * 60 * 1000;
+  const shouldShowTimestamp = (current, prevGroup) => {
+    if (!prevGroup) return true;
+    return new Date(current.created_at) - new Date(prevGroup.lastMessage.created_at) > 5 * 60 * 1000;
   };
 
-  // Check if message should show avatar (on the LAST message of a consecutive block)
-  const shouldShowAvatar = (currentMessage, nextMessage) => {
-    if (!nextMessage) return true;
-
-    // Show avatar if next message is different sender or spaced > 5 minutes
-    return currentMessage.sender_id !== nextMessage.sender_id ||
-           new Date(nextMessage.created_at) - new Date(currentMessage.created_at) > 5 * 60 * 1000;
+  const shouldShowAvatar = (current, nextGroup) => {
+    if (!nextGroup) return true;
+    const next = nextGroup.representative;
+    return current.sender_id !== next.sender_id ||
+           new Date(next.created_at) - new Date(current.created_at) > 5 * 60 * 1000;
   };
 
-  // Check if message should show sender name
-  const shouldShowSenderName = (currentMessage, previousMessage) => {
-    if (!previousMessage) return true;
-    
-    // Show sender name if different sender or more than 5 minutes apart
-    return currentMessage.sender_id !== previousMessage.sender_id ||
-           new Date(currentMessage.created_at) - new Date(previousMessage.created_at) > 5 * 60 * 1000;
+  const shouldShowSenderName = (current, prevGroup) => {
+    if (!prevGroup) return true;
+    const prev = prevGroup.representative;
+    return current.sender_id !== prev.sender_id ||
+           new Date(current.created_at) - new Date(prev.created_at) > 5 * 60 * 1000;
   };
 
-  const handleEditMessage = (message) => {
-    setEditingMessage(message);
-  };
-
-  const handleCancelEdit = () => {
+  const handleEditMessage = (msg) => setEditingMessage(msg);
+  const handleCancelEdit = () => setEditingMessage(null);
+  const handleSaveEdit = async (id, content) => {
+    await onUpdateMessage(id, content);
     setEditingMessage(null);
   };
-
-  const handleSaveEdit = async (messageId, newContent) => {
-    try {
-      await onUpdateMessage(messageId, newContent);
-      setEditingMessage(null);
-    } catch (error) {
-      console.error('Failed to update message:', error);
-    }
+  const handleDeleteMessage = async (id) => {
+    if (window.confirm('Xóa tin nhắn này?')) await onDeleteMessage(id);
   };
-
-  const handleDeleteMessage = async (messageId) => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa tin nhắn này?')) {
-      try {
-        await onDeleteMessage(messageId);
-      } catch (error) {
-        console.error('Failed to delete message:', error);
-      }
-    }
-  };
-
-  const handleReplyToMessage = (message) => {
-    setReplyingToMessage(message);
-  };
-
-  const handleCancelReply = () => {
-    setReplyingToMessage(null);
-  };
+  const handleReplyToMessage = (msg) => setReplyingToMessage(msg);
+  const handleCancelReply = () => setReplyingToMessage(null);
 
   if (messages.length === 0) {
     return (
@@ -120,7 +104,7 @@ const MessageList = ({
         <div className="empty-content">
           <i className="fas fa-comments fa-3x text-muted mb-3"></i>
           <h5>Chưa có tin nhắn nào</h5>
-          <p>Hãy bắt đầu cuộc trò chuyện bằng cách gửi tin nhắn đầu tiên!</p>
+          <p>Hãy bắt đầu cuộc trò chuyện!</p>
         </div>
       </div>
     );
@@ -128,48 +112,52 @@ const MessageList = ({
 
   return (
     <div className="message-list">
-      {Object.entries(groupedMessages).map(([dateKey, dateMessages]) => (
+      {Object.entries(groupedByDate).map(([dateKey, dateMsgs]) => (
         <div key={dateKey} className="message-date-group">
-          {/* Date Header */}
           <div className="date-header">
             <span className="date-text">{formatDateHeader(dateKey)}</span>
           </div>
 
-          {/* Messages for this date */}
           <div className="date-messages">
-            {dateMessages.map((message, messageIndex) => {
-              const previousMessage = messageIndex > 0 ? dateMessages[messageIndex - 1] : null;
-              const nextMessage = messageIndex < dateMessages.length - 1 ? dateMessages[messageIndex + 1] : null;
+            {messageGroups
+              .filter(g => dateMsgs.some(m => m.message_id === g.representative.message_id))
+              .map((group, idx) => {
+                const rep = group.representative;
+                const prevGroup = idx > 0 ? messageGroups[idx - 1] : null;
+                const nextGroup = messageGroups[idx + 1] || null;
 
-              if (message.message_type === 'system_ack' && message.system_ack) {
+                if (rep.message_type === 'system_ack') {
+                  return (
+                    <div key={rep.message_id} className="system-inline-pill fade-in">
+                      Success Chốt giá thành công: <strong>
+                        {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' })
+                          .format(Number(rep.system_ack.price || 0))}
+                      </strong>
+                      {rep.system_ack.unit ? ` / ${rep.system_ack.unit}` : null}
+                    </div>
+                  );
+                }
+
                 return (
-                  <div key={message.message_id} className="system-inline-pill fade-in" role="status" aria-live="polite">
-                    <i className="fas fa-check-circle me-2 text-success"></i>
-                    Chốt giá thành công: <strong>{new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(message.system_ack.price || 0))}</strong>
-                    {message.system_ack.unit ? <span> / {message.system_ack.unit}</span> : null}
-                  </div>
+                  <MessageItem
+                    key={rep.message_id}
+                    message={rep}
+                    conversation={conversation}
+                    groupedImages={group.isImageGroup ? group.messages : null}
+                    showTimestamp={shouldShowTimestamp(rep, prevGroup)}
+                    showAvatar={shouldShowAvatar(rep, nextGroup)}
+                    showSenderName={shouldShowSenderName(rep, prevGroup)}
+                    isEditing={editingMessage?.message_id === rep.message_id}
+                    isReplying={replyingToMessage?.message_id === rep.message_id}
+                    onEdit={handleEditMessage}
+                    onCancelEdit={handleCancelEdit}
+                    onSaveEdit={handleSaveEdit}
+                    onDelete={handleDeleteMessage}
+                    onReply={handleReplyToMessage}
+                    onCancelReply={handleCancelReply}
+                  />
                 );
-              }
-
-              return (
-                <MessageItem
-                  key={message.message_id}
-                  message={message}
-                  conversation={conversation}
-                  showTimestamp={shouldShowTimestamp(message, previousMessage)}
-                  showAvatar={shouldShowAvatar(message, nextMessage)}
-                  showSenderName={shouldShowSenderName(message, previousMessage)}
-                  isEditing={editingMessage?.message_id === message.message_id}
-                  isReplying={replyingToMessage?.message_id === message.message_id}
-                  onEdit={handleEditMessage}
-                  onCancelEdit={handleCancelEdit}
-                  onSaveEdit={handleSaveEdit}
-                  onDelete={handleDeleteMessage}
-                  onReply={handleReplyToMessage}
-                  onCancelReply={handleCancelReply}
-                />
-              );
-            })}
+              })}
           </div>
         </div>
       ))}

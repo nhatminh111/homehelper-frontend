@@ -15,11 +15,9 @@ const PHONE_REGEX = /\b(?:\+?84|0)(?:[\s.\-]?\d){9,10}\b/g;
 const EMAIL_REGEX = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi; 
 const URL_REGEX = /(https?:\/\/|www\.)[\w\-]+(\.[\w\-]+)+[\w\-._~:/?#[\]@!$&'()*+,;=.]*\/??/gi;
 const BROKEN_SCHEME_URL_REGEX = /\bhttps?www\.[\w\-]+(\.[\w\-]+)+[\w\-._~:/?#[\]@!$&'()*+,;=.]*\/??/gi;
-const OBFUSCATED_DOT_FRAGMENT =
-  '(?:\\(\\.\\)|\\(dot\\)|\\[\\.\\]|\\{\\.\\}|\\[dot\\]|\\{dot\\})';
+const OBFUSCATED_DOT_FRAGMENT ='(?:\\(\\.\\)|\\(dot\\)|\\[\\.\\]|\\{\\.\\}|\\[dot\\]|\\{dot\\})';
 const OBFUSCATED_URL_REGEX = new RegExp(`(https?:\\/\\/|www\\.)[\\w-]+${OBFUSCATED_DOT_FRAGMENT}[\\w-]+[\\w-._~:/?#\\[\\]@!$&'()*+,;=.]*`, 'gi');
-const OBFUSCATED_DOMAIN_REGEX =
-  new RegExp(`\\b[\\w-]{2,}${OBFUSCATED_DOT_FRAGMENT}(com|vn|net|org|info|biz|gov|edu)\\b`, 'gi');
+const OBFUSCATED_DOMAIN_REGEX = new RegExp(`\\b[\\w-]{2,}${OBFUSCATED_DOT_FRAGMENT}(com|vn|net|org|info|biz|gov|edu)\\b`, 'gi');
 const SOCIAL_KEYWORDS = [
   'facebook', 'fb', 'zalo', 'telegram', 'whatsapp', 'instagram', 'ig', 'tiktok'
 ];
@@ -1247,6 +1245,7 @@ const Chat = () => {
     );
   });
 
+
   // Moderation context per conversation (e.g., bank keyword detected recently)
   const moderationContextsRef = useRef(new Map());
   const BANK_CONTEXT_TTL_MS = 3 * 60 * 1000; // 3 minutes
@@ -1304,20 +1303,20 @@ const Chat = () => {
   };
 
   const handleSendFile = async (file, content = '') => {
-    try {
-      // Moderate optional caption content
-      let caption = content;
-      if (typeof caption === 'string' && caption.trim()) {
-        extendBankContextFromText(caption);
-        const forceBankContext = getBankContextActive();
-        const { redacted } = sanitizeOutgoingMessage(caption, { forceBankContext });
-        caption = redacted;
-      }
-      await sendFileMessage(file, caption);
-    } catch (error) {
-      console.error('Failed to send file:', error);
+  try {
+    // file giờ có thể là 1 file hoặc mảng file
+    let caption = content;
+    if (typeof caption === 'string' && caption.trim()) {
+      extendBankContextFromText(caption);
+      const forceBankContext = getBankContextActive();
+      const { redacted } = sanitizeOutgoingMessage(caption, { forceBankContext });
+      caption = redacted;
     }
-  };
+    await sendFileMessage(file, caption); // ← Đã sửa ở chatService
+  } catch (error) {
+    console.error('Failed to send file:', error);
+  }
+};
 
   const handleConversationSelect = async (conversationId, options = {}) => {
     if (!conversationId || Number.isNaN(parseInt(conversationId, 10))) return;
@@ -1576,6 +1575,7 @@ const Chat = () => {
                           </strong>
                           {quoteDetails?.unit && (
                             <span> / {quoteDetails?.unit}</span>
+
                           )}
                         </>
                       ) : null}
@@ -1677,7 +1677,6 @@ const Chat = () => {
                 onMarkAsRead={markAsRead}
                 onTyping={handleTyping}
                 onLoadMore={loadMoreMessages}
-                
                 isConnected={isConnected}
               />
             </div>
@@ -1714,7 +1713,7 @@ const Chat = () => {
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header">
-                <h5 className="modal-title">Cảnh báo</h5>
+                <h5 className="modal-title">Cảnh báo nội dung nhạy cảm</h5>
                 <button type="button" className="btn-close" onClick={() => setPolicyModalOpen(false)} aria-label="Close"></button>
               </div>
               <div className="modal-body">
@@ -1722,13 +1721,13 @@ const Chat = () => {
                   Vì lý do an toàn, vui lòng không chia sẻ số điện thoại, email, link hay liên hệ ngoài ứng dụng.
                   Mọi giao dịch cần được thực hiện trong hệ thống.
                 </p>
-                {policyReasons.length > 0 && (
+                {/* {policyReasons.length > 0 && (
                   <ul className="mb-2">
                     {policyReasons.map((r, i) => (
                       <li key={i}>{r}</li>
                     ))}
                   </ul>
-                )}
+                )} */}
                 {pendingRedacted != null && (
                   <div className="border rounded p-2 bg-light">
                     <small className="text-muted">Nội dung sau khi được che:</small>

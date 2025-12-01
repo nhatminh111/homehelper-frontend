@@ -47,6 +47,7 @@ export default function TaskerBookingDetail() {
       alert("Đã xảy ra lỗi khi hủy booking");
     }
   };
+  const [alreadyTaken, setAlreadyTaken] = useState(false);
 
   useEffect(() => {
     if (!booking && id) {
@@ -127,6 +128,9 @@ export default function TaskerBookingDetail() {
     customer_email,
     customer_phone,
     location: bookingAddress,
+    type,
+    duration_hours,
+    duration_days,
     start_time,
     end_time,
     service_name,
@@ -163,6 +167,38 @@ export default function TaskerBookingDetail() {
   const handleStatusUpdate = async (newStatus) => {
     try {
       const token = api.getStoredToken();
+      
+      // For SOS jobs being accepted, check availability first
+      if (newStatus === "Đã chấp nhận" && type === 'SOS') {
+        try {
+          console.log(`🔍 Checking SOS availability for booking ${booking_id}...`);
+          const checkRes = await fetch(
+            `http://localhost:3001/api/bookings/${booking_id}/sos-check`,
+            {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              }
+            }
+          );
+          const checkData = await checkRes.json();
+          
+          console.log('SOS check result:', checkData);
+          
+          if (!checkData.available) {
+            // SOS already taken by someone else
+            setAlreadyTaken(true);
+            alert(`❌ ${checkData.message}`);
+            return;
+          }
+        } catch (checkErr) {
+          console.error('Lỗi kiểm tra SOS availability:', checkErr);
+          alert('Lỗi khi kiểm tra tính khả dụng của SOS');
+          return;
+        }
+      }
+
+      // If check passed or not SOS, proceed with accepting
       const response = await fetch(
         `http://localhost:3001/api/bookings/${booking_id}/status`,
         {
@@ -250,7 +286,9 @@ export default function TaskerBookingDetail() {
           </p>
         </div>
         <div className="text-end">
-          <Badge
+          <div className="d-flex align-items-center justify-content-end gap-2">
+            {type === 'SOS' ? <Badge bg="danger" className="px-3 py-2">SOS</Badge> : null}
+            <Badge
             bg={
               status === "Chờ xử lý"
                 ? "warning"
@@ -283,6 +321,7 @@ export default function TaskerBookingDetail() {
                         : "❓"}{" "}
             {status}
           </Badge>
+          </div>
         </div>
       </div>
 
@@ -324,6 +363,25 @@ export default function TaskerBookingDetail() {
                     {bookingAddress}
                   </div>
                 )}
+
+                {duration_hours ? (
+                  <div>
+                    <i className="bi bi-clock text-primary me-2"></i>
+                    Thời lượng: {duration_hours} giờ
+                  </div>
+                ) : null}
+                {duration_days ? (
+                  <div>
+                    <i className="bi bi-clock text-primary me-2"></i>
+                    Thời lượng: {duration_days} ngày
+                  </div>
+                ) : null}
+                {type ? (
+                  <div>
+                    <i className="bi bi-house-door text-primary me-2"></i>
+                    Loại: {type}
+                  </div>
+                ) : null}
 
                 {(start_time || end_time) && (
                   <div>
@@ -410,30 +468,39 @@ export default function TaskerBookingDetail() {
       </Row>
 
       {/* Nút hành động */}
-      <div className="d-flex justify-content-center gap-4 mt-5 flex-wrap">
-        {status === "Chờ xử lý" && (
-          <>
-            <Button
-              variant="danger"
-              size="lg"
-              className="px-5 fw-semibold"
-              style={{ borderRadius: "10px", minWidth: "160px" }}
-              onClick={() => handleStatusUpdate("Hủy")}
-            >
-              ❌ Từ chối công việc
-            </Button>
-
-            <Button
-              variant="success"
-              size="lg"
-              className="px-5 fw-semibold"
-              style={{ borderRadius: "10px", minWidth: "160px" }}
-              onClick={() => handleStatusUpdate("Đã chấp nhận")}
-            >
-              ✅ Chấp nhận công việc
-            </Button>
-          </>
+      <div className="d-flex justify-content-center gap-4 mt-5 flex-wrap flex-column align-items-center">
+        {/* Show alert if SOS is already taken */}
+        {alreadyTaken && (
+          <Alert variant="danger" className="w-100 text-center">
+            <i className="bi bi-exclamation-circle me-2"></i>
+            <strong>❌ Đơn SOS này đã được người khác nhận rồi!</strong>
+          </Alert>
         )}
+
+        <div className="d-flex justify-content-center gap-4 flex-wrap">
+          {status === "Chờ xử lý" && !alreadyTaken && (
+            <>
+              <Button
+                variant="danger"
+                size="lg"
+                className="px-5 fw-semibold"
+                style={{ borderRadius: "10px", minWidth: "160px" }}
+                onClick={() => handleStatusUpdate("Hủy")}
+              >
+                ❌ Từ chối công việc
+              </Button>
+
+              <Button
+                variant="success"
+                size="lg"
+                className="px-5 fw-semibold"
+                style={{ borderRadius: "10px", minWidth: "160px" }}
+                onClick={() => handleStatusUpdate("Đã chấp nhận")}
+              >
+                ✅ Chấp nhận công việc
+              </Button>
+            </>
+          )}
 
         {status === "Đã chấp nhận" && (
           <>
@@ -506,29 +573,44 @@ export default function TaskerBookingDetail() {
           </>
         )}
 
-        {status === "Đang tiến hành" && (
-          <Button
-            variant="primary"
-            size="lg"
-            className="px-5 fw-semibold"
-            style={{ borderRadius: "10px", minWidth: "160px" }}
-            onClick={() => handleStatusUpdate("Hoàn thành")}
-          >
-            ✅ Hoàn thành
-          </Button>
-        )}
+          {status === "Đang tiến hành" && (
+            <Button
+              variant="primary"
+              size="lg"
+              className="px-5 fw-semibold"
+              style={{ borderRadius: "10px", minWidth: "160px" }}
+              onClick={() => handleStatusUpdate("Hoàn thành")}
+            >
+              ✅ Hoàn thành
+            </Button>
+          )}
 
-        {status === "Chờ xử lý" && (
-          <NegotiatePriceButton
-            peerId={customer_id}
-            bookingId={booking_id}
-            label="Thương lượng giá"
-            size="md"
-            onClick={() => {
-              window.location.href = `/chat?bookingId=${booking_id}&negotiation=1&peer=${customer_id}`;
-            }}
-          />
-        )}
+          {status === "Chờ xử lý" && (
+            <NegotiatePriceButton
+              peerId={customer_id}
+              bookingId={booking_id}
+              label="Thương lượng giá"
+              size="md"
+              onClick={() => {
+                window.location.href = `/chat?bookingId=${booking_id}&negotiation=1&peer=${customer_id}`;
+              }}
+            />
+          )}
+
+          {type === 'SOS' && (
+            <Button
+              variant="primary"
+              size="lg"
+              className="px-5 fw-semibold"
+              style={{ borderRadius: "10px", minWidth: "160px" }}
+              onClick={() => {
+                window.location.href = `/chat?bookingId=${booking_id}&peer=${customer_id}`;
+              }}
+            >
+              💬 Chat với khách hàng
+            </Button>
+          )}
+        </div>
       </div>
 
     </Container>
