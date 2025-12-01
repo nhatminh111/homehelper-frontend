@@ -84,6 +84,49 @@ class SocketService {
       this.emit('new_message', data);
     });
 
+    // SOS events
+    this.socket.on('new_sos_job', (data) => {
+      console.log('🚨 New SOS job:', data);
+      this.emit('new_sos_job', data);
+      // Dispatch window event for TaskerBookings
+      window.dispatchEvent(new CustomEvent('socket_new_sos_job', { detail: data }));
+    });
+
+    this.socket.on('sos_job_created', (data) => {
+      console.log('✅ SOS job created:', data);
+      this.emit('sos_job_created', data);
+      // Dispatch window event for TaskerSearch
+      window.dispatchEvent(new CustomEvent('socket_sos_job_created', { detail: data }));
+    });
+
+    this.socket.on('sos_job_accepted', (data) => {
+      console.log('🎉 SOS job accepted (customer notified):', data);
+      this.emit('sos_job_accepted', data);
+      // Dispatch window event for TaskerSearch and other components
+      window.dispatchEvent(new CustomEvent('socket_sos_job_accepted', { detail: data }));
+    });
+
+    this.socket.on('sos_job_taken', (data) => {
+      console.log('🔒 SOS job taken:', data);
+      this.emit('sos_job_taken', data);
+      // Dispatch window event for TaskerBookings and other components
+      window.dispatchEvent(new CustomEvent('socket_sos_job_taken', { detail: data }));
+    });
+
+    this.socket.on('sos_accept_success', (data) => {
+      console.log('✅ SOS accept success:', data);
+      this.emit('sos_accept_success', data);
+      // Dispatch window event for TaskerBookingDetail and other components
+      window.dispatchEvent(new CustomEvent('socket_sos_accept_success', { detail: data }));
+    });
+
+    this.socket.on('sos_accept_failed', (data) => {
+      console.log('❌ SOS accept failed:', data);
+      this.emit('sos_accept_failed', data);
+      // Dispatch window event for TaskerBookingDetail and other components
+      window.dispatchEvent(new CustomEvent('socket_sos_accept_failed', { detail: data }));
+    });
+
     this.socket.on('user_joined', (data) => {
       console.log('👥 User joined:', data);
       this.emit('user_joined', data);
@@ -238,6 +281,26 @@ class SocketService {
     }
 
     this.socket.emit('notification_read', { notificationId });
+  }
+
+  // SOS: tạo SOS job (khách hàng phát sóng)
+  createSOSJob(payload) {
+    if (!this.socket || !this.isConnected) {
+      console.error('❌ Socket not connected - cannot create SOS job');
+      return;
+    }
+    this.socket.emit('create_sos_job', payload);
+    console.log('🚀 Emitted create_sos_job', payload);
+  }
+
+  // SOS: tasker chấp nhận SOS job
+  acceptSOSJob(bookingId) {
+    if (!this.socket || !this.isConnected) {
+      console.error('❌ Socket not connected - cannot accept SOS job');
+      return;
+    }
+    this.socket.emit('accept_sos_job', { booking_id: bookingId });
+    console.log('✅ Emitted accept_sos_job', bookingId);
   }
 
   // Event listener management

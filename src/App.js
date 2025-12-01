@@ -153,6 +153,20 @@ function App() {
                 } />
                 <Route path="/job-description" element={<JobDescription />} />
                 <Route path="/contract" element={<Contract />} />
+              <Route path="/topUp" element={<TopUp />} />
+              <Route path="/payment-result" element={<PaymentResult />} />
+              <Route path="/wallet" element={<Wallet />} />
+              <Route path="/cccd" element={<CCCDExtractor />} />
+              <Route path="/booking/:taskerId" element={<Booking />} />
+              <Route path="/tasker/bookings/:id" element={<TaskerBookingDetail />} />
+               <Route path="/tasker/bookings" element={
+                  <ProtectedRoute requiredRole="Tasker">
+                    <TaskerBookings />
+                  </ProtectedRoute>
+                } />
+              <Route path="/job-description" element={<JobDescription />} />
+              <Route path="/contract" element={<Contract />} />
+
                 <Route path="/become-tasker" element={<BecomeTasker />} />
 
                 <Route path="/report-issue" element={
