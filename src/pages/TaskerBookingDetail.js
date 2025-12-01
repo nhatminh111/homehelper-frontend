@@ -13,8 +13,6 @@ export default function TaskerBookingDetail() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const [showNoShowModal, setShowNoShowModal] = useState(false);
-
   const handleCancelTask = async () => {
     try {
       const token = api.getStoredToken();
@@ -136,6 +134,22 @@ export default function TaskerBookingDetail() {
     service_name,
     variant_name,
   } = booking;
+
+  // Parse task_checklist thành checklistItems
+  const checklistItems = (() => {
+    if (!task_checklist) return [];
+    if (Array.isArray(task_checklist)) return task_checklist;
+    if (typeof task_checklist === 'string') {
+      try {
+        const parsed = JSON.parse(task_checklist);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        // Nếu không phải JSON, coi như là string đơn giản
+        return task_checklist.split('\n').filter(item => item.trim());
+      }
+    }
+    return [];
+  })();
 
   const canCancelFree = (status === "Đã chấp nhận" && !booking.isPaid);
 
