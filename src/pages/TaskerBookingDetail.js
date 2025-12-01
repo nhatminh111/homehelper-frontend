@@ -2,7 +2,6 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Container, Row, Col, Card, Button, Badge, Spinner, Alert } from "react-bootstrap";
 import NegotiatePriceButton from "../components/negotiation/NegotiatePriceButton";
-import NoShowReportModal from "../components/tasker/NoShowReportModal";
 import api from "../services/api";
 
 export default function TaskerBookingDetail() {
@@ -178,7 +177,7 @@ export default function TaskerBookingDetail() {
 
       const data = await response.json();
 
-      if(data.success) {
+      if (data.success) {
         let message = "";
 
         switch (newStatus) {
@@ -368,17 +367,7 @@ export default function TaskerBookingDetail() {
               <h6 className="text-primary fw-semibold mb-2">
                 <i className="bi bi-file-text me-2"></i>Tóm tắt công việc :
               </h6>
-              {checklistItems.length > 0 ? (
-                <ul className="text-muted ps-4 mb-3">
-                  {checklistItems.map((item, index) => (
-                    <li key={index}>
-                      {typeof item === "string" ? item : item?.label || `Công việc ${index + 1}`}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-muted mb-3">Không có mô tả.</p>
-              )}
+              <p className="text-muted">{task_checklist || "Không có mô tả."}</p>
 
               {photos.length > 0 && (
                 <>
@@ -471,63 +460,7 @@ export default function TaskerBookingDetail() {
               style={{ borderRadius: "10px", minWidth: "160px" }}
               onClick={() => handleStatusUpdate("Đang tiến hành")}
             >
-              ▶ việc6
-            </Button>
-
-            {/* >2h: hủy bình thường */}
-            {diffHours > 2 ? (
-              <Button
-                variant="danger"
-                size="lg"
-                className="px-5 fw-semibold"
-                style={{ borderRadius: "10px", minWidth: "160px", marginLeft: "20px" }}
-                onClick={handleCancelTask}
-              >
-                ❌ Hủy công việc (–10)
-              </Button>
-            ) : (
-              <>
-                {/* <2h: hủy sát giờ */}
-                <Button
-                  variant="danger"
-                  size="lg"
-                  className="px-5 fw-semibold"
-                  style={{
-                    borderRadius: "10px",
-                    minWidth: "180px",
-                    marginLeft: "20px",
-                  }}
-                  onClick={handleCancelLate}
-                >
-                  ❌ Hủy (sát giờ –20)
-                </Button>
-
-                {/* Báo cáo khách no-show */}
-                <Button
-                  variant="warning"
-                  size="lg"
-                  className="px-5 fw-semibold text-dark"
-                  style={{ borderRadius: "10px", minWidth: "240px" }}
-                  onClick={() => navigate(`/tasker/no-show-report/${booking_id}`)}
-                >
-                  📣 Báo cáo khách vắng mặt
-                </Button>
-              </>
-            )}
-          </>
-        )}
-
-        {status === "Đã thanh toán" && (
-          <>
-            {/* BẮT ĐẦU CÔNG VIỆC */}
-            <Button
-              variant="info"
-              size="lg"
-              className="px-5 fw-semibold"
-              style={{ borderRadius: "10px", minWidth: "160px" }}
-              onClick={() => handleStatusUpdate("Đang tiến hành")}
-            >
-              ▶ việc6
+              ▶ Bắt đầu công việc
             </Button>
 
             {/* >2h: hủy bình thường */}
