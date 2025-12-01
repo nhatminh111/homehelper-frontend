@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState} from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faArrowRight } from '@fortawesome/free-solid-svg-icons';
 import {
   faStar,
   faCheckCircle,
@@ -11,10 +12,10 @@ import {
   faSearch,
   faUsers,
   faBriefcase,
-  faClock,
+  faClock,faFilter,
 } from "@fortawesome/free-solid-svg-icons";
 import { faHeart as faHeartRegular } from "@fortawesome/free-regular-svg-icons";
-import { Link } from "react-router-dom";
+import { Link, useNavigate} from "react-router-dom";
 import { motion } from "framer-motion";
 import { toast, ToastContainer } from "react-toastify";
 import TaskerService from "../services/taskerService";
@@ -420,8 +421,16 @@ const Home = () => {
           {/* Search Form */}
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '2.5rem' }}>
             <div style={{ maxWidth: '960px', width: '100%' }}>
-              <div style={{ background: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(40px)', border: '1px solid rgba(255, 255, 255, 0.2)', borderRadius: '24px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
-                <div style={{ 
+              <div style={{
+                background: 'rgba(255, 255, 255, 0.95)',
+                backdropFilter: 'blur(40px)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: '24px',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                overflow: 'hidden'
+              }}>
+                {/* Header */}
+                <div style={{
                   background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
                   color: 'white',
                   padding: '24px',
@@ -429,27 +438,31 @@ const Home = () => {
                 }}>
                   <h3 style={{ margin: '0', fontWeight: 'bold' }}>
                     <FontAwesomeIcon icon={faUsers} style={{ marginRight: '8px' }} />
-                    Tìm kiếm ngay
+                    Tìm kiếm người giúp việc
                   </h3>
-                  <small style={{ opacity: '0.75' }}>Nhập tên hoặc chọn dịch vụ</small>
+                  <small style={{ opacity: '0.75' }}>Nhập tên, chọn dịch vụ hoặc tìm kiếm nâng cao</small>
                 </div>
+
+                {/* Search Form */}
                 <div style={{ padding: '24px' }}>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'flex-end' }}>
-                    <div style={{ flex: '1 1 41.66%' }}>
+                    {/* Tìm theo tên */}
+                    <div style={{ flex: '1 1 40%' }}>
                       <div style={{ position: 'relative' }}>
-                        <FontAwesomeIcon 
-                          icon={faSearch} 
+                        <FontAwesomeIcon
+                          icon={faSearch}
                           style={{ position: 'absolute', top: '50%', left: '16px', transform: 'translateY(-50%)', color: '#6b7280', fontSize: '1.25rem', zIndex: '10' }}
                         />
                         <input
-                          style={{ 
-                            width: '100%', 
-                            padding: '12px 12px 12px 48px', 
-                            fontSize: '1.125rem', 
-                            borderRadius: '8px', 
-                            border: '1px solid rgba(255, 255, 255, 0.3)', 
-                            background: 'rgba(255, 255, 255, 0.8)', 
-                            backdropFilter: 'blur(20px)' 
+                          style={{
+                            width: '100%',
+                            padding: '12px 12px 12px 48px',
+                            fontSize: '1.125rem',
+                            borderRadius: '8px',
+                            border: '1px solid rgba(255, 255, 255, 0.3)',
+                            background: 'rgba(255, 255, 255, 0.8)',
+                            backdropFilter: 'blur(20px)',
+                            transition: 'all 0.3s ease'
                           }}
                           placeholder="Tìm theo tên người giúp việc..."
                           value={searchName}
@@ -457,16 +470,19 @@ const Home = () => {
                         />
                       </div>
                     </div>
-                    <div style={{ flex: '1 1 33.33%' }}>
+
+                    {/* Chọn dịch vụ */}
+                    <div style={{ flex: '1 1 30%' }}>
                       <select
-                        style={{ 
-                          width: '100%', 
-                          padding: '12px', 
-                          fontSize: '1.125rem', 
-                          borderRadius: '8px', 
-                          border: '1px solid rgba(255, 255, 255, 0.3)', 
-                          background: 'rgba(255, 255, 255, 0.8)', 
-                          backdropFilter: 'blur(20px)' 
+                        style={{
+                          width: '100%',
+                          padding: '12px',
+                          fontSize: '1.125rem',
+                          borderRadius: '8px',
+                          border: '1px solid rgba(255, 255, 255, 0.3)',
+                          background: 'rgba(255, 255, 255, 0.8)',
+                          backdropFilter: 'blur(20px)',
+                          transition: 'all 0.3s ease'
                         }}
                         value={selectedService}
                         onChange={(e) => setSelectedService(e.target.value)}
@@ -479,45 +495,104 @@ const Home = () => {
                         ))}
                       </select>
                     </div>
+
+                    {/* Nút Tìm kiếm (chính) */}
                     <div style={{ flex: '1 1 25%' }}>
                       <button
-                        style={{ 
-                          width: '100%', 
-                          padding: '12px 24px', 
-                          background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)', 
-                          color: 'white', 
-                          border: 'none', 
-                          borderRadius: '8px', 
-                          fontSize: '1.125rem', 
-                          fontWeight: '600', 
-                          height: '56px', 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          justifyContent: 'center', 
-                          boxShadow: '0 4px 20px rgba(0,0,0,0.2)' 
+                        style={{
+                          width: '100%',
+                          padding: '12px 24px',
+                          background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '8px',
+                          fontSize: '1.125rem',
+                          fontWeight: '600',
+                          height: '56px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow: '0 4px 20px rgba(16, 185, 129, 0.3)',
+                          transition: 'all 0.3s ease'
                         }}
                         onClick={handleSearch}
                         disabled={loading}
                       >
                         {loading ? (
                           <>
-                            <span style={{ display: 'inline-block', width: '18px', height: '18px', border: '2px solid #ffffff', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite', marginRight: '8px' }}></span>
-                            Tìm kiếm...
+                            <span style={{
+                              display: 'inline-block',
+                              width: '18px',
+                              height: '18px',
+                              border: '2px solid #ffffff',
+                              borderTopColor: 'transparent',
+                              borderRadius: '50%',
+                              animation: 'spin 1s linear infinite',
+                              marginRight: '8px'
+                            }}></span>
+                            Đang tìm...
                           </>
                         ) : (
                           <>
                             <FontAwesomeIcon icon={faSearch} style={{ marginRight: '8px' }} />
-                            Tìm Kiếm
+                            Tìm ngay
                           </>
                         )}
                       </button>
+                    </div>
+                  </div>
+
+                  {/* NÚT TÌM KIẾM NÂNG CAO */}
+                  <div style={{ 
+                    marginTop: '20px', 
+                    textAlign: 'center',
+                    padding: '16px 0',
+                    borderTop: '1px dashed rgba(0,0,0,0.1)'
+                  }}>
+                    <button
+                    onClick={() => navigate('/tasker-search')}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        padding: '12px 28px',
+                        background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '12px',
+                        fontSize: '1rem',
+                        fontWeight: '700',
+                        textDecoration: 'none',
+                        boxShadow: '0 6px 20px rgba(249, 115, 22, 0.3)',
+                        transition: 'all 0.3s ease',
+                        position: 'relative',
+                        overflow: 'hidden'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.style.transform = 'translateY(-2px)';
+                        e.target.style.boxShadow = '0 10px 25px rgba(249, 115, 22, 0.4)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.transform = 'translateY(0)';
+                        e.target.style.boxShadow = '0 6px 20px rgba(249, 115, 22, 0.3)';
+                      }}
+                    >
+                      <FontAwesomeIcon icon={faFilter} style={{ fontSize: '1.1rem' }} />
+                      Tìm kiếm nâng cao
+                      <FontAwesomeIcon icon={faArrowRight} style={{ fontSize: '0.9rem', marginLeft: '4px' }} />
+                    </button>
+                    <div style={{
+                      marginTop: '8px',
+                      fontSize: '0.8rem',
+                      color: '#6b7280'
+                    }}>
+                      Lọc theo khoảng cách, dịch vụ, đánh giá
                     </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-
           {/* Results Header */}
           {showResults && (
             <div style={{ background: 'rgba(255, 255, 255, 0.8)', backdropFilter: 'blur(20px)', padding: '1.5rem 2rem', borderRadius: '20px', border: '1px solid rgba(255, 255, 255, 0.3)', boxShadow: '0 10px 40px rgba(0, 0, 0, 0.1)' }}>
@@ -533,7 +608,7 @@ const Home = () => {
                         Kết quả phù hợp
                       </h2>
                       <small style={{ color: '#6b7280' }}>
-                        "{searchName}" {selectedService && `• ${services.find(s => s.service_id == selectedService)?.name}`}
+                        "{searchName}" {selectedService && `• ${services.find(s => s.service_id === selectedService)?.name}`}
                       </small>
                     </div>
                   </div>

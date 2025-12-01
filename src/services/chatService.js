@@ -68,12 +68,25 @@ class ChatService {
   }
 
   // Gửi tin nhắn với file
-  async sendFileMessage(conversationId, file, content = '') {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('content', content);
-    return await this.conversationService.sendMessageWithFile(conversationId, formData);
+ async sendFileMessage(conversationId, files, content = '', replyToMessageId = null) {
+  const formData = new FormData();
+
+  // files có thể là 1 file hoặc mảng file
+  if (Array.isArray(files)) {
+    files.forEach(file => formData.append('images', file));
+  } else {
+    formData.append('images', files);
   }
+
+  if (content.trim()) {
+    formData.append('content', content.trim());
+  }
+  if (replyToMessageId) {
+    formData.append('reply_to_message_id', replyToMessageId);
+  }
+
+  return await this.conversationService.sendMessageWithFile(conversationId, formData);
+}
 
   // Tìm kiếm tin nhắn
   async searchMessages(conversationId, query, page = 1, limit = 20) {
