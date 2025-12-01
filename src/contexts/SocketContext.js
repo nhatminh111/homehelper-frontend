@@ -101,6 +101,41 @@ export const SocketProvider = ({ children }) => {
       window.dispatchEvent(new CustomEvent('socket_new_notification', { detail: data }));
     });
 
+    // SOS events (Tasker receives new SOS job)
+    socketService.on('new_sos_job', (data) => {
+      console.log('🔔 socket new_sos_job event:', data);
+      // Cập nhật unreadCount khi nhận được SOS job mới
+      setUnreadCount(prev => prev + 1);
+      window.dispatchEvent(new CustomEvent('socket_new_sos_job', { detail: data }));
+    });
+
+    // When customer receives confirmation of created sos job
+    socketService.on('sos_job_created', (data) => {
+      console.log('🔔 socket sos_job_created event:', data);
+      window.dispatchEvent(new CustomEvent('socket_sos_job_created', { detail: data }));
+    });
+
+    // When a tasker accepts an sos job (broadcast to all)
+    socketService.on('sos_job_taken', (data) => {
+      console.log('🔔 socket sos_job_taken event:', data);
+      window.dispatchEvent(new CustomEvent('socket_sos_job_taken', { detail: data }));
+    });
+
+    socketService.on('sos_job_accepted', (data) => {
+      console.log('🔔 socket sos_job_accepted event:', data);
+      window.dispatchEvent(new CustomEvent('socket_sos_job_accepted', { detail: data }));
+    });
+
+    socketService.on('sos_accept_success', (data) => {
+      console.log('🔔 socket sos_accept_success event:', data);
+      window.dispatchEvent(new CustomEvent('socket_sos_accept_success', { detail: data }));
+    });
+
+    socketService.on('sos_accept_failed', (data) => {
+      console.log('🔔 socket sos_accept_failed event:', data);
+      window.dispatchEvent(new CustomEvent('socket_sos_accept_failed', { detail: data }));
+    });
+
     // User status changed
     socketService.on('user_status_changed', (data) => {
       if (data.status === 'online') {
@@ -142,6 +177,12 @@ export const SocketProvider = ({ children }) => {
       socketService.off('user_status_changed');
       socketService.off('socket_error');
       socketService.off('online_users');
+        socketService.off('new_sos_job');
+        socketService.off('sos_job_created');
+        socketService.off('sos_job_taken');
+        socketService.off('sos_job_accepted');
+        socketService.off('sos_accept_success');
+        socketService.off('sos_accept_failed');
     };
   }, []);
 
@@ -178,6 +219,15 @@ export const SocketProvider = ({ children }) => {
 
   const startTyping = (conversationId) => {
     socketService.startTyping(conversationId);
+  };
+
+  // SOS helpers (front-end API)
+  const createSOSJob = (payload) => {
+    socketService.createSOSJob(payload);
+  };
+
+  const acceptSOSJob = (bookingId) => {
+    socketService.acceptSOSJob(bookingId);
   };
 
   const stopTyping = (conversationId) => {
@@ -236,6 +286,9 @@ export const SocketProvider = ({ children }) => {
     stopTyping,
     markMessageAsRead,
     markNotificationAsRead,
+    // SOS
+    createSOSJob,
+    acceptSOSJob,
     
     // Utility
     getConnectionStatus: socketService.getConnectionStatus,

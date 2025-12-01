@@ -26,6 +26,19 @@ const ChatWindow = ({
   const [isNearBottom, setIsNearBottom] = useState(true);
   const messagesContainerRef = useRef(null);
 
+  const scrollToBottom = (behavior = 'auto') => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    // Wait a frame to ensure list rendered
+    window.requestAnimationFrame(() => {
+      try {
+        el.scrollTo({ top: el.scrollHeight, behavior });
+      } catch (e) {
+        el.scrollTop = el.scrollHeight;
+      }
+    });
+  };
+
 
 
   // Mark messages as read when conversation changes
@@ -34,6 +47,20 @@ const ChatWindow = ({
       onMarkAsRead();
     }
   }, [conversation?.conversation_id, onMarkAsRead]);
+
+  // When switching to a conversation, jump to the latest message
+  useEffect(() => {
+    if (!conversation) return;
+    scrollToBottom('auto');
+  }, [conversation?.conversation_id]);
+
+  // When new messages arrive and user is near bottom, auto-scroll smoothly
+  useEffect(() => {
+    if (!messages) return;
+    if (isNearBottom) {
+      scrollToBottom('smooth');
+    }
+  }, [messages?.length]);
 
   // Handle scroll events
   const handleScroll = (e) => {
