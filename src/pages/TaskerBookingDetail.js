@@ -12,6 +12,41 @@ export default function TaskerBookingDetail() {
   const [booking, setBooking] = useState(location.state?.booking || null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  const [showNoShowModal, setShowNoShowModal] = useState(false);
+
+  const handleCancelTask = async () => {
+    try {
+      const token = api.getStoredToken();
+
+      const res = await fetch(
+        `http://localhost:3001/api/bookings/${booking.booking_id}/cancel`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            cancelledBy: "tasker",
+          }),
+        }
+      );
+
+      const data = await res.json();
+
+      if (data.success) {
+        alert("Bạn đã hủy công việc thành công!");
+        navigate("/tasker/bookings");
+      } else {
+        alert(data.message || "Không thể hủy booking");
+      }
+
+    } catch (err) {
+      console.error("❌ Lỗi khi hủy booking:", err);
+      alert("Đã xảy ra lỗi khi hủy booking");
+    }
+  };
   const [alreadyTaken, setAlreadyTaken] = useState(false);
 
   useEffect(() => {
@@ -102,23 +137,31 @@ export default function TaskerBookingDetail() {
     variant_name,
   } = booking;
 
-  const formatDateTime = (isoString) => {
-    if (!isoString) return "—";
-    const date = new Date(isoString);
-    return `${date.toLocaleDateString("vi-VN", {
-      weekday: "long",
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    })}, ${date.toLocaleTimeString("vi-VN", {
-      hour: "2-digit",
-      minute: "2-digit",
-    })}`;
-  };
+  const canCancelFree = (status === "Đã chấp nhận" && !booking.isPaid);
 
   const formatPrice = (price) => {
     if (!price) return "Chưa có giá";
     return new Intl.NumberFormat("vi-VN").format(price) + "đ";
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const endsWithZ = /z$/i.test(String(dateString)); // ISO UTC like 2025-09-20T12:07:00Z
+    const options = {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    };
+    // If the input is explicitly UTC (ends with 'Z'), format in UTC to avoid +7h shift
+    if (endsWithZ) {
+      return new Intl.DateTimeFormat('vi-VN', { ...options, timeZone: 'UTC' }).format(date);
+    }
+    // Otherwise, render with default locale settings
+    return new Intl.DateTimeFormat('vi-VN', options).format(date);
   };
 
   const handleStatusUpdate = async (newStatus) => {
@@ -170,35 +213,65 @@ export default function TaskerBookingDetail() {
 
       const data = await response.json();
 
-    if (data.success) {
-      let message = "";
+      if (data.success) {
+        let message = "";
 
-      switch (newStatus) {
-        case "Đã chấp nhận":
-          message = "Đã chấp nhận booking thành công!";
-          break;
-        case "Hủy":
-          message = "Đã từ chối booking!";
-          break;
-        case "Đang tiến hành":
-          message = "Đã bắt đầu công việc!";
-          break;
-        case "Hoàn thành":
-          message = "Đã hoàn thành công việc!";
-          break;
-        default:
-          message = `Cập nhật trạng thái: ${newStatus}`;
-      }
+        switch (newStatus) {
+          case "Đã chấp nhận":
+            message = "Đã chấp nhận booking thành công!";
+            break;
+          case "Hủy":
+            message = "Đã từ chối booking!";
+            break;
+          case "Đang tiến hành":
+            message = "Đã bắt đầu công việc!";
+            break;
+          case "Hoàn thành":
+            message = "Đã hoàn thành công việc!";
+            break;
+          default:
+            message = `Cập nhật trạng thái: ${newStatus}`;
+        }
 
         alert(message);
-        // Stay on current page instead of navigating away
-        setBooking(prev => ({ ...prev, status: newStatus }));
+        navigate("/tasker/bookings");
       } else {
-        alert(data.message || "Có lỗi xảy ra khi cập nhật trạng thái");
+        alert("Có lỗi xảy ra khi cập nhật trạng thái");
       }
     } catch (err) {
       console.error("Lỗi khi cập nhật trạng thái:", err);
       alert("Có lỗi xảy ra khi cập nhật trạng thái");
+    }
+  };
+
+  const now = new Date();
+  const start = new Date(start_time);
+  const diffHours = (start - now) / (1000 * 60 * 60);
+
+  const handleCancelLate = async () => {
+    try {
+      const token = api.getStoredToken();
+      const res = await fetch(
+        `http://localhost:3001/api/bookings/${booking_id}/cancel`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ cancelledBy: "tasker_late" }),
+        }
+      );
+      const data = await res.json();
+      if (data.success) {
+        alert("Hủy (sát giờ) thành công. Điểm uy tín -20, khách được hoàn tiền.");
+        navigate("/tasker/bookings");
+      } else {
+        alert(data.message || "Không thể hủy booking");
+      }
+    } catch (err) {
+      console.error("❌ Lỗi khi hủy sát giờ:", err);
+      alert("Đã xảy ra lỗi khi hủy sát giờ");
     }
   };
 
@@ -220,28 +293,32 @@ export default function TaskerBookingDetail() {
               status === "Chờ xử lý"
                 ? "warning"
                 : status === "Đã chấp nhận"
-                ? "info"
-                : status === "Đang tiến hành"
-                ? "primary"
-                : status === "Hoàn thành"
-                ? "success"
-                : status === "Hủy"
-                ? "danger"
-                : "secondary"
+                  ? "info"
+                  : status === "Đã thanh toán"
+                    ? "success"
+                    : status === "Đang tiến hành"
+                      ? "primary"
+                      : status === "Hoàn thành"
+                        ? "success"
+                        : status === "Hủy"
+                          ? "danger"
+                          : "secondary"
             }
             className="px-3 py-2 fs-6"
           >
             {status === "Chờ xử lý"
               ? "⏳"
               : status === "Đã chấp nhận"
-              ? "✅"
-              : status === "Đang tiến hành"
-              ? "🔄"
-              : status === "Hoàn thành"
-              ? "🎉"
-              : status === "Hủy"
-              ? "❌"
-              : "❓"}{" "}
+                ? "✅"
+                : status === "Đã thanh toán"
+                  ? "💰"
+                  : status === "Đang tiến hành"
+                    ? "🔄"
+                    : status === "Hoàn thành"
+                      ? "🎉"
+                      : status === "Hủy"
+                        ? "❌"
+                        : "❓"}{" "}
             {status}
           </Badge>
           </div>
@@ -309,7 +386,7 @@ export default function TaskerBookingDetail() {
                 {(start_time || end_time) && (
                   <div>
                     <i className="bi bi-clock text-primary me-2"></i>
-                    {formatDateTime(start_time)} → {formatDateTime(end_time)}
+                    {formatDate(start_time)} → {formatDate(end_time)}
                     <br />
                   </div>
                 )}
@@ -425,7 +502,24 @@ export default function TaskerBookingDetail() {
             </>
           )}
 
-          {status === "Đã chấp nhận" && (
+        {status === "Đã chấp nhận" && (
+          <>
+            {/* KHÁCH CHƯA THANH TOÁN */}
+            <Button
+              variant="danger"
+              size="lg"
+              className="px-5 fw-semibold"
+              style={{ borderRadius: "10px", minWidth: "200px" }}
+              onClick={handleCancelTask}
+            >
+              ❌ Hủy công việc (Không trừ điểm)
+            </Button>
+          </>
+        )}
+
+        {status === "Đã thanh toán" && (
+          <>
+            {/* BẮT ĐẦU CÔNG VIỆC */}
             <Button
               variant="info"
               size="lg"
@@ -433,9 +527,51 @@ export default function TaskerBookingDetail() {
               style={{ borderRadius: "10px", minWidth: "160px" }}
               onClick={() => handleStatusUpdate("Đang tiến hành")}
             >
-              ▶ Bắt đầu công việc
+              ▶ việc6
             </Button>
-          )}
+
+            {/* >2h: hủy bình thường */}
+            {diffHours > 2 ? (
+              <Button
+                variant="danger"
+                size="lg"
+                className="px-5 fw-semibold"
+                style={{ borderRadius: "10px", minWidth: "160px", marginLeft: "20px" }}
+                onClick={handleCancelTask}
+              >
+                ❌ Hủy công việc (–10)
+              </Button>
+            ) : (
+              <>
+                {/* <2h: hủy sát giờ */}
+                <Button
+                  variant="danger"
+                  size="lg"
+                  className="px-5 fw-semibold"
+                  style={{
+                    borderRadius: "10px",
+                    minWidth: "180px",
+                    marginLeft: "20px",
+                  }}
+                  onClick={handleCancelLate}
+                >
+                  ❌ Hủy (sát giờ –20)
+                </Button>
+
+                {/* Báo cáo khách no-show */}
+                <Button
+                  variant="warning"
+                  size="lg"
+                  className="px-5 fw-semibold text-dark"
+                  style={{ borderRadius: "10px", minWidth: "240px" }}
+                  onClick={() => navigate(`/tasker/no-show-report/${booking_id}`)}
+                >
+                  📣 Báo cáo khách vắng mặt
+                </Button>
+              </>
+            )}
+          </>
+        )}
 
           {status === "Đang tiến hành" && (
             <Button
@@ -476,6 +612,7 @@ export default function TaskerBookingDetail() {
           )}
         </div>
       </div>
+
     </Container>
   );
 }

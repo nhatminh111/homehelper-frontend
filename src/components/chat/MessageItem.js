@@ -12,7 +12,6 @@ const MessageItem = ({
   showAvatar = true,
   showSenderName = true,
   isEditing = false,
-  isReplying = false,
   onEdit,
   onCancelEdit,
   onSaveEdit,
@@ -110,10 +109,6 @@ const MessageItem = ({
     setShowMenu(false);
   };
 
-  const handleReply = () => {
-    onReply(message);
-    setShowMenu(false);
-  };
 
   const handleCopyMessage = () => {
     navigator.clipboard.writeText(message.content);
@@ -303,20 +298,6 @@ const MessageItem = ({
 
         {/* Message Bubble */}
         <div className="message-bubble">
-          {/* Reply Reference */}
-          {message.reply_to_message && (
-            <div className="reply-reference">
-              <div className="reply-line"></div>
-              <div className="reply-content">
-                <div className="reply-sender">
-                  {message.reply_to_message.sender?.name || 'Ai đó'}
-                </div>
-                <div className="reply-text">
-                  {message.reply_to_message.content}
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Message Content */}
           {renderMessageContent()}
@@ -333,10 +314,6 @@ const MessageItem = ({
 
             {showMenu && (
               <div className="menu-dropdown">
-                <button className="menu-item" onClick={handleReply}>
-                  <i className="fa-solid fa-reply me-2"></i>
-                  Trả lời
-                </button>
                 <button className="menu-item" onClick={handleCopyMessage}>
                   <i className="fa-solid fa-copy me-2"></i>
                   Sao chép

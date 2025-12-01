@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useAuth } from "../contexts/AuthContext";
+import { showToast } from "../components/common/CustomToast";
 
 const API_BASE_URL =
   process.env.REACT_APP_API_URL || "http://localhost:3001/api";
@@ -11,6 +12,14 @@ export default function StaffBlogs() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedPost, setSelectedPost] = useState(null);
+
+  // Generic confirmation using CustomToast.confirm if available; fallback to window.confirm
+  const confirmAction = async (message) => {
+    if (showToast && typeof showToast.confirm === "function") {
+      return await showToast.confirm(message);
+    }
+    return window.confirm(message);
+  };
 
   useEffect(() => {
     const fetchBlogs = async () => {
@@ -30,14 +39,12 @@ export default function StaffBlogs() {
   }, [token]);
 
   const updateStatus = async (post_id, status) => {
-    if (
-      !window.confirm(
-        `Bạn có chắc muốn ${
-          status === "Approved" ? "DUYỆT" : "TỪ CHỐI"
-        } bài viết này?`
-      )
-    )
-      return;
+    const confirmed = await confirmAction(
+      `Bạn có chắc muốn ${
+        status === "Approved" ? "DUYỆT" : "TỪ CHỐI"
+      } bài viết này?`
+    );
+    if (!confirmed) return;
 
     try {
       const url =
@@ -55,23 +62,26 @@ export default function StaffBlogs() {
         prev.map((p) => (p.post_id === post_id ? { ...p, status } : p))
       );
 
-      alert(`${status === "Approved" ? "Đã duyệt" : "Đã từ chối"} thành công!`);
+      showToast.success(
+        `${status === "Approved" ? "Đã duyệt" : "Đã từ chối"} thành công!`
+      );
     } catch (err) {
       console.error("Lỗi khi cập nhật trạng thái:", err);
-      alert("Không thể cập nhật trạng thái bài viết.");
+      showToast.error("Không thể cập nhật trạng thái bài viết.");
     }
   };
 
   const deletePost = async (post_id) => {
-    if (!window.confirm("Bạn có chắc muốn xoá bài viết này?")) return;
+    const confirmed = await confirmAction("Bạn có chắc muốn xoá bài viết này?");
+    if (!confirmed) return;
     try {
       await axios.delete(`${API_BASE_URL}/blogs/${post_id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setBlogs((prev) => prev.filter((b) => b.post_id !== post_id));
-      alert("Đã xoá bài viết thành công!");
+      showToast.success("Đã xoá bài viết thành công!");
     } catch (err) {
-      alert("Không thể xoá bài viết.");
+      showToast.error("Không thể xoá bài viết.");
     }
   };
 
@@ -80,127 +90,184 @@ export default function StaffBlogs() {
 
   return (
     <div>
+      <style>{`
+        .staff-blogs-container {
+          max-width: 1100px;
+          margin: 0 auto;
+          padding: 0 16px;
+        }
+
+        .staff-blog-card {
+          display: flex;
+          flex-direction: row;
+          border-radius: 12px;
+          overflow: hidden;
+          margin-bottom: 24px;
+          box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+          background: #fff;
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+          position: relative;
+        }
+
+        .staff-blog-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 18px rgba(0,0,0,0.1);
+        }
+
+        .staff-blog-img {
+          width: 35%;
+          height: auto;
+          max-height: 250px;
+          object-fit: cover;
+          background: #f8f9fa;
+          cursor: pointer;
+        }
+
+        .staff-blog-content {
+          width: 65%;
+          padding: 20px;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+        }
+
+        .status-badge {
+          position: absolute;
+          top: 10px;
+          right: 12px;
+          padding: 5px 10px;
+          border-radius: 20px;
+          font-size: 11px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .status-badge.approved { background: #d1e7dd; color: #0f5132; }
+        .status-badge.rejected { background: #f8d7da; color: #842029; }
+        .status-badge.pending { background: #fff3cd; color: #664d03; }
+
+        @media (max-width: 768px) {
+          .staff-blog-card {
+            flex-direction: column;
+          }
+          .staff-blog-img {
+            width: 100%;
+            height: 200px;
+          }
+          .staff-blog-content {
+            width: 100%;
+            padding: 16px;
+          }
+        }
+      `}</style>
+
       <h2 className="mb-3">Quản lý bài viết</h2>
-      {blogs.length === 0 ? (
-        <p>Không có bài viết nào.</p>
-      ) : (
-        <div className="row g-3">
-          {blogs.map((blog) => (
-            <div key={blog.post_id} className="col-12">
-              <div
-                className="card shadow-sm border-0"
-                style={{ borderRadius: "12px", overflow: "hidden" }}
-              >
-                <div className="row g-0">
-                  {/* Ảnh đại diện */}
-                  <div className="col-md-3 bg-light d-flex align-items-center justify-content-center">
-                    {(() => {
-                      let firstImage = null;
-                      try {
-                        const imgs = Array.isArray(blog.photo_urls)
-                          ? blog.photo_urls
-                          : JSON.parse(blog.photo_urls);
-                        firstImage = imgs?.[0];
-                      } catch {
-                        firstImage = blog.photo_urls;
-                      }
+      <div className="staff-blogs-container">
+        {blogs.length === 0 ? (
+          <p>Không có bài viết nào.</p>
+        ) : (
+          blogs.map((blog) => {
+            let firstImage = null;
+            try {
+              const imgs = Array.isArray(blog.photo_urls)
+                ? blog.photo_urls
+                : JSON.parse(blog.photo_urls);
+              firstImage = imgs?.[0];
+            } catch {
+              firstImage = blog.photo_urls;
+            }
 
-                      if (!firstImage)
-                        return (
-                          <div className="text-muted small">Không có ảnh</div>
-                        );
+            const imageSrc = firstImage
+              ? firstImage.startsWith("/images/")
+                ? `http://localhost:3001${firstImage}`
+                : firstImage
+              : null;
 
-                      const imageSrc = firstImage.startsWith("/images/")
-                        ? `http://localhost:3001${firstImage}`
-                        : firstImage;
+            const statusClass =
+              blog.status === "Approved"
+                ? "approved"
+                : blog.status === "Rejected"
+                ? "rejected"
+                : "pending";
 
-                      return (
-                        <img
-                          src={imageSrc}
-                          alt="blog"
-                          style={{
-                            width: "100%",
-                            height: "180px",
-                            objectFit: "cover",
-                            cursor: "pointer",
-                          }}
-                          onClick={() => setSelectedPost(blog)}
-                        />
-                      );
-                    })()}
+            const statusText =
+              blog.status === "Approved"
+                ? "Đã duyệt"
+                : blog.status === "Rejected"
+                ? "Bị từ chối"
+                : "Chờ duyệt";
+
+            return (
+              <div key={blog.post_id} className="staff-blog-card">
+                <div className={`status-badge ${statusClass}`}>
+                  {statusText}
+                </div>
+
+                {imageSrc ? (
+                  <img
+                    src={imageSrc}
+                    alt="blog"
+                    className="staff-blog-img"
+                    onClick={() => setSelectedPost(blog)}
+                  />
+                ) : (
+                  <div className="staff-blog-img d-flex align-items-center justify-content-center text-muted small">
+                    Không có ảnh
+                  </div>
+                )}
+
+                <div className="staff-blog-content">
+                  <div>
+                    <h5 className="card-title mb-1">{blog.title}</h5>
+                    <p className="card-text text-muted small mb-2">
+                      <strong>Tác giả:</strong> {blog.author_name || "Ẩn danh"}
+                    </p>
+                    <div
+                      className="card-text small mb-2"
+                      style={{
+                        maxWidth: "100%",
+                        overflow: "hidden",
+                        display: "-webkit-box",
+                        WebkitLineClamp: 3,
+                        WebkitBoxOrient: "vertical",
+                      }}
+                      dangerouslySetInnerHTML={{ __html: blog.content || "" }}
+                    ></div>
                   </div>
 
-                  {/* Nội dung */}
-                  <div className="col-md-9">
-                    <div className="card-body d-flex flex-column h-100">
-                      <h5 className="card-title mb-1">{blog.title}</h5>
-                      <p className="card-text text-muted small mb-2">
-                        <strong>Tác giả:</strong>{" "}
-                        {blog.author_name || "Ẩn danh"}
-                      </p>
-                      <p
-                        className="card-text small text-truncate mb-2"
-                        style={{ maxWidth: "100%" }}
-                      >
-                        {blog.content || ""}
-                      </p>
-                      <p className="card-text mb-2">
-                        <span
-                          className={`badge ${
-                            blog.status === "Approved"
-                              ? "bg-success"
-                              : blog.status === "Rejected"
-                              ? "bg-danger"
-                              : "bg-warning text-dark"
-                          }`}
-                        >
-                          {blog.status === "Approved"
-                            ? "Đã duyệt"
-                            : blog.status === "Rejected"
-                            ? "Bị từ chối"
-                            : "Chờ duyệt"}
-                        </span>
-                      </p>
-
-                      {/* Nút hành động */}
-                      <div className="mt-auto d-flex justify-content-end gap-2">
-                        {blog.status === "Pending" && (
-                          <>
-                            <button
-                              className="btn btn-success btn-sm"
-                              onClick={() =>
-                                updateStatus(blog.post_id, "Approved")
-                              }
-                            >
-                              Duyệt
-                            </button>
-                            <button
-                              className="btn btn-danger btn-sm"
-                              onClick={() =>
-                                updateStatus(blog.post_id, "Rejected")
-                              }
-                            >
-                              Từ chối
-                            </button>
-                          </>
-                        )}
+                  <div className="d-flex justify-content-end gap-2 mt-2">
+                    {blog.status === "Pending" && (
+                      <>
                         <button
-                          className="btn btn-outline-danger btn-sm"
-                          onClick={() => deletePost(blog.post_id)}
+                          className="btn btn-success btn-sm"
+                          onClick={() => updateStatus(blog.post_id, "Approved")}
                         >
-                          Xoá
+                          Duyệt
                         </button>
-                      </div>
-                    </div>
+                        <button
+                          className="btn btn-danger btn-sm"
+                          onClick={() => updateStatus(blog.post_id, "Rejected")}
+                        >
+                          Từ chối
+                        </button>
+                      </>
+                    )}
+                    <button
+                      className="btn btn-outline-danger btn-sm"
+                      onClick={() => deletePost(blog.post_id)}
+                    >
+                      Xoá
+                    </button>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            );
+          })
+        )}
+      </div>
 
-      {/* Xem chi tiết bài viết */}
+      {/* Modal xem chi tiết */}
       {selectedPost && (
         <div
           className="position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-75 d-flex justify-content-center align-items-center"

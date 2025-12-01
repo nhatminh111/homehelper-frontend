@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import CompletionStatus from "../components/CompletionStatus"
 import { useLocation, useNavigate } from "react-router-dom";
+import blogService from "../services/blogService";
 import { Container, Row, Col, Card, Button, Nav, Form, InputGroup } from "react-bootstrap";
 
 export default function JobDescription() {
@@ -28,12 +29,74 @@ export default function JobDescription() {
   const isComplete = jobTitle.trim() !== "" && description.trim() !== "" && photos.length > 0;
 
   const [expectedPrice, setExpectedPrice] = useState("");
+  // Prefill expected price if coming from a quote or previous steps.
+  // Form expects "thousands" (e.g. user enters 150 -> 150.000đ).
+  useEffect(() => {
+    // Chỉ tự động điền giá khi đến từ QuotesPage.
+    if (!bookingData.fromQuote) return;
+    const raw = Number(bookingData.lockedPrice);
+    if (Number.isFinite(raw) && raw > 0) {
+      // lockedPrice giả định là VND đầy đủ, chuyển sang đơn vị nghìn cho input.
+      const thousands = raw >= 1000 ? Math.round(raw / 1000) : Math.round(raw);
+      setExpectedPrice(String(thousands));
+    } else {
+      // Nếu từ quote nhưng thiếu lockedPrice: không tự đoán theo variant để tránh sai ý người dùng.
+      setExpectedPrice("");
+    }
+  }, [bookingData.fromQuote, bookingData.lockedPrice]);
+
+  // Load blog photos if navigated from quotes and photos not already injected
+  useEffect(() => {
+    if (photos.length > 0) return; // already have
+    if (bookingData.photo_urls && Array.isArray(bookingData.photo_urls)) {
+      setPhotos(bookingData.photo_urls);
+      return;
+    }
+    if (bookingData.fromQuote && bookingData.post_id) {
+      (async () => {
+        try {
+          const res = await blogService.getPostById(bookingData.post_id);
+          const urls = Array.isArray(res?.data?.photo_urls) ? res.data.photo_urls : [];
+          if (urls.length) setPhotos(urls);
+        } catch (err) {
+          // Silent fail; user can still upload manually
+          console.warn("[JobDescription] Không thể tải ảnh post:", err?.message);
+        }
+      })();
+    }
+  }, [bookingData.photo_urls, bookingData.fromQuote, bookingData.post_id, photos.length]);
+
+  const [priceConfirmed, setPriceConfirmed] = useState(false);
 
   const [showSuccess, setShowSuccess] = useState(false);
   const [showError, setShowError] = useState(false);
 
+
+  const [priceError, setPriceError] = useState("");
+
+  const minVnd = (chosenVariants?.[0]?.price_min ?? 0) * 1000;
+  const maxVnd = (chosenVariants?.[0]?.price_max ?? 0) * 1000;
+  const priceVnd = (Number(expectedPrice) || 0) * 1000;
+
+  const checkOutPrice = () => {
+    if (!expectedPrice) {
+      setPriceError("Vui lòng nhập giá mong muốn.");
+      setPriceConfirmed(false);
+      return false;
+    }
+    if (priceVnd < minVnd || priceVnd > maxVnd) {
+      setPriceError(`Giá mong muốn phải nằm trong khoảng từ ${minVnd.toLocaleString("vi-VN")}đ đến ${maxVnd.toLocaleString("vi-VN")}đ`);
+      setPriceConfirmed(false);
+      return false;
+    }
+    setPriceError("");
+    setPriceConfirmed(true); // ✅ đánh dấu đã xác nhận
+    return true;
+  };
+
   const handleCreateBooking = async () => {
     try {
+      if (!checkOutPrice()) return;
       // ✅ Kiểm tra đăng nhập
       const user = JSON.parse(localStorage.getItem("user") || "{}");
       console.log("🪣 [JobDescription] user in localStorage:", user);
@@ -79,7 +142,7 @@ export default function JobDescription() {
       });
 
       const data = await res.json();
-      
+
       // ✅ Xử lý token hết hạn
       if (res.status === 401 && data.error === "Token đã hết hạn") {
         alert("⚠️ Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!");
@@ -87,7 +150,7 @@ export default function JobDescription() {
         navigate("/login");
         return;
       }
-      
+
       if (!data.success) throw new Error(data.message || "Create booking failed");
 
       // ✅ Hiển thị modal thành công
@@ -99,18 +162,6 @@ export default function JobDescription() {
         expectedPrice: payload.expected_price,
       });
 
-      // ⏳ Sau 2 giây tự chuyển sang trang xem trước
-      setTimeout(() => {
-        navigate("/tasker/bookings/preview", {
-          state: {
-            ...bookingData,
-            ...payload,
-            expectedPrice: payload.expected_price,
-            total: bookingData.total || 0,
-            cleaner: bookingData.cleaner,
-          },
-        });
-      }, 2000);
     } catch (err) {
       console.error("❌ [JobDescription] Lỗi khi tạo booking:", err);
       setShowError(true);
@@ -284,33 +335,39 @@ export default function JobDescription() {
         }
 
         .overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background-color: rgba(0, 0, 0, 0.4);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 9999;
-  }
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100vw;
+          height: 100vh;
+          background-color: rgba(0, 0, 0, 0.4);
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          z-index: 9999;
+        }
 
-  .popup {
-    background: #fff;
-    padding: 2rem 3rem;
-    border-radius: 12px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-    text-align: center;
-    max-width: 420px;
-    width: 90%;
-    animation: fadeIn 0.3s ease;
-  }
+        .popup {
+          background: #fff;
+          padding: 2rem 3rem;
+          border-radius: 12px;
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+          text-align: center;
+          max-width: 420px;
+          width: 90%;
+          animation: fadeIn 0.3s ease;
+        }
 
-  @keyframes fadeIn {
-    from { opacity: 0; transform: scale(0.95); }
-    to { opacity: 1; transform: scale(1); }
-  }
+        .btn-confirmed {
+          background: linear-gradient(90deg, #4caf50, #81c784);
+          color: white !important;
+          transition: all 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
+        }
 
       `}</style>
       {/* Header */}
@@ -474,42 +531,47 @@ export default function JobDescription() {
                         <InputGroup
                           style={{
                             width: "180px",
-                            borderRadius: "12px",
+                            borderRadius: "0px",
                             overflow: "hidden",
                             boxShadow: "0 2px 6px rgba(0, 0, 0, 0.08)",
                           }}
                         >
-                          <Form.Control
-                            type="text"
-                            placeholder="0"
-                            value={expectedPrice}
-                            onChange={(e) => {
-                              const val = e.target.value.replace(/\D/g, ""); // chỉ giữ số
-                              setExpectedPrice(val);
-                            }}
-                            style={{
-                              textAlign: "center",
-                              border: "1px solid #e0e6ed",
-                              borderLeft: "none",
-                              borderRight: "none",
-                              fontWeight: 600,
-                              fontSize: "1rem",
-                              color: "#212529",
-                            }}
-                          />
+                          <InputGroup style={{ width: "180px", borderRadius: "12px", overflow: "hidden" }}>
+                            <Form.Control
+                              type="text"
+                              placeholder="0"
+                              value={expectedPrice}
+                              onChange={(e) => {
+                                const val = e.target.value.replace(/\D/g, ""); // chỉ giữ số
+                                setExpectedPrice(val);
+                                if (priceError) setPriceError(""); // xóa lỗi cũ khi người dùng đang nhập lại
+                              }}
+                              onKeyDown={(e) => { if (e.key === "Enter") checkOutPrice(); }}
+                              onBlur={() => { if (expectedPrice !== "") checkOutPrice(); }}
+                              style={{ textAlign: "center", fontWeight: 600 }}
+                              readOnly={Boolean(bookingData.fromQuote)}
+                            />
+                            <InputGroup.Text>.000đ</InputGroup.Text>
+                          </InputGroup>
 
-                          <InputGroup.Text
-                            style={{
-                              backgroundColor: "#f1f5f9",
-                              border: "1px solid #e0e6ed",
-                              borderLeft: "none",
-                              fontWeight: 600,
-                              fontSize: "0.95rem",
-                              color: "#374151",
-                            }}
+                          {priceError && <div className="text-danger mt-1">{priceError}</div>}
+
+                          <Button
+                            className={`mt-2 ${priceConfirmed ? "btn-confirmed" : ""}`}
+                            variant="primary"
+                            onClick={checkOutPrice}
                           >
-                            .000đ
-                          </InputGroup.Text>
+                            {priceConfirmed ? (
+                              <>
+                                <i className="bi bi-check-circle-fill me-2"></i>Đã xác nhận
+                              </>
+                            ) : (
+                              "Xác nhận giá"
+                            )}
+                          </Button>
+                          {priceConfirmed && (
+                            <small className="text-success mt-1">✅ Giá mong muốn đã được xác nhận!</small>
+                          )}
                         </InputGroup>
                       </Form.Group>
                     </Card.Body>
@@ -659,7 +721,7 @@ export default function JobDescription() {
                       variant="outline-primary"
                       className="w-100 mb-2 custom-btn"
                       onClick={handleCreateBooking}
-                      disabled={!jobTitle || !description || !expectedPrice}
+                      disabled={!jobTitle || !description || !expectedPrice || photos.length === 0}
                     >
                       <i className="bi bi-send-check me-2"></i>Gửi yêu cầu cho người giúp việc
                     </Button>

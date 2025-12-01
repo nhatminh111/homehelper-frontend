@@ -1,6 +1,7 @@
 
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { showToast } from './common/CustomToast';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 const getAuthToken = () => {
@@ -61,7 +62,7 @@ const TaskerCertificateRegister = ({ onSubmit, excludeServiceIds = [], excludeVa
       setExtracting({ service_id, idx });
       const cert = (serviceCerts[service_id] || [])[idx];
       if (!cert || !cert.cert_public_id) {
-        alert('Thiếu dữ liệu chứng chỉ hoặc public_id.');
+        showToast.error('Thiếu dữ liệu chứng chỉ hoặc public_id.');
         setExtracting(null);
         return;
       }
@@ -86,7 +87,7 @@ const TaskerCertificateRegister = ({ onSubmit, excludeServiceIds = [], excludeVa
         } : c)
       }));
     } catch (e) {
-      alert(e.message);
+      showToast.error(e.message);
     } finally {
       setExtracting(null);
     }
@@ -164,18 +165,29 @@ const TaskerCertificateRegister = ({ onSubmit, excludeServiceIds = [], excludeVa
             if (codeToCheck) {
               const exists = await checkCertCodeExists(codeToCheck);
               if (exists) {
-                alert(`Mã chứng chỉ ${codeToCheck} đã tồn tại trong hệ thống. Vui lòng kiểm tra lại hoặc sử dụng chứng chỉ khác.`);
+                showToast.error(`Mã chứng chỉ ${codeToCheck} đã tồn tại trong hệ thống. Vui lòng kiểm tra lại hoặc sử dụng chứng chỉ khác.`);
                 continue;
               }
             }
           } else if (!createRes.ok && createJson) {
-            cert = {
-              ...cert,
-              error_type: 'service_mismatch',
-              error_message: createJson.message || 'Chứng chỉ không thuộc nhóm dịch vụ đã chọn',
-              ai_service_mismatch: createJson.ai_service_mismatch,
-              ai_detected_service: createJson.ai_detected_service,
-            };
+            // Distinguish duplicate vs service mismatch vs other errors
+            if (createRes.status === 409 && (createJson.duplicate || /t?n t?i|duplicate/i.test(createJson.message || ''))) {
+              showToast.error(createJson.message || 'Chứng chỉ đã tồn tại trong hệ thống.');
+              continue; // skip pushing this cert
+            }
+            if (createJson.ai_service_mismatch || createJson.service_mismatch) {
+              cert = {
+                ...cert,
+                error_type: 'service_mismatch',
+                error_message: createJson.message || 'Chứng chỉ không thuộc nhóm dịch vụ đã chọn',
+                ai_service_mismatch: createJson.ai_service_mismatch,
+                ai_detected_service: createJson.ai_detected_service,
+              };
+              showToast.warning(cert.error_message);
+            } else {
+              showToast.error(createJson.message || 'Tạo chứng chỉ thất bại');
+              continue;
+            }
           }
         } catch (e) {
           cert = {
@@ -191,7 +203,7 @@ const TaskerCertificateRegister = ({ onSubmit, excludeServiceIds = [], excludeVa
         [service_id]: [...(prev[service_id] || []), ...newCerts]
       }));
     } catch (e) {
-      alert(e.message);
+      showToast.error(e.message);
     } finally {
       setUploading(false);
     }
@@ -200,6 +212,47 @@ const TaskerCertificateRegister = ({ onSubmit, excludeServiceIds = [], excludeVa
   const currentService = services.find(
     (s) => String(s.service_id) === String(selectedServiceId)
   );
+
+  // Compute whether submit should be disabled due to any exceptions/errors
+  const submitDisabled = useMemo(() => {
+    // Determine certificate presence
+    const hasCerts = !!(serviceCerts[selectedServiceId] && serviceCerts[selectedServiceId].length > 0);
+    const requiresCert = !!currentService?.requires_certificate;
+    // Base rules: only require certs if service itself demands them
+    const base = uploading || !selectedServiceId || selectedVariants.length === 0 || (requiresCert && !hasCerts);
+    if (base) return true;
+
+    const certs = serviceCerts[selectedServiceId] || [];
+
+    // Service mismatch exceptions flagged from backend
+    const hasServiceMismatch = certs.some(c => c?.error_type === 'service_mismatch' || c?.ai_service_mismatch === true || c?.ai_service_match === false || c?.service_mismatch === true);
+
+    // Holder mismatch requires explicit confirmation checkbox
+    let accountName = '';
+    try {
+      const raw = localStorage.getItem('user');
+      if (raw) {
+        const obj = JSON.parse(raw);
+        accountName = obj?.name || '';
+      }
+    } catch {}
+    const hasUnconfirmedHolderMismatch = certs.some(c => {
+      const inferredHolder = (c?.holder_name || '').trim();
+      if (!inferredHolder || !accountName) return false;
+      const mismatch = inferredHolder.toLowerCase() !== accountName.toLowerCase();
+      return mismatch && !c?.holder_authorization_confirmed;
+    });
+
+    // Local duplicate certificate codes
+    const codes = certs.map(c => (c?.parsed_certificate_code || '').trim()).filter(Boolean);
+    const unique = new Set(codes);
+    const hasLocalDuplicates = unique.size !== codes.length;
+
+    // Any extraction running
+    const extractingNow = !!extracting;
+
+    return hasServiceMismatch || hasUnconfirmedHolderMismatch || hasLocalDuplicates || extractingNow;
+  }, [selectedServiceId, selectedVariants, serviceCerts, uploading, extracting, currentService?.requires_certificate]);
 
   return (
     <div className="p-3">
@@ -414,7 +467,7 @@ const TaskerCertificateRegister = ({ onSubmit, excludeServiceIds = [], excludeVa
       )}
       <button
         className="btn btn-success"
-        onClick={() => {
+        onClick={async () => {
           const certsRaw = serviceCerts[selectedServiceId];
           const certsFull = Array.isArray(certsRaw) ? certsRaw.map(c => ({
             cert_public_id: c.cert_public_id,
@@ -433,20 +486,44 @@ const TaskerCertificateRegister = ({ onSubmit, excludeServiceIds = [], excludeVa
             parsed_cert_name: c.parsed_cert_name || null,
             parsed_issued_by: c.parsed_issued_by || null,
             parsed_issued_date: c.parsed_issued_date || null,
-            parsed_holder_name: c.parsed_holder_name || null,
+            parsed_holder_name: c.holder_name || null,
             parsed_grade_or_level: c.parsed_grade_or_level || null,
             ai_detected_service: c.ai_detected_service || null,
             variant_ids: c.variant_ids || selectedVariants,
           })) : [];
+
+          // Local duplicate check (same parsed_certificate_code within this submission set)
+          const codes = certsFull.map(c => (c.parsed_certificate_code || '').trim()).filter(Boolean);
+          const codeCounts = codes.reduce((acc, code) => { acc[code] = (acc[code] || 0) + 1; return acc; }, {});
+          const localDuplicates = Object.entries(codeCounts).filter(([_, cnt]) => cnt > 1).map(([code]) => code);
+          if (localDuplicates.length) {
+            showToast.error(`Phát hiện mã chứng chỉ trùng lặp trong danh sách: ${localDuplicates.join(', ')}. Vui lòng chỉnh sửa trước khi submit.`);
+            return;
+          }
+
+          // Remote existence check serially (avoid race causing partial submission)
+          for (const c of certsFull) {
+            const code = (c.parsed_certificate_code || '').trim();
+            if (!code) continue; // skip empty code
+            const exists = await checkCertCodeExists(code);
+            if (exists) {
+              showToast.error(`Mã chứng chỉ ${code} đã tồn tại trên hệ thống. Vui lòng thay đổi hoặc xoá chứng chỉ này.`);
+              return;
+            }
+          }
+
+          const requiresCert = !!currentService?.requires_certificate;
+          const numericServiceId = selectedServiceId ? Number(selectedServiceId) : null;
           onSubmit && onSubmit({
-            service_id: selectedServiceId,
-            variant_ids: selectedVariants,
+            service_id: numericServiceId,
+            variant_ids: selectedVariants.map(v => Number(v)),
             certs: certsFull,
             cert_ids: certsFull.map(c => c.cert_public_id),
-            status: 'pending'
+            status: 'pending',
+            no_cert_required: !requiresCert,
           });
         }}
-        disabled={uploading || !selectedServiceId || selectedVariants.length === 0 || !(serviceCerts[selectedServiceId] && serviceCerts[selectedServiceId].length > 0)}
+        disabled={submitDisabled}
       >
         Xác nhận đăng ký
       </button>

@@ -228,6 +228,7 @@ export const cccdAPI = {
     if (payload.gender) form.append('gender', payload.gender);
     if (payload.ocr_payload) form.append('ocr_payload', payload.ocr_payload);
     if (payload.face_cloud_url) form.append('face_cloud_url', payload.face_cloud_url);
+    if (payload.face_public_id) form.append('face_public_id', payload.face_public_id);
 
     // Thêm các file
     if (payload.front) {
@@ -259,6 +260,24 @@ export const cccdAPI = {
     const responseText = await response.clone().text();
     console.log('📡 Response body:', responseText);
 
+    return handleResponse(response);
+  },
+
+  // Get short-lived signed URL for verified CCCD front image
+  getSignedUrl: async (token) => {
+    const response = await fetch(`${API_BASE_URL}/cccd/signed-url`, {
+      method: "GET",
+      headers: createHeaders(token),
+    });
+    return handleResponse(response);
+  },
+
+  // Get short-lived signed URL for verified face image
+  getFaceSignedUrl: async (token) => {
+    const response = await fetch(`${API_BASE_URL}/cccd/face-signed-url`, {
+      method: "GET",
+      headers: createHeaders(token),
+    });
     return handleResponse(response);
   },
 
@@ -515,5 +534,63 @@ export const taskerApplicationsAPI = {
       headers: createHeaders(token)
     });
     return handleResponse(res);
+  }
+};
+
+// Badges API (Staff/Admin restricted for create)
+export const badgesAPI = {
+  list: async (token = null) => {
+    const res = await fetch(`${API_BASE_URL}/badges`, {
+      method: 'GET',
+      headers: createHeaders(token)
+    });
+    return handleResponse(res);
+  },
+  create: async (badge, token = null) => {
+    const isFormData = badge instanceof FormData;
+    const headers = createHeaders(token, isFormData);
+    if (isFormData) delete headers['Content-Type'];
+    const res = await fetch(`${API_BASE_URL}/badges`, {
+      method: 'POST',
+      headers,
+      body: isFormData ? badge : JSON.stringify(badge)
+    });
+    return handleResponse(res);
+  },
+  update: async (id, payload, token = null) => {
+    const isFormData = payload instanceof FormData;
+    const headers = createHeaders(token, isFormData);
+    if (isFormData) delete headers['Content-Type'];
+    const res = await fetch(`${API_BASE_URL}/badges/${id}`, {
+      method: 'PUT',
+      headers,
+      body: isFormData ? payload : JSON.stringify(payload)
+    });
+    return handleResponse(res);
+  },
+  remove: async (id, token = null) => {
+    const res = await fetch(`${API_BASE_URL}/badges/${id}`, {
+      method: 'DELETE',
+      headers: createHeaders(token)
+    });
+    return handleResponse(res);
+  },
+  scan: async (token = null) => {
+    const res = await fetch(`${API_BASE_URL}/badges/scan`, {
+      method: 'POST',
+      headers: createHeaders(token)
+    });
+    return handleResponse(res); // { message, result: { granted, checked, ... } }
+  }
+};
+
+// Admin Taskers API
+export const adminTaskersAPI = {
+  summary: async (token = null) => {
+    const res = await fetch(`${API_BASE_URL}/admin/taskers/summary`, {
+      method: 'GET',
+      headers: createHeaders(token)
+    });
+    return handleResponse(res); // { data: [...] }
   }
 };

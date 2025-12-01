@@ -39,6 +39,19 @@ export default function Booking() {
 
     const [loadingServices, setLoadingServices] = useState(true);
 
+    // Moved up: selection state must exist before any useEffect dependencies referencing it
+    const defaultSelection = () => ({
+        date: "",
+        dates: [],
+        startTime: "",
+        endTime: "",
+        quantity: 1,
+        frequency: "",
+        workHours: "",
+        services: {},
+    });
+    const [selection, setSelection] = useState(defaultSelection());
+
     useEffect(() => {
         if (!selectedVariantId) return;
         TaskerService.getTaskersByVariant(selectedVariantId)
@@ -101,6 +114,29 @@ export default function Booking() {
         }
     }, [bookingData]);
 
+    // Nếu đến từ trang báo giá (quotes) thì tự động chọn dịch vụ và bỏ qua bước 0
+    useEffect(() => {
+        if (!bookingData?.fromQuote) return;
+        if (!services || services.length === 0) return;
+        // Nếu đã có chọn rồi thì khỏi làm lại
+        if (Object.keys(selection.services || {}).length > 0) return;
+
+        // Tìm variant theo tên (vì quotes không gửi variant_id)
+        const matched = services.find(v => v.variant_name === bookingData.variant_name);
+        if (matched) {
+            // Gắn giá khóa (lockedPrice) nếu báo giá đề xuất có giá riêng
+            if (bookingData.lockedPrice) {
+                setServices(prev => prev.map(v => v.variant_id === matched.variant_id ? { ...v, specific_price: bookingData.lockedPrice } : v));
+            }
+            // Chọn variant và chuyển sang bước lịch hẹn
+            setSelection(prev => ({
+                ...prev,
+                services: { [matched.variant_id]: true }
+            }));
+            setStep(1); // bỏ qua chọn dịch vụ
+        }
+    }, [bookingData, services, selection.services]);
+
     // Fake user data (test UI)
     const [user, setUser] = useState(null);
 
@@ -127,17 +163,6 @@ export default function Booking() {
     const [variantsByService, setVariantsByService] = useState({});
 
 
-    const defaultSelection = () => ({
-        date: "",
-        dates: [],
-        startTime: "",
-        endTime: "",
-        quantity: 1,
-        frequency: "",
-        workHours: "",
-        services: {},
-    });
-    const [selection, setSelection] = useState(defaultSelection());
 
     const allVariants = useMemo(() => {
         const acc = [];
@@ -1482,6 +1507,13 @@ export default function Booking() {
                                                     end_time: endISO,
                                                     location: selection.address,
                                                     expected_price: totalPrice,
+                                                    // Nếu đến từ báo giá: giữ giá đã chốt & id báo giá & post
+                                                    fromQuote: bookingData?.fromQuote || false,
+                                                    lockedPrice: bookingData?.lockedPrice || null,
+                                                    quote_id: bookingData?.quote_id || null,
+                                                    post_id: bookingData?.post_id || null,
+                                                    // Truyền ảnh blog nếu có (giảm thêm 1 request ở JobDescription)
+                                                    photo_urls: bookingData?.photo_urls || null,
                                                 };
 
                                                 console.log("📦 [Booking] Dữ liệu gửi sang JobDescription:", payload);

@@ -22,6 +22,7 @@ import TaskerService from "../services/taskerService";
 import '../css/Home.css';
 import 'react-toastify/dist/ReactToastify.css';
 
+
 const Home = () => {
   const [services, setServices] = useState([]);
   const [searchName, setSearchName] = useState("");

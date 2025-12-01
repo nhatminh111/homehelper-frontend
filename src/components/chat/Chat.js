@@ -1245,6 +1245,7 @@ const Chat = () => {
     );
   });
 
+
   // Moderation context per conversation (e.g., bank keyword detected recently)
   const moderationContextsRef = useRef(new Map());
   const BANK_CONTEXT_TTL_MS = 3 * 60 * 1000; // 3 minutes
@@ -1574,6 +1575,7 @@ const Chat = () => {
                           </strong>
                           {quoteDetails?.unit && (
                             <span> / {quoteDetails?.unit}</span>
+
                           )}
                         </>
                       ) : null}

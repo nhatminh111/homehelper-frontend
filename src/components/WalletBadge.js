@@ -4,6 +4,7 @@ import { formatVND } from '../utils/formatVND';
 
 export default function WalletBadge() {
   const { balance, loading, error, refresh } = useWalletBalance({ autoRefreshMs: 15000 });
+  console.log(">>> BALANCE HOOK:", balance);
 
   if (error) return <span className="badge-wallet error" title={error}>Ví: lỗi</span>;
 
