@@ -2,7 +2,6 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Container, Row, Col, Card, Button, Badge, Spinner, Alert } from "react-bootstrap";
 import NegotiatePriceButton from "../components/negotiation/NegotiatePriceButton";
-import NoShowReportModal from "../components/tasker/NoShowReportModal";
 import api from "../services/api";
 
 export default function TaskerBookingDetail() {
@@ -13,8 +12,6 @@ export default function TaskerBookingDetail() {
   const [booking, setBooking] = useState(location.state?.booking || null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-
-  const [showNoShowModal, setShowNoShowModal] = useState(false);
 
   const handleCancelTask = async () => {
     try {
@@ -133,6 +130,22 @@ export default function TaskerBookingDetail() {
     service_name,
     variant_name,
   } = booking;
+
+  // Parse task_checklist thành checklistItems
+  const checklistItems = (() => {
+    if (!task_checklist) return [];
+    if (Array.isArray(task_checklist)) return task_checklist;
+    if (typeof task_checklist === 'string') {
+      try {
+        const parsed = JSON.parse(task_checklist);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        // Nếu không phải JSON, coi như là string đơn giản
+        return task_checklist.split('\n').filter(item => item.trim());
+      }
+    }
+    return [];
+  })();
 
   const canCancelFree = (status === "Đã chấp nhận" && !booking.isPaid);
 

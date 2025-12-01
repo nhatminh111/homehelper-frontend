@@ -49,7 +49,6 @@ import Dashboard from "./pages/Dashboard";
 import TaskerSearch from "./pages/TaskerSearch";
 import TaskerProfile from "./pages/TaskerProfile";
 import UserProfile from "./pages/UserProfile";
-import TaskerMyProfile from "./pages/TaskerMyProfile";
 import AccountManagement from "./pages/AccountManagement";
 import TaskManagement from "./pages/TaskManagement";
 import PaymentInvoicing from "./pages/PaymentInvoicing";
@@ -171,12 +170,12 @@ function App() {
                 } />
                 <Route path="/tasker-search" element={<TaskerSearch />} />
                 <Route path="/tasker-profile/:id" element={<TaskerProfile />} />
+                <Route path="/tasker-profile" element={
+                  <ProtectedRoute requiredRole="Tasker"> <TaskerProfile /> </ProtectedRoute>
+                } />
                 {/* Profile routes - separate for User and Tasker */}
                 <Route path="/user-profile" element={
                   <ProtectedRoute requiredRole="Customer"> <UserProfile /> </ProtectedRoute>
-                } />
-                <Route path="/tasker-profile" element={
-                  <ProtectedRoute requiredRole="Tasker"> <TaskerMyProfile /> </ProtectedRoute>
                 } />
                 <Route path="/account" element={
                   <ProtectedRoute> <AccountManagement /> </ProtectedRoute>

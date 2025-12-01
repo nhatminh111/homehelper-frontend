@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import "../css/TaskerProfile.css";
 import { useAuth } from "../contexts/AuthContext";
 import { useParams } from "react-router-dom";
@@ -12,6 +12,8 @@ import {
   faMapMarkerAlt,
   faCalendarCheck,
   faComments,
+  faCopy,
+  faLink,
 } from "@fortawesome/free-solid-svg-icons";
 import { faClock as faClockRegular } from "@fortawesome/free-regular-svg-icons";
 import TaskerCertificateRegister from '../components/TaskerCertificateRegister';
@@ -240,7 +242,7 @@ const createHeaders = (token = null) => {
 };
 
 const TaskerProfile = () => {
-  const { id } = useParams();
+  const { id: paramId } = useParams();
   const {
     user,
     token,
@@ -249,6 +251,25 @@ const TaskerProfile = () => {
     isStaff,
     isTasker,
   } = useAuth();
+  
+  // Nếu không có id trong URL, sử dụng user_id của user hiện tại (dành cho tasker xem profile của chính mình)
+  // Sử dụng useMemo để re-compute khi user thay đổi
+  const id = useMemo(() => {
+    if (paramId) return paramId;
+    if (user?.user_id) return String(user.user_id);
+    return null;
+  }, [paramId, user?.user_id]);
+  
+  // Kiểm tra xem đây có phải profile của chính user đang đăng nhập không
+  const isOwnProfile = useMemo(() => {
+    if (!user?.user_id) return false;
+    // Nếu không có paramId và user là tasker -> đang xem profile của chính mình
+    if (!paramId && isTasker()) return true;
+    // Nếu có paramId và trùng với user_id -> đang xem profile của chính mình
+    if (paramId && String(user.user_id) === String(paramId)) return true;
+    return false;
+  }, [paramId, user?.user_id, isTasker]);
+  
   const [tasker, setTasker] = useState(null);
   const [reviewsData, setReviewsData] = useState({
     reviews: [],
@@ -265,6 +286,55 @@ const TaskerProfile = () => {
   const [loadingUser, setLoadingUser] = useState(true);
   const [inWishlist, setInWishlist] = useState(false);
   const [skipFetch, setSkipFetch] = useState(false);
+  const [profileUrl, setProfileUrl] = useState("");
+  
+  // State cho edit mode
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: "",
+    phone: "",
+    Introduce: ""
+  });
+  const [saving, setSaving] = useState(false);
+
+  // Cập nhật editForm khi tasker data thay đổi
+  useEffect(() => {
+    if (tasker) {
+      setEditForm({
+        name: tasker.name || "",
+        phone: tasker.phone || "",
+        Introduce: tasker.Introduce || ""
+      });
+    }
+  }, [tasker]);
+
+  // Hàm lưu thông tin profile
+  const handleSaveProfile = async () => {
+    if (!id) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/tasker-profile/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(editForm)
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setTasker(data.data);
+        setIsEditing(false);
+        showToast.success("Cập nhật thông tin thành công!");
+      } else {
+        showToast.error(data.message || "Lỗi khi cập nhật thông tin");
+      }
+    } catch (err) {
+      console.error("Save profile error:", err);
+      showToast.error("Lỗi kết nối server");
+    }
+    setSaving(false);
+  };
 
   // Demo/static datasets to mirror the provided UI comps
   const specialties = [
@@ -373,8 +443,20 @@ const TaskerProfile = () => {
     available: true,
   };
 
-  // Load tasker profile (skip API if no id → use demo)
+  // Set profile URL khi xem profile của chính mình
   useEffect(() => {
+    if (isOwnProfile && id) {
+      const fullUrl = `${window.location.origin}/tasker-profile/${id}`;
+      setProfileUrl(fullUrl);
+    }
+  }, [isOwnProfile, id]);
+
+  // Load tasker profile - đợi auth load xong trước
+  useEffect(() => {
+    // Đợi auth loading xong
+    if (authLoading) return;
+    
+    // Nếu không có id (và cũng không có user), hiển thị demo
     if (!id) {
       setTasker(demoTasker);
       // seed demo reviews for overview
@@ -415,15 +497,39 @@ const TaskerProfile = () => {
       });
       return;
     }
+    
+    // Có id -> fetch từ API
+    console.log("🔍 Fetching tasker profile for id:", id);
     fetch(`${API_BASE_URL}/tasker-profile/${id}`)
-      .then((res) => res.json())
-      .then((data) => setTasker(data))
-      .catch((err) => console.error(err));
-  }, [id]);
+      .then((res) => {
+        console.log("📡 API Response status:", res.status);
+        return res.json();
+      })
+      .then((data) => {
+        console.log("📦 Tasker data received:", data);
+        // Kiểm tra nếu API trả về error
+        if (data.error || data.message) {
+          console.error("❌ API Error:", data.message || data.error);
+          setTasker(demoTasker);
+          return;
+        }
+        // Kiểm tra có data hợp lệ không
+        if (data && data.name) {
+          setTasker(data);
+        } else {
+          console.warn("⚠️ Invalid tasker data, using demo");
+          setTasker(demoTasker);
+        }
+      })
+      .catch((err) => {
+        console.error("❌ Fetch error:", err);
+        setTasker(demoTasker);
+      });
+  }, [id, authLoading]);
 
   // Load badges for achievements tab
   useEffect(() => {
-    if (!id) return;
+    if (authLoading || !id) return;
     setBadgesLoading(true);
     setBadgesError(null);
     fetch(`${API_BASE_URL}/taskers/${id}/badges`, { headers: createHeaders(token) })
@@ -438,7 +544,7 @@ const TaskerProfile = () => {
         setBadgesError(err.message || 'Không tải được huy hiệu');
         setBadgesLoading(false);
       });
-  }, [id, token]);
+  }, [id, token, authLoading]);
 
   // Load reviews (only if an id exists)
   useEffect(() => {
@@ -458,6 +564,8 @@ const TaskerProfile = () => {
   useEffect(() => setSkipFetch(false), [activeTab]);
 
   useEffect(() => {
+    // Không cần check can-rate khi xem profile của chính mình
+    if (isOwnProfile) return;
     if (id && isAuthenticated()) {
       fetch(`${API_BASE_URL}/bookings/${id}/can-rate`, {
         headers: createHeaders(token),
@@ -469,9 +577,11 @@ const TaskerProfile = () => {
         })
         .catch((err) => console.error(err));
     }
-  }, [id, token, isAuthenticated]);
+  }, [id, token, isAuthenticated, isOwnProfile]);
 
   useEffect(() => {
+    // Không cần check wishlist khi xem profile của chính mình
+    if (isOwnProfile) return;
     if (!user) return;
     fetch(`${API_BASE_URL}/wishlists/${user.user_id}`, {
       headers: createHeaders(token),
@@ -482,7 +592,7 @@ const TaskerProfile = () => {
         setInWishlist(data.taskers?.some((t) => t.tasker_id === Number(id)));
       })
       .catch(() => setInWishlist(false));
-  }, [user, id, token]);
+  }, [user, id, token, isOwnProfile]);
 
   const removeTasker = async (taskerId) => {
     if (!window.confirm("Bạn có chắc muốn xóa tasker này khỏi wishlist?"))
@@ -569,6 +679,25 @@ const TaskerProfile = () => {
     }
   };
 
+  // Hiển thị loading khi đang load auth hoặc chưa có data tasker
+  if (authLoading)
+    return <div className="container py-5 text-center">Loading...</div>;
+  
+  // Nếu không có tasker data và đang xem profile của chính mình
+  if (!tasker && isOwnProfile) {
+    return (
+      <div className="container py-5 text-center">
+        <div className="alert alert-warning">
+          <h4>Bạn chưa có hồ sơ Tasker!</h4>
+          <p>Bạn cần đăng ký trở thành Tasker để có hồ sơ.</p>
+          <a href="/become-tasker" className="btn btn-primary">
+            Trở thành Tasker ngay
+          </a>
+        </div>
+      </div>
+    );
+  }
+  
   if (!tasker)
     return <div className="container py-5 text-center">Loading...</div>;
 
@@ -578,7 +707,7 @@ const TaskerProfile = () => {
     { id: "videos", label: "Videos", icon: faEye },
     { id: "articles", label: "Articles", icon: faAward },
     // Only show Certification tab if user is viewing their own profile and is a tasker
-    ...(isTasker && user?.user_id === Number(id)
+    ...(isTasker() && user?.user_id === Number(id)
       ? [{ id: "certification", label: "Certification", icon: faAward }]
       : []),
     { id: "achievements", label: "Achievements", icon: faCheckCircle },
@@ -592,6 +721,45 @@ const TaskerProfile = () => {
       <div className="container tp-container">
         {/* Global toast container for this page */}
         <CustomToastContainer />
+        {/* Profile URL Banner - Hiển thị khi xem profile của chính mình */}
+        {isOwnProfile && profileUrl && (
+          <div className="tp-url-banner mb-4">
+            <div className="d-flex align-items-center justify-content-between flex-wrap gap-3">
+              <div className="d-flex align-items-center gap-3">
+                <div className="d-flex align-items-center justify-content-center" 
+                  style={{width: '48px', height: '48px', background: 'rgba(255,255,255,0.2)', borderRadius: '12px'}}>
+                  <FontAwesomeIcon icon={faLink} style={{fontSize: '20px'}} />
+                </div>
+                <div>
+                  <div className="fw-bold" style={{fontSize: '16px'}}>🔗 Link Profile của bạn</div>
+                  <div style={{fontSize: '13px', opacity: 0.9}}>
+                    Chia sẻ để khách hàng dễ dàng tìm thấy bạn
+                  </div>
+                </div>
+              </div>
+              <div className="d-flex align-items-center gap-2 flex-grow-1" style={{ maxWidth: '500px' }}>
+                <input 
+                  type="text" 
+                  className="form-control tp-url-input" 
+                  value={profileUrl} 
+                  readOnly
+                  onClick={(e) => e.target.select()}
+                />
+                <button 
+                  className="tp-copy-btn d-flex align-items-center gap-2"
+                  onClick={() => {
+                    navigator.clipboard.writeText(profileUrl);
+                    showToast.success('🎉 Đã sao chép URL!');
+                  }}
+                >
+                  <FontAwesomeIcon icon={faCopy} />
+                  Copy
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Header Card */}
         <div className="tp-card tp-header">
           <div className="row align-items-center gx-4">
@@ -614,18 +782,18 @@ const TaskerProfile = () => {
                   </div>
                   <div className="d-flex align-items-center gap-2 tp-rating">
                     <span className="tp-rating-score">
-                      {tasker.rating || 4.9}
+                      {tasker.rating ? Number(tasker.rating).toFixed(1) : "0.0"}
                     </span>
                     <FontAwesomeIcon icon={faStar} />
                     <span className="text-muted small">
-                      Based on 124 reviews
+                      {tasker.reviewCount || 0} đánh giá
                     </span>
                   </div>
                 </div>
               </div>
               <div className="d-flex flex-wrap gap-2 mt-3">
                 {/* Hide booking/chat buttons if tasker is viewing their own profile */}
-                {!(isTasker && user?.user_id === Number(id)) && (
+                {!(isTasker() && user?.user_id === Number(id)) && (
                   <>
                     <button className="btn btn-primary tp-btn-primary">
                       <FontAwesomeIcon
@@ -682,122 +850,270 @@ const TaskerProfile = () => {
           <div className="p-3 p-md-4">
             {activeTab === "overview" && (
               <div>
-                {/* Intro summary strip with badges */}
-                <div className="row g-3 mb-3">
-                  <div className="col-md-12">
-                    <div className="d-flex flex-wrap align-items-center gap-2">
-                      <span className="tp-badge">
-                        <FontAwesomeIcon
-                          icon={faMapMarkerAlt}
-                          className="me-1"
-                        />
-                        {tasker.location || "Downtown, 2.3 km away"}
-                      </span>
-                      <span className="tp-badge">
-                        {tasker.yearsExperience || 5} years experience
-                      </span>
-                      <span
-                        className="tp-badge"
-                        style={{
-                          background: "#e6f7ef",
-                          borderColor: "#b7e4cd",
-                          color: "#0f766e",
-                        }}
+                {/* Header với nút Edit khi xem profile của chính mình */}
+                {isOwnProfile && (
+                  <div className="d-flex justify-content-between align-items-center mb-4 pb-3" style={{borderBottom: '2px solid #f1f5f9'}}>
+                    <div>
+                      <h4 className="mb-1 fw-bold" style={{color: '#1e293b'}}>
+                        {isEditing ? '✏️ Chỉnh sửa thông tin' : '👤 Thông tin của bạn'}
+                      </h4>
+                      <p className="text-muted mb-0" style={{fontSize: '14px'}}>
+                        {isEditing ? 'Cập nhật thông tin cá nhân của bạn' : 'Quản lý thông tin hiển thị với khách hàng'}
+                      </p>
+                    </div>
+                    {!isEditing ? (
+                      <button 
+                        className="tp-edit-btn"
+                        onClick={() => setIsEditing(true)}
                       >
-                        <FontAwesomeIcon
-                          icon={faCheckCircle}
-                          className="me-1"
+                        <i className="bi bi-pencil-square"></i>
+                        Chỉnh sửa
+                      </button>
+                    ) : (
+                      <div className="d-flex gap-2">
+                        <button 
+                          className="tp-save-btn"
+                          onClick={handleSaveProfile}
+                          disabled={saving}
+                        >
+                          <i className="bi bi-check2-circle me-1"></i>
+                          {saving ? "Đang lưu..." : "Lưu thay đổi"}
+                        </button>
+                        <button 
+                          className="tp-cancel-btn"
+                          onClick={() => {
+                            setIsEditing(false);
+                            setEditForm({
+                              name: tasker.name || "",
+                              phone: tasker.phone || "",
+                              Introduce: tasker.Introduce || ""
+                            });
+                          }}
+                        >
+                          <i className="bi bi-x-circle me-1"></i>
+                          Hủy bỏ
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Thông tin cơ bản */}
+                <div className="tp-info-card mb-4">
+                  <h5>
+                    <i className="bi bi-person-circle"></i>
+                    Thông tin cơ bản
+                  </h5>
+                  
+                  {isEditing ? (
+                    // Form chỉnh sửa
+                    <div className="row g-4">
+                      <div className="col-md-6">
+                        <label className="tp-info-label">Họ và tên</label>
+                        <input
+                          type="text"
+                          className="form-control tp-form-control"
+                          value={editForm.name}
+                          onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                          placeholder="Nhập họ và tên"
                         />
-                        Available Now
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Bio */}
-                <p className="text-muted">
-                  Professional house cleaner with 5+ years of experience. I
-                  specialize in deep cleaning, kitchen sanitization, and
-                  eco-friendly cleaning methods. I take pride in delivering
-                  exceptional results and building long-term relationships with
-                  my clients.
-                </p>
-
-                {/* Specializations & Languages */}
-                <div className="row g-3 mb-4">
-                  <div className="col-md-8">
-                    <div className="mb-2 fw-semibold">Specializations</div>
-                    <div className="d-flex flex-wrap gap-2">
-                      {specialties.map((s) => (
-                        <span
-                          key={s}
-                          className="badge bg-primary-subtle text-primary border"
-                        >
-                          {s}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="col-md-4">
-                    <div className="mb-2 fw-semibold">Languages</div>
-                    <div className="d-flex flex-wrap gap-2">
-                      {languages.map((l) => (
-                        <span
-                          key={l}
-                          className="badge bg-secondary-subtle text-secondary border"
-                        >
-                          {l}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Stats tiles */}
-                <div className="row g-3 mb-4">
-                  {stats.map((st) => (
-                    <div key={st.label} className="col-12 col-md-4">
-                      <div className="tp-tile">
-                        <div className="fs-4 fw-bold">{st.value}</div>
-                        <div className="text-muted">{st.label}</div>
+                      </div>
+                      <div className="col-md-6">
+                        <label className="tp-info-label">Số điện thoại</label>
+                        <input
+                          type="tel"
+                          className="form-control tp-form-control"
+                          value={editForm.phone}
+                          onChange={(e) => setEditForm({...editForm, phone: e.target.value})}
+                          placeholder="Nhập số điện thoại"
+                        />
+                      </div>
+                      <div className="col-12">
+                        <label className="tp-info-label">Email</label>
+                        <input
+                          type="email"
+                          className="form-control tp-form-control"
+                          value={tasker.email || ""}
+                          disabled
+                        />
+                        <small className="text-muted mt-1 d-block">
+                          <i className="bi bi-lock me-1"></i>Email không thể thay đổi
+                        </small>
+                      </div>
+                      <div className="col-12">
+                        <label className="tp-info-label">Giới thiệu bản thân</label>
+                        <textarea
+                          className="form-control tp-form-control"
+                          rows="5"
+                          value={editForm.Introduce}
+                          onChange={(e) => setEditForm({...editForm, Introduce: e.target.value})}
+                          placeholder="Mô tả về bản thân, kinh nghiệm làm việc, kỹ năng chuyên môn..."
+                        />
                       </div>
                     </div>
-                  ))}
+                  ) : (
+                    // Hiển thị thông tin
+                    <div className="row g-4">
+                      <div className="col-md-6">
+                        <div className="tp-info-label">Họ và tên</div>
+                        <div className="tp-info-value">{tasker.name || "Chưa cập nhật"}</div>
+                      </div>
+                      <div className="col-md-6">
+                        <div className="tp-info-label">Số điện thoại</div>
+                        <div className="tp-info-value">
+                          <i className="bi bi-telephone me-2" style={{color: '#667eea'}}></i>
+                          {tasker.phone || "Chưa cập nhật"}
+                        </div>
+                      </div>
+                      <div className="col-md-6">
+                        <div className="tp-info-label">Email</div>
+                        <div className="tp-info-value">
+                          <i className="bi bi-envelope me-2" style={{color: '#667eea'}}></i>
+                          {tasker.email || "Chưa cập nhật"}
+                        </div>
+                      </div>
+                      <div className="col-md-6">
+                        <div className="tp-info-label">Trạng thái tài khoản</div>
+                        <span className={`badge px-3 py-2 ${tasker.status === 'Active' ? 'bg-success' : 'bg-secondary'}`} 
+                          style={{fontSize: '14px', borderRadius: '20px'}}>
+                          <i className={`bi ${tasker.status === 'Active' ? 'bi-check-circle' : 'bi-pause-circle'} me-1`}></i>
+                          {tasker.status === 'Active' ? 'Đang hoạt động' : tasker.status || 'Chưa xác định'}
+                        </span>
+                      </div>
+                      <div className="col-12">
+                        <div className="tp-info-label">Giới thiệu bản thân</div>
+                        <div className="tp-bio">
+                          {tasker.Introduce || (
+                            <span className="text-muted fst-italic">
+                              Chưa có thông tin giới thiệu. 
+                              {isOwnProfile && " Hãy thêm mô tả về bản thân để khách hàng hiểu hơn về bạn!"}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                {/* Availability & Reviews snapshot */}
+                {/* Thống kê */}
+                <div className="tp-info-card mb-4">
+                  <h5>
+                    <i className="bi bi-graph-up-arrow"></i>
+                    Thống kê hoạt động
+                  </h5>
+                  <div className="row g-3">
+                    <div className="col-6 col-md-3">
+                      <div className="tp-stat-card">
+                        <div className="tp-stat-value">
+                          {tasker.rating ? Number(tasker.rating).toFixed(1) : "0.0"}
+                        </div>
+                        <div className="tp-stat-label">
+                          <i className="bi bi-star-fill me-1" style={{color: '#f59e0b'}}></i>
+                          Đánh giá
+                        </div>
+                      </div>
+                    </div>
+                    <div className="col-6 col-md-3">
+                      <div className="tp-stat-card">
+                        <div className="tp-stat-value success">
+                          {tasker.reviewCount || 0}
+                        </div>
+                        <div className="tp-stat-label">
+                          <i className="bi bi-chat-dots me-1" style={{color: '#10b981'}}></i>
+                          Lượt đánh giá
+                        </div>
+                      </div>
+                    </div>
+                    <div className="col-6 col-md-3">
+                      <div className="tp-stat-card">
+                        <div className="tp-stat-value info">
+                          {tasker.reliability_score || 100}%
+                        </div>
+                        <div className="tp-stat-label">
+                          <i className="bi bi-shield-check me-1" style={{color: '#06b6d4'}}></i>
+                          Độ tin cậy
+                        </div>
+                      </div>
+                    </div>
+                    <div className="col-6 col-md-3">
+                      <div className="tp-stat-card">
+                        <div className="tp-stat-value warning">
+                          <FontAwesomeIcon icon={faStar} />
+                        </div>
+                        <div className="tp-stat-label">
+                          {tasker.status === 'Active' ? (
+                            <><i className="bi bi-lightning-charge me-1" style={{color: '#f59e0b'}}></i>Hoạt động</>
+                          ) : (
+                            <><i className="bi bi-moon me-1"></i>Tạm nghỉ</>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick Status Cards */}
                 <div className="row g-3">
                   <div className="col-md-6">
-                    <div className="tp-card">
-                      <div className="d-flex align-items-center mb-2">
-                        <span className="me-2">⚡</span>
-                        <div className="fw-semibold">
-                          Availability & Services
-                        </div>
+                    <div className="tp-status-card">
+                      <div className="header">
+                        <span className="icon">⚡</span>
+                        <span className="title">Trạng thái làm việc</span>
                       </div>
-                      <div className="d-flex justify-content-between">
+                      <div className="d-flex justify-content-between align-items-center">
                         <div>
-                          <div className="text-muted">Status</div>
-                          <div className="badge bg-success">Available</div>
+                          <div className="tp-info-label mb-1">Tình trạng</div>
+                          <span className={`badge px-3 py-2 ${tasker.status === 'Active' ? 'bg-success' : 'bg-secondary'}`}
+                            style={{borderRadius: '20px'}}>
+                            {tasker.status === 'Active' ? '🟢 Sẵn sàng nhận việc' : '⏸️ Tạm nghỉ'}
+                          </span>
                         </div>
                         <div className="text-end">
-                          <div className="text-muted">Next Slot</div>
-                          <div className="badge bg-info text-dark">
-                            Today 2PM
+                          <div className="tp-info-label mb-1">Điểm tin cậy</div>
+                          <div className="d-flex align-items-center justify-content-end gap-2">
+                            <div className="progress" style={{width: '80px', height: '8px', borderRadius: '10px'}}>
+                              <div 
+                                className="progress-bar bg-info" 
+                                style={{width: `${tasker.reliability_score || 100}%`, borderRadius: '10px'}}
+                              ></div>
+                            </div>
+                            <span className="fw-bold" style={{color: '#06b6d4'}}>
+                              {tasker.reliability_score || 100}%
+                            </span>
                           </div>
                         </div>
                       </div>
                     </div>
                   </div>
                   <div className="col-md-6">
-                    <div className="tp-card">
-                      <div className="d-flex align-items-center mb-2">
-                        <span className="me-2">💬</span>
-                        <div className="fw-semibold">Recent Reviews</div>
+                    <div className="tp-status-card">
+                      <div className="header">
+                        <span className="icon">💬</span>
+                        <span className="title">Đánh giá từ khách hàng</span>
                       </div>
-                      <div className="small text-muted">
-                        Customers love the eco-friendly methods and attention to
-                        detail.
+                      <div className="d-flex align-items-center gap-3">
+                        <div className="d-flex align-items-center">
+                          {[1,2,3,4,5].map(star => (
+                            <FontAwesomeIcon 
+                              key={star}
+                              icon={faStar} 
+                              className={star <= Math.round(tasker.rating || 0) ? "text-warning" : "text-muted"}
+                              style={{fontSize: '18px', marginRight: '2px'}}
+                            />
+                          ))}
+                        </div>
+                        <div>
+                          <span className="fw-bold" style={{fontSize: '18px'}}>
+                            {tasker.rating ? Number(tasker.rating).toFixed(1) : "0.0"}
+                          </span>
+                          <span className="text-muted ms-1">/ 5.0</span>
+                        </div>
+                      </div>
+                      <div className="text-muted mt-2" style={{fontSize: '14px'}}>
+                        {tasker.reviewCount > 0 
+                          ? `Dựa trên ${tasker.reviewCount} đánh giá từ khách hàng`
+                          : "Chưa có đánh giá nào. Hoàn thành công việc tốt để nhận đánh giá!"
+                        }
                       </div>
                     </div>
                   </div>
@@ -1268,7 +1584,7 @@ const TaskerProfile = () => {
             )}
 
             {activeTab === "certification" &&
-              isTasker &&
+              isTasker() &&
               user?.user_id === Number(id) && (
                 <div className="row g-3">
                   <div className="col-12">
