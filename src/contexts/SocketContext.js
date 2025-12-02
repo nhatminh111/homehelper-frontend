@@ -97,8 +97,30 @@ export const SocketProvider = ({ children }) => {
 
     // New notification
     socketService.on('new_notification', (data) => {
+      // Normalize payload
+      const notification = (data && data.notification) ? data.notification : data;
+      // Only process if notification targets current user
+      try {
+        const recipientId = notification.user_id ?? notification.recipient_id ?? notification.target_user_id;
+        const currentUserId = (user && (user.user_id ?? user.userId));
+        if (recipientId && currentUserId && String(recipientId) !== String(currentUserId)) {
+          return; // ignore notifications not for this user
+        }
+      } catch (_) {}
+
       setUnreadCount(prev => prev + 1);
-      window.dispatchEvent(new CustomEvent('socket_new_notification', { detail: data }));
+      window.dispatchEvent(new CustomEvent('socket_new_notification', { detail: { notification } }));
+    });
+
+    // Unread count updates from server (after mark-as-read etc.)
+    socketService.on('notifications_unread_count', (data) => {
+      try {
+        const count = typeof data === 'number' ? data : (data && data.unread) ? data.unread : 0;
+        setUnreadCount(count);
+        window.dispatchEvent(new CustomEvent('socket_notifications_unread_count', { detail: { unread: count } }));
+      } catch (_) {
+        // no-op
+      }
     });
 
     // SOS events (Tasker receives new SOS job)
@@ -174,6 +196,7 @@ export const SocketProvider = ({ children }) => {
       socketService.off('message_read');
   socketService.off('message_updated');
       socketService.off('new_notification');
+      socketService.off('notifications_unread_count');
       socketService.off('user_status_changed');
       socketService.off('socket_error');
       socketService.off('online_users');

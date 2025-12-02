@@ -541,7 +541,7 @@ export default function TaskerBookingDetail() {
               style={{ borderRadius: "10px", minWidth: "160px" }}
               onClick={() => handleStatusUpdate("Đang tiến hành")}
             >
-              ▶ việc6
+              ▶ Bắt đầu công việc
             </Button>
 
             {/* >2h: hủy bình thường */}
@@ -618,7 +618,7 @@ export default function TaskerBookingDetail() {
               className="px-5 fw-semibold"
               style={{ borderRadius: "10px", minWidth: "160px" }}
               onClick={() => {
-                window.location.href = `/chat?bookingId=${booking_id}&peer=${customer_id}`;
+                window.location.href = `/chat?peer=${customer_id}`;
               }}
             >
               💬 Chat với khách hàng
