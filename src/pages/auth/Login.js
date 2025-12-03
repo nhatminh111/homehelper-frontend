@@ -256,10 +256,6 @@ const Login = () => {
               <FontAwesomeIcon icon={faGoogle} />
               <span>Continue with Google</span>
             </div>
-            <button className="social-button facebook">
-              <FontAwesomeIcon icon={faFacebook} />
-              <span>Continue with Facebook</span>
-            </button>
           </div>
 
           {/* Register Link */}

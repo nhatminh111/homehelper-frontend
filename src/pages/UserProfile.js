@@ -62,11 +62,7 @@ const UserProfile = () => {
   const allTabs = [
     { id: 'profile', label: 'Thông tin cá nhân', icon: faUser },
     { id: 'addresses', label: 'Địa chỉ', icon: faMapMarkerAlt },
-    { id: 'cccd', label: 'Xác minh CCCD', icon: faIdCard },
-    { id: 'bookings', label: 'Lịch đặt', icon: faShoppingBag },
-    { id: 'wishlist', label: 'Yêu thích', icon: faHeart },
     { id: 'security', label: 'Bảo mật', icon: faLock },
-    { id: 'history', label: 'Lịch sử', icon: faHistory },
     { id: 'settings', label: 'Cài đặt', icon: faCog }
   ];
   
@@ -1007,245 +1003,9 @@ const UserProfile = () => {
               </div>
             )}
 
-            {/* CCCD Verification Tab */}
-            {activeTab === 'cccd' && (
-              <div className="content-card-modern position-relative">
-                {cccdStatusLoading && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      inset: 0,
-                      background: 'rgba(255,255,255,0.9)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      zIndex: 5,
-                      borderRadius: '0.5rem'
-                    }}
-                  >
-                    <div className="text-center">
-                      <FontAwesomeIcon icon={faSpinner} spin size="2x" className="text-primary mb-3" />
-                      <div className="text-muted fw-semibold">Đang tải trạng thái CCCD...</div>
-                    </div>
-                  </div>
-                )}
-                
-                <div className="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom">
-                  <div>
-                    <h4 className="mb-1 fw-bold">
-                      <FontAwesomeIcon icon={faIdCard} className="me-2 text-primary" />
-                      Xác minh CCCD
-                    </h4>
-                    <p className="text-muted mb-0 small">Xác minh danh tính của bạn để tăng độ tin cậy</p>
-                  </div>
-                </div>
-                
-                {cccdStatus && (
-                  <div className={`alert alert-dismissible fade show mb-4 ${cccdStatus.status === 'Verified' ? 'alert-success' : 
-                    cccdStatus.status === 'Pending' ? 'alert-warning' : 
-                    cccdStatus.status === 'Rejected' ? 'alert-danger' : 'alert-info'}`}
-                    style={{ borderRadius: '8px', border: 'none' }}>
-                    <div className="d-flex align-items-start">
-                      <FontAwesomeIcon 
-                        icon={cccdStatus.status === 'Verified' ? faCheckCircle : 
-                              cccdStatus.status === 'Pending' ? faSpinner : 
-                              cccdStatus.status === 'Rejected' ? faTimes : faIdCard} 
-                        className="me-3 mt-1"
-                        size="lg"
-                        spin={cccdStatus.status === 'Pending'}
-                      />
-                      <div className="flex-grow-1">
-                        <h5 className="alert-heading mb-2">{cccdStatus.message}</h5>
-                        {cccdStatus.verified_at && (
-                          <div className="small">
-                            <strong>Duyệt lúc:</strong> {new Date(cccdStatus.verified_at).toLocaleString('vi-VN')}
-                          </div>
-                        )}
-                        {cccdStatus.status === 'Pending' && (
-                          <div className="small mt-2">
-                            Vui lòng chờ hệ thống xử lý. Thời gian xử lý thường từ 1-3 ngày làm việc.
-                          </div>
-                        )}
-                        {cccdStatus.status === 'Rejected' && (
-                          <div className="small mt-2">
-                            Nếu bạn cho rằng đây là lỗi, vui lòng liên hệ hỗ trợ để được giải quyết.
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {hasVerifiedCCCD ? (
-                  <div className="text-center py-5">
-                    <div className="mb-4">
-                      <div 
-                        className="rounded-circle mx-auto d-flex align-items-center justify-content-center"
-                        style={{
-                          width: '120px',
-                          height: '120px',
-                          background: 'linear-gradient(135deg, #28a745 0%, #20c997 100%)',
-                          boxShadow: '0 8px 25px rgba(40,167,69,0.3)'
-                        }}
-                      >
-                        <FontAwesomeIcon icon={faCheckCircle} size="4x" className="text-white" />
-                      </div>
-                    </div>
-                    <h4 className="text-success mb-3 fw-bold">CCCD đã được xác minh thành công!</h4>
-                    <p className="text-muted mb-4">Tài khoản của bạn đã được xác minh danh tính và có thể sử dụng đầy đủ các tính năng.</p>
-                    {cccdImageUrl && (
-                      <div className="mt-4">
-                        <h6 className="mb-3 text-muted">Ảnh CCCD đã duyệt</h6>
-                        <img
-                          src={cccdImageUrl}
-                          alt="CCCD đã duyệt"
-                          className="img-fluid rounded shadow-sm"
-                          style={{ maxWidth: '100%', maxHeight: 400, border: '2px solid #dee2e6' }}
-                        />
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div>
-                    <div className="alert alert-info mb-4" style={{ borderRadius: '8px', border: 'none' }}>
-                      <div className="d-flex align-items-start">
-                        <FontAwesomeIcon icon={faIdCard} className="me-3 mt-1" />
-                        <div>
-                          <strong>Hướng dẫn xác minh:</strong>
-                          <ul className="mb-0 mt-2 small">
-                            <li>Chuẩn bị ảnh chụp rõ ràng mặt trước và mặt sau của CCCD</li>
-                            <li>Đảm bảo thông tin nhập vào khớp với thông tin trên CCCD</li>
-                            <li>Ảnh phải rõ nét, không bị mờ hoặc che khuất thông tin</li>
-                            <li>Thời gian xử lý: 1-3 ngày làm việc</li>
-                          </ul>
-                        </div>
-                      </div>
-                    </div>
-
-                    <form onSubmit={submitCccd}>
-                      <div className="row g-3 g-md-4">
-                        <div className="col-12 col-md-6">
-                          <label className="form-label fw-semibold form-label-responsive">
-                            <FontAwesomeIcon icon={faIdCard} className="me-2 text-primary" />
-                            Số CCCD
-                          </label>
-                          <input 
-                            className="form-control form-control-responsive" 
-                            name="number" 
-                            value={cccdForm.number} 
-                            onChange={handleCccdChange} 
-                            placeholder="Nhập số CCCD"
-                            required
-                            style={{ borderRadius: '8px' }}
-                          />
-                        </div>
-                        <div className="col-12 col-md-6">
-                          <label className="form-label fw-semibold form-label-responsive">
-                            <FontAwesomeIcon icon={faUser} className="me-2 text-primary" />
-                            Họ và tên
-                          </label>
-                          <input 
-                            className="form-control form-control-responsive" 
-                            name="full_name" 
-                            value={cccdForm.full_name} 
-                            onChange={handleCccdChange} 
-                            placeholder="Nhập họ và tên"
-                            required
-                            style={{ borderRadius: '8px' }}
-                          />
-                        </div>
-                        <div className="col-12 col-md-6">
-                          <label className="form-label fw-semibold form-label-responsive">
-                            <FontAwesomeIcon icon={faCalendar} className="me-2 text-primary" />
-                            Ngày sinh
-                          </label>
-                          <input 
-                            className="form-control form-control-responsive" 
-                            name="dob" 
-                            value={cccdForm.dob} 
-                            onChange={handleCccdChange} 
-                            placeholder="dd/mm/yyyy (VD: 01/01/1990)"
-                            required
-                            style={{ borderRadius: '8px' }}
-                          />
-                          <small className="form-text text-muted small-text-responsive">Định dạng: dd/mm/yyyy</small>
-                        </div>
-                        <div className="col-12 col-md-6">
-                          <label className="form-label fw-semibold form-label-responsive">
-                            <FontAwesomeIcon icon={faUser} className="me-2 text-primary" />
-                            Giới tính
-                          </label>
-                          <select 
-                            className="form-select form-control-responsive" 
-                            name="gender" 
-                            value={cccdForm.gender} 
-                            onChange={handleCccdChange}
-                            style={{ borderRadius: '8px' }}
-                          >
-                            <option>Nam</option>
-                            <option>Nữ</option>
-                          </select>
-                        </div>
-                        <div className="col-12 col-md-6">
-                          <label className="form-label fw-semibold form-label-responsive">
-                            <FontAwesomeIcon icon={faCamera} className="me-2 text-primary" />
-                            Ảnh CCCD mặt trước
-                          </label>
-                          <input 
-                            className="form-control form-control-responsive" 
-                            type="file" 
-                            accept="image/*" 
-                            onChange={(e) => setFront(e.target.files[0])} 
-                            required
-                            style={{ borderRadius: '8px' }}
-                          />
-                          <small className="form-text text-muted small-text-responsive">Chọn file ảnh mặt trước của CCCD</small>
-                        </div>
-                        <div className="col-12 col-md-6">
-                          <label className="form-label fw-semibold form-label-responsive">
-                            <FontAwesomeIcon icon={faCamera} className="me-2 text-primary" />
-                            Ảnh CCCD mặt sau
-                          </label>
-                          <input 
-                            className="form-control form-control-responsive" 
-                            type="file" 
-                            accept="image/*" 
-                            onChange={(e) => setBack(e.target.files[0])} 
-                            required
-                            style={{ borderRadius: '8px' }}
-                          />
-                          <small className="form-text text-muted small-text-responsive">Chọn file ảnh mặt sau của CCCD</small>
-                        </div>
-                      </div>
-                      <div className="mt-4 pt-3 border-top">
-                        <button 
-                          className="btn btn-primary btn-responsive w-100 w-md-auto px-4 px-md-5" 
-                          disabled={cccdLoading}
-                          style={{ borderRadius: '8px', fontWeight: '500' }}
-                        >
-                          {cccdLoading ? (
-                            <>
-                              <FontAwesomeIcon icon={faSpinner} spin className="me-2" />
-                              <span className="d-none d-sm-inline">Đang xử lý...</span>
-                              <span className="d-sm-none">Xử lý...</span>
-                            </>
-                          ) : (
-                            <>
-                              <FontAwesomeIcon icon={faIdCard} className="me-2" />
-                              <span className="d-none d-sm-inline">Gửi yêu cầu xác minh</span>
-                              <span className="d-sm-none">Gửi xác minh</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                )}
-              </div>
-            )}
 
             {/* Bookings Tab */}
-            {activeTab === 'bookings' && (
+            {/* {activeTab === 'bookings' && (
               <div className="content-card-modern">
                 <div className="content-header-modern">
                   <div>
@@ -1261,11 +1021,11 @@ const UserProfile = () => {
                     Xem lịch đặt
                   </button>
                 </div>
-              </div>
-            )}
+              </div> */}
+            {/* )} */}
 
             {/* Wishlist Tab */}
-            {activeTab === 'wishlist' && (
+            {/* {activeTab === 'wishlist' && (
               <div className="content-card-modern">
                 <div className="content-header-modern">
                   <div>
@@ -1282,7 +1042,7 @@ const UserProfile = () => {
                   </button>
                 </div>
               </div>
-            )}
+            )} */}
 
             {/* Security Tab */}
             {activeTab === 'security' && (
@@ -1318,7 +1078,7 @@ const UserProfile = () => {
             )}
 
             {/* History Tab */}
-            {activeTab === 'history' && (
+            {/* {activeTab === 'history' && (
               <div className="content-card-modern">
                 <div className="content-header-modern">
                   <div>
@@ -1335,7 +1095,7 @@ const UserProfile = () => {
                   </button>
                 </div>
               </div>
-            )}
+            )} */}
 
             {/* Settings Tab */}
             {activeTab === 'settings' && (

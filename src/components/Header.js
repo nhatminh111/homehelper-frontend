@@ -49,7 +49,6 @@ const Header = () => {
   // Danh sách các link chính với icon
   const mainLinks = [
     { path: "/", name: "Trang chủ", icon: faHome },
-    { path: "/about", name: "Giới thiệu", icon: faInfoCircle },
     { path: "/services", name: "Dịch vụ", icon: faTools },
     { path: "/video", name: "Video", icon: faProjectDiagram },
     { path: "/blog", name: "Blog", icon: faNewspaper },
@@ -121,9 +120,6 @@ const Header = () => {
             <ul className="navbar-nav ml-auto">
               <li className={`nav-item ${isActive('/')}`}>
                 <Link to="/" className="nav-link">Trang chủ</Link>
-              </li>
-              <li className={`nav-item ${isActive('/about')}`}>
-                <Link to="/about" className="nav-link">Giới thiệu</Link>
               </li>
               <li className={`nav-item ${isActive('/services')}`}>
                 <Link to="/services" className="nav-link">Dịch vụ</Link>
