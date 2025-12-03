@@ -959,69 +959,6 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Tiers Section */}
-      <section style={{ padding: '40px 0' }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-          <h2 style={{ fontSize: '2.5rem', textAlign: 'center', marginBottom: '8px' }}>Chương trình tích điểm thành viên</h2>
-          <p style={{ textAlign: 'center', color: '#6b7280', marginBottom: '40px' }}>
-            Tích điểm cho mỗi dịch vụ và mở khóa những quyền lợi dành riêng cho thành viên
-          </p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px' }}>
-            {tiers.map((t) => (
-              <div key={t.name} style={{ flex: '1 1 25%', padding: '12px' }}>
-                <div
-                  style={{
-                    height: '100%',
-                    boxShadow: t.popular ? '0 0 0 3px #ffe58f inset' : '0 4px 20px rgba(0,0,0,0.1)',
-                    borderRadius: '8px',
-                    position: 'relative'
-                  }}
-                >
-                  {t.popular && (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: '-12px',
-                        left: '50%',
-                        transform: 'translateX(-50%)'
-                      }}
-                    >
-                      <span
-                        style={{
-                          background: '#ffd84d',
-                          color: '#1b1c24',
-                          padding: '6px 12px',
-                          borderRadius: '20px',
-                          fontWeight: '700'
-                        }}
-                      >
-                        Most Popular
-                      </span>
-                    </div>
-                  )}
-                  <div style={{ padding: '24px', textAlign: 'center' }}>
-                    <h5 style={{ marginBottom: '8px', fontSize: '1.5rem' }}>{t.name}</h5>
-                    <h3 style={{ color: '#3b82f6', marginBottom: '24px', fontWeight: '700' }}>
-                      {t.points}
-                    </h3>
-                    <ul style={{ listStyle: 'none', padding: '0', marginBottom: '24px', textAlign: 'left' }}>
-                      {t.features.map((f, idx) => (
-                        <li key={idx} style={{ marginBottom: '8px', display: 'flex', alignItems: 'center' }}>
-                          <FontAwesomeIcon icon={faCheckCircle} style={{ color: '#10b981', marginRight: '8px' }} />
-                          <span>{f}</span>
-                        </li>
-                      ))}
-                    </ul>
-                    <button style={{ padding: '12px 24px', background: t.popular ? '#ffd84d' : '#3b82f6', color: t.popular ? '#1b1c24' : 'white', border: 'none', borderRadius: '8px' }}>
-                      Unlock Rewards
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* Cleaners Section */}
       <section style={{ background: '#f6f8ff', padding: '40px 0' }}>
@@ -1074,37 +1011,6 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Testimonials Section */}
-      <section style={{ background: '#0c1730', padding: '40px 0' }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-          <h2 style={{ color: 'white', textAlign: 'center', marginBottom: '8px', fontSize: '2.5rem' }}>Happy Customers</h2>
-          <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.8)', marginBottom: '24px' }}>
-            See what our customers say about our services
-          </p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px' }}>
-            {testimonials.map((t) => (
-              <div key={t.id} style={{ flex: '1 1 33.33%', padding: '12px' }}>
-                <div style={{ background: '#2b5cff', color: 'white', padding: '24px', borderRadius: '8px', boxShadow: '0 4px 20px rgba(0,0,0,0.2)' }}>
-                  <div style={{ color: '#ffea75', marginBottom: '12px' }}>
-                    {[...Array(5)].map((_, i) => (
-                      <FontAwesomeIcon key={i} icon={faStar} style={{ marginRight: '4px' }} />
-                    ))}
-                  </div>
-                  <p style={{ marginBottom: '24px' }}>"{t.quote}"</p>
-                  <div style={{ display: 'flex', alignItems: 'center' }}>
-                    <div>
-                      <strong>{t.name}</strong>
-                      <div style={{ fontSize: '0.875rem', opacity: '0.9' }}>
-                        Verified Customer
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
     </>
   );
 };
