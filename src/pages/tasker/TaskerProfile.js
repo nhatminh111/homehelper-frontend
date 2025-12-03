@@ -16,8 +16,8 @@ import {
   faLink,
 } from "@fortawesome/free-solid-svg-icons";
 import { faClock as faClockRegular } from "@fortawesome/free-regular-svg-icons";
-import TaskerCertificateRegister from '../components/TaskerCertificateRegister';
-import { CustomToastContainer, showToast } from '../components/common/CustomToast';
+import TaskerCertificateRegister from '../../components/TaskerCertificateRegister';
+import { CustomToastContainer, showToast } from '../../components/common/CustomToast';
 
 // Certificate list section for the certification tab
 const TaskerCertificateList = ({ taskerId }) => {

@@ -2,8 +2,12 @@ import React, { useEffect, useState } from "react";
 import { Container, Table, Badge, Button, Spinner } from "react-bootstrap";
 import { Calendar, MapPin, Clock, Info, MessageCircle } from "lucide-react";
 import NegotiatePriceButton from "../../components/negotiation/NegotiatePriceButton";
+import { useNavigate } from "react-router-dom";
+import { showToast } from "../../components/common/CustomToast";
 
 export default function BookingHistory() {
+    const navigate = useNavigate();
+
     const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [statusFilter, setStatusFilter] = useState("all");
@@ -40,15 +44,15 @@ export default function BookingHistory() {
 
             const data = await res.json();
             if (data.success) {
-                alert(`✅ Hủy thành công!\nRule: ${data.rule}\nHoàn: ${data.refundAmount.toLocaleString("vi-VN")}₫`);
+                showToast.success(`Hủy thành công! Quy tắc: ${data.rule}. Hoàn: ${data.refundAmount.toLocaleString("vi-VN")}₫`);
                 // Reload danh sách booking
                 window.location.reload();
             } else {
-                alert(`❌ Hủy thất bại: ${data.message}`);
+                showToast.error(`Hủy thất bại: ${data.message}`);
             }
         } catch (err) {
             console.error("Cancel booking failed:", err);
-            alert("Lỗi khi gửi yêu cầu hủy!");
+            showToast.error("Lỗi khi gửi yêu cầu hủy!");
         } finally {
             setIsCancelling(false);
             closeCancelModal();
@@ -81,6 +85,13 @@ export default function BookingHistory() {
 
     const getBadgeVariant = (status) => {
         if (!status) return "secondary";
+
+        // ⭐ Trạng thái vắng mặt (REPORT)
+        if (status === "Chờ duyệt báo cáo") return "warning";        // vàng
+        if (status === "Báo cáo được duyệt") return "info";          // xanh dương nhạt
+        if (status === "Báo cáo bị từ chối") return "dark";          // xám đậm
+
+        // ⭐ Các trạng thái còn lại
         if (status.includes("Hoàn")) return "success";
         if (status.includes("Chờ")) return "warning";
         if (status.includes("Hủy")) return "danger";
@@ -88,6 +99,23 @@ export default function BookingHistory() {
         if (status.includes("Chấp")) return "primary";
         if (status.includes("Thanh toán")) return "dark";
         return "secondary";
+    };
+
+    const mapCustomerStatus = (status) => {
+        switch (status) {
+
+            case "Chờ duyệt báo cáo":
+                return "Đang xử lý báo cáo vắng mặt";
+
+            case "Báo cáo được duyệt":
+                return "Kết quả đơn: Đã vắng mặt";
+
+            case "Báo cáo bị từ chối":
+                return "Kết quả đơn: Không vắng mặt";
+
+            default:
+                return status;
+        }
     };
 
     const handleContract = (booking) => {
@@ -257,7 +285,7 @@ export default function BookingHistory() {
                                         {b.location || "Không có địa chỉ"}
                                     </td>
                                     <td>
-                                        <Badge bg={getBadgeVariant(b.status)}>{b.status}</Badge>
+                                        <Badge bg={getBadgeVariant(b.status)}>{mapCustomerStatus(b.status)}</Badge>
                                     </td>
                                     <td className="fw-bold text-primary">
                                         {(b.final_price && b.final_price !== 0)
@@ -268,39 +296,46 @@ export default function BookingHistory() {
                                     </td>
                                     <td>
                                         <div className="action-buttons">
-                                            {/* Nút hành động chính */}
-                                            {b.status === "Đã chấp nhận" ? (
-                                                ["week", "month"].includes(b.pricing_type) ? (
-                                                    <Button
-                                                        variant="warning"
-                                                        size="sm"
-                                                        onClick={() => handleContract(b)}
-                                                    >
-                                                        📄 Ký hợp đồng
-                                                    </Button>
-                                                ) : (
+
+                                            {/* 👉 Nút Xem – thay toàn bộ phần nút trạng thái */}
+                                            <Button
+                                                variant="info"
+                                                size="sm"
+                                                onClick={() => navigate(`/customer/booking/${b.booking_id}`, { state: { booking: b } })}
+                                            >
+                                                🔍 Xem
+                                            </Button>
+
+                                            {/* 💳 Thanh toán (chỉ khi Đã chấp nhận & không phải thuê theo tuần/tháng) */}
+                                            {b.status === "Đã chấp nhận" &&
+                                                !["week", "month"].includes(b.pricing_type) && (
                                                     <Button
                                                         variant="success"
                                                         size="sm"
-                                                        className="btn-modern"
+                                                        className="ms-2"
                                                         onClick={() => {
                                                             window.location.href = `/payment/${b.booking_id}`;
                                                         }}
                                                     >
                                                         💳 Thanh toán
                                                     </Button>
-                                                )
-                                            ) : b.status === "Đã thanh toán" ? (
-                                                <Button variant="outline-secondary" size="sm" disabled>
-                                                    Đang tiến hành
-                                                </Button>
-                                            ) : (
-                                                <Button variant="outline-secondary" size="sm" disabled>
-                                                    {b.status}
-                                                </Button>
-                                            )}
+                                                )}
+
+                                            {/* 📄 Ký hợp đồng (nếu là week/month) */}
+                                            {b.status === "Đã chấp nhận" &&
+                                                ["week", "month"].includes(b.pricing_type) && (
+                                                    <Button
+                                                        variant="warning"
+                                                        size="sm"
+                                                        className="ms-2"
+                                                        onClick={() => handleContract(b)}
+                                                    >
+                                                        📄 Ký hợp đồng
+                                                    </Button>
+                                                )}
+
                                             {/* ➕ Nút Hủy (chỉ hiện khi còn có thể hủy) */}
-                                            {["Đã chấp nhận", "Đã thanh toán"].includes(b.status) && (
+                                            {["Chờ xử lý", "Đã chấp nhận", "Đã thanh toán"].includes(b.status) && (
                                                 <Button
                                                     variant="danger"
                                                     size="sm"
@@ -312,15 +347,18 @@ export default function BookingHistory() {
                                             )}
 
                                             {/* Nút Chat */}
-                                            <NegotiatePriceButton
-                                                peerId={b.tasker_id}
-                                                bookingId={b.booking_id}
-                                                label="Chat"
-                                                size="md"
-                                                onClick={() => {
-                                                    window.location.href = `/chat?bookingId=${b.booking_id}&negotiation=1&peer=${b.tasker_id}`;
-                                                }}
-                                            />
+                                            {["Chờ xử lý", "Đã chấp nhận"].includes(b.status) && (
+                                                <NegotiatePriceButton
+                                                    peerId={b.tasker_id}
+                                                    bookingId={b.booking_id}
+                                                    label="Chat"
+                                                    size="md"
+                                                    className="ms-2"
+                                                    onClick={() => {
+                                                        window.location.href = `/chat?bookingId=${b.booking_id}&negotiation=1&peer=${b.tasker_id}`;
+                                                    }}
+                                                />
+                                            )}
                                         </div>
                                     </td>
                                 </tr>
@@ -338,15 +376,22 @@ export default function BookingHistory() {
                             <li>⏰ 12–24h: Hoàn 75% – trừ 25%</li>
                             <li>⌛ 4–12h: Hoàn 50% – đền 50%</li>
                             <li>🚫 Dưới 4h: Không hoàn tiền</li>
-                            <li>⚡ Tasker hủy: Hoàn 100% + voucher 15%</li>
+                            <li>⚡ Tasker hủy: Hoàn 100% + voucher 10%</li>
                             <li>🏠 Khách không có mặt: Không hoàn tiền (xác minh)</li>
-                            <li>🌧️ Lỗi hệ thống: Hoàn 100%</li>
                         </ul>
                         <p className="fw-semibold text-danger">Bạn có chắc chắn muốn hủy đơn này không?</p>
                         <div className="d-flex justify-content-end gap-2 mt-3">
-                            <Button variant="secondary" onClick={closeCancelModal}>Đóng</Button>
+                            <Button
+                                variant="secondary"
+                                className="px-4 py-2 fw-semibold"
+                                onClick={closeCancelModal}
+                            >
+                                Đóng
+                            </Button>
+
                             <Button
                                 variant="danger"
+                                className="px-4 py-2 fw-semibold"
                                 onClick={handleConfirmCancel}
                                 disabled={isCancelling}
                             >

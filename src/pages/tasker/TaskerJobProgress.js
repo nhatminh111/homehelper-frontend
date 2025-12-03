@@ -11,9 +11,9 @@ import {
   Spinner,
 } from "react-bootstrap";
 import ProgressBar from "react-bootstrap/ProgressBar";
-import api from "../services/api";
-import { showToast } from "../components/common/CustomToast";
-import MediaUpload from "../components/MediaUpload";
+import api from "../../services/api";
+import { showToast } from "../../components/common/CustomToast";
+import MediaUpload from "../../components/MediaUpload";
 import moment from "moment";
 // import "moment/locale/vi";
 // moment.locale("vi");
