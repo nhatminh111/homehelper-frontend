@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { Table, Button, Spinner } from "react-bootstrap";
+import { Table, Button, Spinner, Badge } from "react-bootstrap";
 import api from "./../../services/api";
+import { showToast } from "../../components/common/CustomToast";
+import "../../components/common/CustomToast.css";
 
 export default function AdminEvidenceReview() {
   const [list, setList] = useState([]);
@@ -16,8 +18,10 @@ export default function AdminEvidenceReview() {
         setList(res.data.data);
       }
     } catch (err) {
-      console.error("Lỗi fetch pending evidence:", err);
+      showToast.error("Không thể tải danh sách báo cáo.");
+      console.error("Fetch pending evidence:", err);
     }
+
     setLoading(false);
   };
 
@@ -26,43 +30,61 @@ export default function AdminEvidenceReview() {
   }, []);
 
   return (
-    <div className="container mt-4">
-      <h2 className="fw-bold">📂 Báo cáo NO-SHOW đang chờ duyệt</h2>
-      <p className="text-muted">Admin xem và xác nhận khách có thật sự vắng mặt.</p>
+    <div className="container mt-4" style={{ maxWidth: "900px" }}>
+      <h2 className="fw-bold mb-1">📂 Báo cáo NO-SHOW đang chờ duyệt</h2>
+      <p className="text-muted">
+        Kiểm tra và xác nhận khách có thực sự không có mặt.
+      </p>
 
-      {loading ? (
-        <Spinner />
-      ) : list.length === 0 ? (
-        <p className="text-muted mt-3">Không có báo cáo nào.</p>
-      ) : (
-        <Table bordered hover className="mt-3">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Mã Booking</th>
-              <th>Tasker</th>
-              <th>Ngày gửi</th>
-              <th></th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {list.map((item, idx) => (
-              <tr key={item.id}>
-                <td>{idx + 1}</td>
-                <td>{item.booking_id}</td>
-                <td>{item.tasker_id}</td>
-                <td>{new Date(item.created_at).toLocaleString()}</td>
-                <td>
-                  <Button variant="info" onClick={() => setSelected(item)}>
-                    Xem chi tiết
-                  </Button>
-                </td>
+      <div className="card shadow-sm p-4 rounded-4 mt-3">
+        {loading ? (
+          <div className="text-center py-5">
+            <Spinner animation="border" />
+          </div>
+        ) : list.length === 0 ? (
+          <p className="text-muted text-center py-4">
+            Không có báo cáo nào đang chờ duyệt.
+          </p>
+        ) : (
+          <Table hover responsive className="align-middle">
+            <thead className="table-light">
+              <tr>
+                <th>#</th>
+                <th>Mã Booking</th>
+                <th>Tasker</th>
+                <th>Ngày gửi</th>
+                <th>Trạng thái</th>
+                <th></th>
               </tr>
-            ))}
-          </tbody>
-        </Table>
-      )}
+            </thead>
+
+            <tbody>
+              {list.map((item, idx) => (
+                <tr key={item.id}>
+                  <td>{idx + 1}</td>
+                  <td className="fw-semibold">{item.booking_id}</td>
+                  <td>{item.tasker_id}</td>
+                  <td>{new Date(item.created_at).toLocaleString()}</td>
+                  <td>
+                    <Badge bg="warning" text="dark">
+                      Chờ duyệt
+                    </Badge>
+                  </td>
+                  <td>
+                    <Button
+                      variant="info"
+                      size="sm"
+                      onClick={() => setSelected(item)}
+                    >
+                      👁 Xem chi tiết
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        )}
+      </div>
 
       {selected && (
         <EvidenceDetailModal
@@ -79,62 +101,86 @@ export default function AdminEvidenceReview() {
 
 function EvidenceDetailModal({ review, onClose }) {
   const approve = async () => {
-    const res = await api.post(`/evidence/${review.id}/approve`);
-    alert(res.data.message);
+    try {
+      const res = await api.post(`/evidence/${review.id}/approve`);
+      if (res.data.success) {
+        showToast.success("Duyệt NO-SHOW thành công!");
+      } else {
+        showToast.error(res.data.message || "Không thể duyệt báo cáo.");
+      }
+    } catch (e) {
+      showToast.error("Lỗi khi duyệt báo cáo.");
+    }
     onClose();
   };
 
   const reject = async () => {
-    const res = await api.post(`/evidence/${review.id}/reject`);
-    alert(res.data.message);
+    try {
+      const res = await api.post(`/evidence/${review.id}/reject`);
+      if (res.data.success) {
+        showToast.warning("Đã từ chối báo cáo.");
+      } else {
+        showToast.error(res.data.message || "Không thể từ chối báo cáo.");
+      }
+    } catch (e) {
+      showToast.error("Lỗi khi từ chối báo cáo.");
+    }
     onClose();
   };
 
   return (
     <div
       className="modal fade show"
-      style={{ display: "block", backgroundColor: "rgba(0,0,0,0.5)" }}
+      style={{
+        display: "block",
+        backgroundColor: "rgba(0,0,0,0.45)",
+      }}
     >
       <div className="modal-dialog modal-lg">
-        <div className="modal-content">
+        <div className="modal-content rounded-4 shadow-lg">
           <div className="modal-header">
             <h5 className="modal-title">📝 Chi tiết báo cáo NO-SHOW</h5>
             <button className="btn-close" onClick={onClose}></button>
           </div>
 
           <div className="modal-body">
-            <p><b>Mã Booking:</b> {review.booking_id}</p>
-            <p><b>Tasker:</b> {review.tasker_id}</p>
-            <p><b>Gửi lúc:</b> {new Date(review.created_at).toLocaleString()}</p>
+            <div className="mb-3">
+              <p><b>Mã Booking:</b> {review.booking_id}</p>
+              <p><b>Tasker:</b> {review.tasker_id}</p>
+              <p>
+                <b>Gửi lúc:</b>{" "}
+                {new Date(review.created_at).toLocaleString()}
+              </p>
+            </div>
 
             <hr />
 
-            <h5>📷 Ảnh bằng chứng</h5>
+            <h5 className="fw-bold mb-3">📷 Ảnh bằng chứng</h5>
 
             <EvidenceImage label="Ảnh số nhà" src={review.house_number_img} />
             <EvidenceImage label="Cuộc gọi nhỡ" src={review.call_screenshot_img} />
             <EvidenceImage label="Ảnh GPS" src={review.gps_screenshot_img} />
-            <EvidenceImage label="Ảnh mặt tiền nhà" src={review.house_front_img} />
+            <EvidenceImage label="Ảnh mặt tiền" src={review.house_front_img} />
 
             {review.note && (
               <>
                 <hr />
-                <h5>🗒 Ghi chú</h5>
-                <p>{review.note}</p>
+                <h5>🗒 Ghi chú thêm</h5>
+                <div className="p-3 bg-light rounded-3">{review.note}</div>
               </>
             )}
           </div>
 
-          <div className="modal-footer">
-            <button className="btn btn-secondary" onClick={onClose}>
+          <div className="modal-footer d-flex justify-content-end gap-2">
+            <Button variant="secondary" onClick={onClose}>
               Đóng
-            </button>
-            <button className="btn btn-danger" onClick={reject}>
+            </Button>
+            <Button variant="danger" onClick={reject}>
               ❌ Từ chối
-            </button>
-            <button className="btn btn-success" onClick={approve}>
+            </Button>
+            <Button variant="success" onClick={approve}>
               ✔ Xác nhận NO-SHOW
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -144,12 +190,13 @@ function EvidenceDetailModal({ review, onClose }) {
 
 function EvidenceImage({ label, src }) {
   return (
-    <div className="mb-3">
-      <p><b>{label}</b></p>
+    <div className="mb-4">
+      <p className="fw-semibold">{label}</p>
       <img
         src={src}
         alt={label}
-        style={{ width: "100%", borderRadius: "8px", border: "1px solid #ccc" }}
+        className="rounded-3 border"
+        style={{ width: "100%", maxHeight: "320px", objectFit: "cover" }}
       />
     </div>
   );

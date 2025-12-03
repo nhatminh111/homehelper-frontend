@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { addressAPI, servicesAPI } from '../services/api';
+import { useAuth } from '../../contexts/AuthContext';
+import { addressAPI, servicesAPI } from '../../services/api';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faSearch,
@@ -12,8 +12,8 @@ import {
   faDollarSign,
   faBars,
 } from '@fortawesome/free-solid-svg-icons';
-import socketService from '../services/socketService';
-import '../css/TaskerSearch.css'; // Nhập file CSS riêng
+import socketService from '../../services/socketService';
+import '../../css/TaskerSearch.css'; // Nhập file CSS riêng
 
 const TaskerSearch = () => {
   const mapContainer = useRef(null);
