@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
-import "../css/TaskerProfile.css";
-import { useAuth } from "../contexts/AuthContext";
+import "../../css/TaskerProfile.css";
+import { useAuth } from "../../contexts/AuthContext";
 import { useParams } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
