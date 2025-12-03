@@ -19,9 +19,19 @@ const ConversationList = ({
   const { user } = useAuth();
   const currentUserId = user?.user_id || user?.userId;
 
-  // Sort conversations
+
+// Sort and Deduplicate conversations
   const sortedConversations = useMemo(() => {
-    const sorted = [...conversations];
+    const uniqueMap = new Map();
+    conversations.forEach((conv) => {
+      const id = conv.conversation_id || conv.id;
+      if (!id) return; 
+      if (!uniqueMap.has(id)) {
+        uniqueMap.set(id, conv);
+      }
+    });
+    const uniqueConversations = Array.from(uniqueMap.values());
+    const sorted = [...uniqueConversations];
     
     switch (sortBy) {
       case 'unread':
@@ -80,22 +90,31 @@ const ConversationList = ({
   };
 
 
-  const getConversationTitle = (conversation) => {
-    if (conversation.title) return conversation.title;
-    
-    if (conversation.type === 'direct' && conversation.participants?.length > 0) {
-      const other = conversation.participants.find(p => (p.user_id ?? p.userId) !== currentUserId) || conversation.participants[0];
-      return other?.name || other?.email;
+const getConversationTitle = (conversation) => {
+    // 1. Ưu tiên Title nếu có (cho nhóm chat đã đặt tên)
+    if (conversation.title && conversation.title.trim() !== '') {
+      return conversation.title;
     }
     
-    if (conversation.participants?.length > 0) {
-      const names = conversation.participants
-        .slice(0, 3)
-        .map(p => p.name || p.email)
-        .join(', ');
-      return conversation.participants.length > 3 
-        ? `${names} và ${conversation.participants.length - 3} người khác`
-        : names;
+    const participants = conversation.participants || [];
+    
+    // 2. Logic tìm "người kia"
+    // Chỉ cần có người tham gia, ta sẽ cố gắng hiển thị tên, không quan tâm type là 'direct' hay không
+    if (participants.length > 0) {
+      // Ép kiểu về String để so sánh an toàn (tránh lỗi 5 !== "5")
+      const myId = String(currentUserId);
+      
+      // Tìm người không phải là mình
+      const other = participants.find(p => {
+        const pId = String(p.user_id || p.userId || p.id || '');
+        return pId !== myId;
+      });
+
+      // Nếu tìm thấy người kia thì lấy, nếu không (chat với chính mình hoặc lỗi) thì lấy người đầu tiên
+      const target = other || participants[0];
+      
+      // Kiểm tra các trường tên phổ biến
+      return target.name || target.full_name || target.username || target.email || 'Người dùng không tên';
     }
     
     return 'Cuộc trò chuyện';
@@ -299,7 +318,7 @@ const ConversationList = ({
             }
             return (
               <ConversationItem
-                key={conversation.conversation_id ?? `conv-${idx}`}
+                key={`${conversation.conversation_id || 'unknown'}-${idx}`}
                 conversation={{ ...conversation, is_online: isOnline }}
                 isActive={currentConversation?.conversation_id === conversation.conversation_id}
                 title={getConversationTitle(conversation)}

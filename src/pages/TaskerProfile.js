@@ -1814,6 +1814,8 @@ const CertificationRegisterSection = () => {
       if (data.no_cert_required && payload.cert_ids.length === 0) {
         payload.cert_ids = [];
         payload.certs = [];
+        // mark as approved flow for backend processing
+        payload.status = 'Approved';
       }
       const res = await fetch(`${API_BASE_URL}/tasker/certifications/pending`, {
         method: "POST",
@@ -1825,8 +1827,11 @@ const CertificationRegisterSection = () => {
       });
       const json = await res.json();
       if (res.ok && json.success) {
-        showToast.success('Đăng ký thành công! Chờ duyệt.');
-        // Đóng form sau khi đăng ký thành công
+        if (data.no_cert_required) {
+          showToast.success('Đăng ký dịch vụ thành công!');
+        } else {
+          showToast.info('Đăng ký thành công. Vui lòng chờ duyệt chứng chỉ.');
+        }
         setShowForm(false);
       } else {
         showToast.error('Không thể tạo đăng ký: ' + (json.message || 'Lỗi không xác định'));
