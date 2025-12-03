@@ -68,8 +68,6 @@ import ResetPassword from "./pages/auth/ResetPassword";
 import AuthDemo from "./pages/auth/AuthDemo";
 
 import Dashboard from "./pages/Dashboard";
-import TaskerSearch from "./pages/TaskerSearch";
-import TaskerProfile from "./pages/TaskerProfile";
 import UserProfile from "./pages/UserProfile";
 import AccountManagement from "./pages/AccountManagement";
 import TaskManagement from "./pages/TaskManagement";
