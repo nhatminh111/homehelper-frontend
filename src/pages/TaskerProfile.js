@@ -763,68 +763,182 @@ const TaskerProfile = () => {
         {/* Header Card */}
         <div className="tp-card tp-header">
           <div className="row align-items-center gx-4">
-            <div className="col-md-6">
-              <div className="d-flex align-items-center">
-                <img
-                  src={tasker.avatar || "/images/default-avatar.png"}
-                  alt={tasker.name}
-                  className="tp-avatar me-3"
-                />
-                <div>
-                  <div className="d-flex align-items-center gap-2 mb-1">
-                    <h3 className="tp-name mb-0">
-                      {tasker.name || "Tasker Name"}
-                    </h3>
-                    <span className="tp-verified">
-                      <FontAwesomeIcon icon={faCheckCircle} /> Verified
-                      Professional
-                    </span>
+            {/* Avatar & Info */}
+            <div className="col-lg-8">
+              <div className="d-flex align-items-center gap-4">
+                {/* Avatar với upload */}
+                <div className="position-relative">
+                  <img
+                    src={tasker.avatar_url || "/images/default-avatar.png"}
+                    alt={tasker.name}
+                    className="tp-avatar"
+                    style={{width: '120px', height: '120px'}}
+                  />
+                  {isOwnProfile && (
+                    <label 
+                      className="position-absolute d-flex align-items-center justify-content-center"
+                      style={{
+                        bottom: '5px', right: '5px', 
+                        width: '36px', height: '36px',
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        borderRadius: '50%', cursor: 'pointer',
+                        border: '3px solid white',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+                      }}
+                      title="Thay đổi ảnh đại diện"
+                    >
+                      <i className="bi bi-camera-fill text-white" style={{fontSize: '14px'}}></i>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="d-none"
+                        onChange={async (e) => {
+                          const file = e.target.files[0];
+                          if (!file) return;
+                          
+                          // Validate file size (max 5MB)
+                          if (file.size > 5 * 1024 * 1024) {
+                            showToast.error('Ảnh quá lớn! Vui lòng chọn ảnh nhỏ hơn 5MB');
+                            return;
+                          }
+                          
+                          // Show preview immediately
+                          const reader = new FileReader();
+                          reader.onload = (ev) => {
+                            setTasker({...tasker, avatar_url: ev.target.result});
+                          };
+                          reader.readAsDataURL(file);
+                          
+                          // Upload to server
+                          try {
+                            showToast.info('Đang tải ảnh lên...');
+                            
+                            const formData = new FormData();
+                            formData.append('avatar', file);
+                            
+                            const uploadRes = await fetch(`${API_BASE_URL}/uploads/avatar`, {
+                              method: 'POST',
+                              headers: {
+                                'Authorization': `Bearer ${token}`
+                              },
+                              body: formData
+                            });
+                            
+                            const uploadData = await uploadRes.json();
+                            
+                            if (!uploadRes.ok || !uploadData.success) {
+                              throw new Error(uploadData.message || 'Upload thất bại');
+                            }
+                            
+                            // Save encrypted URL to database
+                            const encryptedUrl = uploadData.data.encrypted_url;
+                            const originalUrl = uploadData.data.url;
+                            console.log('📸 Upload response:', { encryptedUrl, originalUrl });
+                            
+                            const saveRes = await fetch(`${API_BASE_URL}/tasker-profile/${id}`, {
+                              method: 'PUT',
+                              headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
+                              },
+                              body: JSON.stringify({ avatar_url: encryptedUrl })
+                            });
+                            
+                            const saveData = await saveRes.json();
+                            
+                            if (saveRes.ok && saveData.success) {
+                              // Update UI with original URL for display
+                              setTasker(prev => ({...prev, avatar_url: originalUrl}));
+                              showToast.success('Cập nhật ảnh đại diện thành công!');
+                            } else {
+                              throw new Error(saveData.message || 'Lưu ảnh thất bại');
+                            }
+                          } catch (err) {
+                            console.error('Avatar upload error:', err);
+                            showToast.error(err.message || 'Lỗi khi tải ảnh lên');
+                          }
+                        }}
+                      />
+                    </label>
+                  )}
+                </div>
+                
+                {/* Info */}
+                <div className="flex-grow-1">
+                  <div className="d-flex align-items-center flex-wrap gap-2 mb-2">
+                    <h2 className="tp-name mb-0" style={{fontSize: '1.75rem'}}>
+                      {tasker.name || "Chưa cập nhật tên"}
+                    </h2>
+                    {tasker.status === 'Active' && (
+                      <span className="tp-verified">
+                        <FontAwesomeIcon icon={faCheckCircle} /> Đã xác minh
+                      </span>
+                    )}
                   </div>
-                  <div className="d-flex align-items-center gap-2 tp-rating">
-                    <span className="tp-rating-score">
-                      {tasker.rating ? Number(tasker.rating).toFixed(1) : "0.0"}
+                  
+                  {/* Rating */}
+                  <div className="d-flex align-items-center gap-3 mb-3">
+                    <div className="d-flex align-items-center gap-1">
+                      <span className="tp-rating-score">
+                        {tasker.rating ? Number(tasker.rating).toFixed(1) : "0.0"}
+                      </span>
+                      <FontAwesomeIcon icon={faStar} className="text-warning" />
+                    </div>
+                    <span className="text-muted">
+                      ({tasker.reviewCount || 0} đánh giá)
                     </span>
-                    <FontAwesomeIcon icon={faStar} />
-                    <span className="text-muted small">
-                      {tasker.reviewCount || 0} đánh giá
-                    </span>
+                    {tasker.status === 'Active' && (
+                      <span className="badge bg-success px-3 py-2" style={{borderRadius: '20px'}}>
+                        <i className="bi bi-circle-fill me-1" style={{fontSize: '8px'}}></i>
+                        Đang hoạt động
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Contact info */}
+                  <div className="d-flex flex-wrap gap-3 text-muted" style={{fontSize: '14px'}}>
+                    {tasker.email && (
+                      <span>
+                        <i className="bi bi-envelope me-1" style={{color: '#667eea'}}></i>
+                        {tasker.email}
+                      </span>
+                    )}
+                    {tasker.phone && (
+                      <span>
+                        <i className="bi bi-telephone me-1" style={{color: '#667eea'}}></i>
+                        {tasker.phone}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
-              <div className="d-flex flex-wrap gap-2 mt-3">
+            </div>
+
+            {/* Action Buttons */}
+            <div className="col-lg-4 mt-4 mt-lg-0">
+              <div className="d-flex flex-column gap-2">
                 {/* Hide booking/chat buttons if tasker is viewing their own profile */}
-                {!(isTasker() && user?.user_id === Number(id)) && (
+                {!isOwnProfile && (
                   <>
-                    <button className="btn btn-primary tp-btn-primary">
-                      <FontAwesomeIcon
-                        icon={faCalendarCheck}
-                        className="me-1"
-                      />
-                      Book Now — ${tasker.pricePerHour || 25}/hr
+                    <button className="btn tp-btn-primary w-100">
+                      <FontAwesomeIcon icon={faCalendarCheck} className="me-2" />
+                      Đặt lịch ngay
                     </button>
-                    <button className="btn btn-outline-secondary tp-btn-outline">
-                      <FontAwesomeIcon icon={faComments} className="me-1" />
-                      Start Chat
+                    <button className="btn tp-btn-outline w-100">
+                      <FontAwesomeIcon icon={faComments} className="me-2" />
+                      Nhắn tin
                     </button>
                   </>
                 )}
+                {isOwnProfile && (
+                  <div className="text-center p-3 rounded" style={{background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)', border: '1px solid #bae6fd'}}>
+                    <i className="bi bi-info-circle me-2" style={{color: '#0284c7'}}></i>
+                    <span style={{color: '#0369a1', fontSize: '14px'}}>
+                      Đây là trang profile công khai của bạn
+                    </span>
+                  </div>
+                )}
               </div>
-            </div>
-            <div className="col-md-6 text-md-end mt-3 mt-md-0">
-              <div className="text-muted mb-1">
-                <FontAwesomeIcon icon={faMapMarkerAlt} className="me-1" />
-                {tasker.location || "Downtown, 2.3 km away"}
-              </div>
-              <div className="text-muted mb-1">
-                <FontAwesomeIcon icon={faTools} className="me-1" />
-                {tasker.yearsExperience || 5} years experience
-              </div>
-              {tasker.available && (
-                <div className="text-success fw-semibold">
-                  <FontAwesomeIcon icon={faCheckCircle} className="me-1" />
-                  Available Now
-                </div>
-              )}
             </div>
           </div>
         </div>
