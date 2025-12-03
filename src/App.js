@@ -4,6 +4,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import "./App.css";
 import CustomToastContainer from "./components/common/CustomToast";
+import ChatBot from "./components/ChatBot/ChatBot";
 
 import { AuthProvider } from "./contexts/AuthContext";
 import { SocketProvider } from "./contexts/SocketContext";
@@ -285,6 +286,8 @@ function App() {
               />              
             </Routes>      
           </div>
+          {/* AI ChatBot - appears on all pages */}
+          <ChatBot />
         </Router>
       </SocketProvider>
     </AuthProvider>
