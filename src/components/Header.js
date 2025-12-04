@@ -31,6 +31,8 @@ import useWalletBalance from "../hooks/useWalletBalance";
 import { formatVND } from "../utils/formatVND";
 import NotificationBell from "./notifications/NotificationBell";
 import "../css/Header.css";
+import useUserPoints from "../hooks/useUserPoints";
+import useTaskerReputation from "../hooks/useTaskerReputation";
 import { is } from "date-fns/locale";
 
 const Header = () => {
@@ -41,8 +43,11 @@ const Header = () => {
   const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 992);
   const dropdownRef = useRef(null);
 
+  const { points } = useUserPoints();
+
+
   const location = useLocation();
-  const { user, isAuthenticated, logout, isAdmin, isTasker, isStaff } =
+  const { user, isAuthenticated, logout, isAdmin, isTasker, isStaff, isCustomer } =
     useAuth();
   const { balance, loading, error, refresh } = useWalletBalance();
 
@@ -57,6 +62,7 @@ const Header = () => {
     { path: "/chat", name: "Chat", icon: faComments },
     { path: "/cccd", name: "CCCD", icon: faIdCard },
     { path: "/tasker-search", name: "Tìm kiếm", icon: faSearchSolid },
+    { path: "/customer/vouchers", name: "Voucher" }
   ];
 
   // Theo dõi kích thước màn hình
@@ -92,15 +98,19 @@ const Header = () => {
 
   const isActive = (path) => (location.pathname === path ? "active" : "");
 
+  const reputation = useTaskerReputation(user?.user_id);
+
+  console.log("USER: ", user);
+  console.log("ROLE RAW: ", JSON.stringify(user?.role));
+  console.log("REPUTATION: ", reputation);
+
   return (
     <>
-
-
       {/* Navbar Desktop */}
       <nav className="navbar navbar-expand-lg navbar-dark ftco_navbar bg-dark ftco-navbar-light">
         <div className="container">
           <Link className="navbar-brand" to="/">
-           <span className="home-text">Home</span><span>Helper</span>
+            <span className="home-text">Home</span><span>Helper</span>
           </Link>
 
           <button
@@ -144,13 +154,19 @@ const Header = () => {
                   Chat
                 </Link>
               </li>
+              {(isCustomer() && (
+                <li className={`nav-item ${isActive('/customer/vouchers')}`}>
+                  <Link to="/customer/vouchers" className="nav-link">Voucher</Link>
+                </li>
+              ))}
+
               {/* <li className={`nav-item ${isActive("/cccd")}`}>
                 <Link to="/cccd" className="nav-link">
                   <FontAwesomeIcon icon={faIdCard} className="mr-1" /> CCCD
                 </Link>
               </li> */}
 
-              {!(isStaff() || isAdmin() || isTasker()) && (
+              {(isStaff() || isAdmin() || isTasker()) && (
                 <li className={`nav-item ${isActive('/become-tasker')}`}>
                   <Link to="/become-tasker" className="nav-link">Become a Tasker</Link>
                 </li>
@@ -159,9 +175,8 @@ const Header = () => {
               {/* Auth Menu */}
               {isAuthenticated() ? (
                 <li
-                  className={`nav-item dropdown ${
-                    isDesktop && isDropdownOpen ? "open" : ""
-                  }`}
+                  className={`nav-item dropdown ${isDesktop && isDropdownOpen ? "open" : ""
+                    }`}
                   ref={dropdownRef}
                 >
                   <a
@@ -210,6 +225,21 @@ const Header = () => {
                             {error ? "Lỗi" : loading ? "..." : formatVND(balance)}
                           </strong>
                         </button>
+                        <>
+                          {isCustomer() && (
+                            <div className="d-flex justify-content-between px-2 mt-2">
+                              <small className="text-muted">Điểm đổi voucher</small>
+                              <small className="fw-bold text-primary">{points}</small>
+                            </div>
+                          )}
+
+                          {isTasker() && reputation !== null && (
+                            <div className="d-flex justify-content-between px-2 mt-2">
+                              <small className="text-muted">Uy tín</small>
+                              <small className="fw-bold text-warning">{reputation}</small>
+                            </div>
+                          )}
+                        </>
                       </div>
 
                       <div className="dropdown-divider"></div>
@@ -241,30 +271,30 @@ const Header = () => {
                         </>
                       )}
 
-                    {isAdmin() && (
-                      <Link className="dropdown-item" to="/admin">
-                        <FontAwesomeIcon icon={faCog} className="mr-2" />
-                        Khu vực quản trị
-                      </Link>
-                    )}
-                    {(isStaff() || isAdmin()) && (
-                      <Link className="dropdown-item" to="/tasker-approvals">
-                        <FontAwesomeIcon icon={faCog} className="mr-2" />
-                        Approve Taskers
-                      </Link>
-                    )}
-                    {isStaff() && (
-                      <Link className="dropdown-item" to="/staff/dashboard/applications">
-                        <FontAwesomeIcon icon={faCog} className="mr-2" />
-                        Đơn Tasker
-                      </Link>
-                    )}
-                    {isStaff() && (
-                      <Link className="dropdown-item" to="/staff/dashboard/certifications">
-                        <FontAwesomeIcon icon={faCertificate} className="mr-2" />
-                        Duyệt chứng chỉ
-                      </Link>
-                    )}
+                      {isAdmin() && (
+                        <Link className="dropdown-item" to="/admin">
+                          <FontAwesomeIcon icon={faCog} className="mr-2" />
+                          Khu vực quản trị
+                        </Link>
+                      )}
+                      {(isStaff() || isAdmin()) && (
+                        <Link className="dropdown-item" to="/tasker-approvals">
+                          <FontAwesomeIcon icon={faCog} className="mr-2" />
+                          Approve Taskers
+                        </Link>
+                      )}
+                      {isStaff() && (
+                        <Link className="dropdown-item" to="/staff/dashboard/applications">
+                          <FontAwesomeIcon icon={faCog} className="mr-2" />
+                          Đơn Tasker
+                        </Link>
+                      )}
+                      {isStaff() && (
+                        <Link className="dropdown-item" to="/staff/dashboard/certifications">
+                          <FontAwesomeIcon icon={faCertificate} className="mr-2" />
+                          Duyệt chứng chỉ
+                        </Link>
+                      )}
 
                       <div className="dropdown-divider"></div>
 

@@ -11,9 +11,9 @@ import {
   Row,
   Spinner,
 } from "react-bootstrap";
-import api from "../services/api";
-import { showToast } from "../components/common/CustomToast";
-import MediaUpload from "../components/MediaUpload";
+import api from "../../services/api";
+import { showToast } from "../../components/common/CustomToast";
+import MediaUpload from "../../components/MediaUpload";
 
 const DEFAULT_TASKS = [
   {

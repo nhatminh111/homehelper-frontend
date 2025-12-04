@@ -33,23 +33,42 @@ import TopUp from "./pages/TopUp";
 import PaymentResult from "./pages/PaymentResult";
 import PaymentPage from "./pages/PaymentPage";
 import Wallet from "./pages/Wallet";
-import Booking from "./pages/Booking";
-import JobDescription from "./pages/JobDescription";
-import Contract from "./pages/Contract";
-import TaskerBookingDetail from "./pages/TaskerBookingDetail";
-import TaskerBookings from "./pages/TaskerBookings";
-import TaskerJobProgress from "./pages/TaskerJobProgress";
-import TaskerJobCompletion from "./pages/TaskerJobCompletion";
-import TaskerJobDone from "./pages/TaskerJobDone";
+
+// Customer Pages
+import Booking from "./pages/customer/Booking";
+import JobDescription from "./pages/customer/JobDescription";
+import Contract from "./pages/customer/Contract";
+import CustomerHome from "./pages/customer/CustomerHome";
+import BookingHistory from "./pages/customer/BookingHistory";
+import CustomerBookingDetail from "./pages/customer/CustomerBookingDetail";
+import VoucherCenter from "./pages/customer/VoucherCenter";
+
+// Tasker Pages
+import NoShowReportPage from "./pages/tasker/NoShowReportPage";
+import TaskerBookingDetail from "./pages/tasker/TaskerBookingDetail";
+import TaskerBookings from "./pages/tasker/TaskerBookings";
+import TaskerHome from "./pages/tasker/TaskerHome";
+import TaskerJobProgress from "./pages/tasker/TaskerJobProgress";
+import TaskerJobCompletion from "./pages/tasker/TaskerJobCompletion";
+import TaskerJobDone from "./pages/tasker/TaskerJobDone";
+import TaskerSearch from "./pages/tasker/TaskerSearch";
+import TaskerProfile from "./pages/tasker/TaskerProfile";
+import TaskerManagement from "./pages/tasker/TaskerManagement";
+
+// Admin Pages
+import AdminHome from "./pages/admin/AdminHome";
+import AdminUsers from "./pages/admin/AdminUsers";
+import AdminTaskers from "./pages/admin/AdminTaskers";
+import AdminEvidenceReview from "./pages/admin/AdminEvidenceReview";
+
 // Import authentication pages
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import ForgotPassword from "./pages/auth/ForgotPassword";
 import ResetPassword from "./pages/auth/ResetPassword";
 import AuthDemo from "./pages/auth/AuthDemo";
+
 import Dashboard from "./pages/Dashboard";
-import TaskerSearch from "./pages/TaskerSearch";
-import TaskerProfile from "./pages/TaskerProfile";
 import UserProfile from "./pages/UserProfile";
 import AccountManagement from "./pages/AccountManagement";
 import TaskManagement from "./pages/TaskManagement";
@@ -57,7 +76,6 @@ import PaymentInvoicing from "./pages/PaymentInvoicing";
 import RatingComplaints from "./pages/RatingComplaints";
 import ContentManagement from "./pages/ContentManagement";
 import VideoUpload from "./pages/VideoUpload";
-import TaskerManagement from "./pages/TaskerManagement";
 import AIInteraction from "./pages/AIInteraction";
 import SystemManagement from "./pages/SystemManagement";
 import QuotesPage from "./pages/QuotesPage";
@@ -65,10 +83,8 @@ import VideoManager from "./pages/VideoManager";
 import ServiceManagement from "./pages/ServiceManagement";
 // import NegotiateSessionTest from './pages/NegotiateSessionTest';
 // Role landing pages
-import TaskerHome from "./pages/tasker/TaskerHome";
-import AdminHome from "./pages/admin/AdminHome";
-import CustomerHome from "./pages/customer/CustomerHome";
-import BookingHistory from "./pages/customer/BookingHistory";
+
+
 import ChatPage from "./pages/Chat";
 import CCCDExtractor from "./pages/CCCDExtractor";
 import BecomeTasker from "./pages/BecomeTasker";
@@ -79,10 +95,7 @@ import StaffBlogs from "./pages/StaffBlogs";
 import ReportIssue from "./pages/ReportIssue";
 import AdminReports from "./pages/AdminReports";
 import StaffBadges from "./pages/StaffBadges";
-import AdminUsers from "./pages/admin/AdminUsers";
-import AdminTaskers from "./pages/admin/AdminTaskers";
-import AdminEvidenceReview from "./pages/admin/AdminEvidenceReview";
-import NoShowReportPage from "./pages/tasker/NoShowReportPage";
+
 
 function App() {
 
@@ -241,6 +254,12 @@ function App() {
                 } />
                 <Route path="/customer/bookings" element={
                   <ProtectedRoute requiredRole="Customer"> <BookingHistory /> </ProtectedRoute>
+                } />
+                <Route path="/customer/booking/:id" element={
+                  <ProtectedRoute requiredRole="Customer"> <CustomerBookingDetail /> </ProtectedRoute>
+                } />
+                <Route path="/customer/vouchers" element={ 
+                  <ProtectedRoute requiredRole="Customer"><VoucherCenter /> </ProtectedRoute> 
                 } />
               </Route>
 

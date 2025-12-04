@@ -1,8 +1,9 @@
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Container, Row, Col, Card, Button, Badge, Spinner, Alert } from "react-bootstrap";
-import NegotiatePriceButton from "../components/negotiation/NegotiatePriceButton";
-import api from "../services/api";
+import NegotiatePriceButton from "../../components/negotiation/NegotiatePriceButton";
+import api from "../../services/api";
+import { showToast } from "../../components/common/CustomToast";
 
 export default function TaskerBookingDetail() {
   const navigate = useNavigate();
@@ -13,70 +14,74 @@ export default function TaskerBookingDetail() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const handleCancelTask = async () => {
-    try {
-      const token = api.getStoredToken();
+  const [showCancelWarning, setShowCancelWarning] = useState(false);
+  const [cancelType, setCancelType] = useState(null); // "normal" hoặc "late"
 
-      const res = await fetch(
-        `http://localhost:3001/api/bookings/${booking.booking_id}/cancel`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            cancelledBy: "tasker",
-          }),
-        }
-      );
+  // 🧾 Giải nén dữ liệu booking
+  const {
+    booking_id,
+    task_description,
+    task_checklist,
+    expected_price,
+    final_price,
+    status = "Chờ xử lý",
+    customer_id,
+    customer_name,
+    customer_email,
+    customer_phone,
+    location: bookingAddress,
+    type,
+    duration_hours,
+    duration_days,
+    start_time,
+    end_time,
+    service_name,
+    variant_name,
+  } = booking;
 
-      const data = await res.json();
+  const photos = booking.task_photos ? JSON.parse(booking.task_photos) : [];
 
-      if (data.success) {
-        alert("Bạn đã hủy công việc thành công!");
-        navigate("/tasker/bookings");
-      } else {
-        alert(data.message || "Không thể hủy booking");
-      }
+  const [previewImages, setPreviewImages] = useState([]);
 
-    } catch (err) {
-      console.error("❌ Lỗi khi hủy booking:", err);
-      alert("Đã xảy ra lỗi khi hủy booking");
+  useEffect(() => {
+    if (photos.length > 0) {
+      setPreviewImages(photos);
     }
-  };
+  }, [booking]);
+
   const [alreadyTaken, setAlreadyTaken] = useState(false);
 
   useEffect(() => {
-    if (!booking && id) {
-      const fetchBooking = async () => {
-        try {
-          setLoading(true);
-          setError(null);
-          const res = await api.get(`/bookings/${id}`, {
-            headers: { "Cache-Control": "no-cache" },
-          });
+    if (!id) return;
 
-          const payload = res?.data;
-          const bookingData =
-            (payload && (payload.booking || payload.data)) || payload;
+    const fetchBooking = async () => {
+      try {
+        setLoading(true);
+        setError(null);
 
-          if (bookingData && bookingData.booking_id) {
-            setBooking(bookingData);
-          } else {
-            throw new Error("Không tìm thấy thông tin booking");
-          }
-        } catch (err) {
-          console.error("❌ Lỗi fetch booking:", err);
-          setError("Không thể tải thông tin booking. Vui lòng thử lại sau.");
-        } finally {
-          setLoading(false);
+        const res = await api.get(`/bookings/${id}`, {
+          headers: { "Cache-Control": "no-cache" },
+        });
+
+        console.log("📦 API trả về:", res.data);
+
+        // Chỉ setBooking 1 lần duy nhất
+        if (res.data && res.data.booking) {
+          setBooking(res.data.booking);
+        } else {
+          setError("Không tìm thấy thông tin booking");
         }
-      };
 
-      fetchBooking();
-    }
-  }, [id, booking]);
+      } catch (err) {
+        console.error("❌ Lỗi fetch booking:", err);
+        setError("Không thể tải thông tin booking. Vui lòng thử lại sau.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBooking();
+  }, [id]);
 
   // Đang tải
   if (loading) {
@@ -112,47 +117,6 @@ export default function TaskerBookingDetail() {
     );
   }
 
-  // 🧾 Giải nén dữ liệu booking
-  const {
-    booking_id,
-    task_description,
-    task_checklist,
-    expected_price,
-    final_price,
-    photos = [],
-    status = "Chờ xử lý",
-    customer_id,
-    customer_name,
-    customer_email,
-    customer_phone,
-    location: bookingAddress,
-    type,
-    duration_hours,
-    duration_days,
-    start_time,
-    end_time,
-    service_name,
-    variant_name,
-  } = booking;
-
-  // Parse task_checklist thành checklistItems
-  const checklistItems = (() => {
-    if (!task_checklist) return [];
-    if (Array.isArray(task_checklist)) return task_checklist;
-    if (typeof task_checklist === 'string') {
-      try {
-        const parsed = JSON.parse(task_checklist);
-        return Array.isArray(parsed) ? parsed : [];
-      } catch {
-        // Nếu không phải JSON, coi như là string đơn giản
-        return task_checklist.split('\n').filter(item => item.trim());
-      }
-    }
-    return [];
-  })();
-
-  const canCancelFree = (status === "Đã chấp nhận" && !booking.isPaid);
-
   const formatPrice = (price) => {
     if (!price) return "Chưa có giá";
     return new Intl.NumberFormat("vi-VN").format(price) + "đ";
@@ -181,7 +145,7 @@ export default function TaskerBookingDetail() {
   const handleStatusUpdate = async (newStatus) => {
     try {
       const token = api.getStoredToken();
-      
+
       // For SOS jobs being accepted, check availability first
       if (newStatus === "Đã chấp nhận" && type === 'SOS') {
         try {
@@ -196,18 +160,18 @@ export default function TaskerBookingDetail() {
             }
           );
           const checkData = await checkRes.json();
-          
+
           console.log('SOS check result:', checkData);
-          
+
           if (!checkData.available) {
             // SOS already taken by someone else
             setAlreadyTaken(true);
-            alert(`❌ ${checkData.message}`);
+            showToast.error(checkData.message);
             return;
           }
         } catch (checkErr) {
           console.error('Lỗi kiểm tra SOS availability:', checkErr);
-          alert('Lỗi khi kiểm tra tính khả dụng của SOS');
+          showToast.error("Lỗi khi kiểm tra tính khả dụng của SOS");
           return;
         }
       }
@@ -247,14 +211,14 @@ export default function TaskerBookingDetail() {
             message = `Cập nhật trạng thái: ${newStatus}`;
         }
 
-        alert(message);
+        showToast.success(message);
         navigate("/tasker/bookings");
       } else {
-        alert("Có lỗi xảy ra khi cập nhật trạng thái");
+        showToast.error("Có lỗi xảy ra khi cập nhật trạng thái");
       }
     } catch (err) {
       console.error("Lỗi khi cập nhật trạng thái:", err);
-      alert("Có lỗi xảy ra khi cập nhật trạng thái");
+      showToast.error("Có lỗi xảy ra khi cập nhật trạng thái");
     }
   };
 
@@ -278,19 +242,110 @@ export default function TaskerBookingDetail() {
       );
       const data = await res.json();
       if (data.success) {
-        alert("Hủy (sát giờ) thành công. Điểm uy tín -20, khách được hoàn tiền.");
+        showToast.warning("Hủy sát giờ thành công! Bạn bị -20 điểm uy tín.");
         navigate("/tasker/bookings");
       } else {
-        alert(data.message || "Không thể hủy booking");
+        showToast.error(data.message || "Không thể hủy booking");
       }
     } catch (err) {
       console.error("❌ Lỗi khi hủy sát giờ:", err);
-      alert("Đã xảy ra lỗi khi hủy sát giờ");
+      showToast.error("Đã xảy ra lỗi khi hủy sát giờ");
+    }
+  };
+
+  const handleCancelTask = async () => {
+    try {
+      const token = api.getStoredToken();
+
+      const res = await fetch(
+        `http://localhost:3001/api/bookings/${booking.booking_id}/cancel`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            cancelledBy: "tasker",
+          }),
+        }
+      );
+
+      const data = await res.json();
+
+      if (data.success) {
+        showToast.success("Bạn đã hủy công việc thành công!");
+        navigate("/tasker/bookings");
+      } else {
+        showToast.error(data.message || "Không thể hủy booking");
+      }
+    } catch (err) {
+      console.error("❌ Lỗi khi hủy booking:", err);
+      showToast.error("Đã xảy ra lỗi khi hủy booking");
+    }
+  };
+
+  const handleCancelFreeConfirm = async () => {
+    try {
+      const token = api.getStoredToken();
+
+      const res = await fetch(
+        `http://localhost:3001/api/bookings/${booking.booking_id}/cancel`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ cancelledBy: "free" }),
+        }
+      );
+
+      const data = await res.json();
+
+      if (data.success) {
+        showToast.success("Bạn đã hủy công việc thành công (không trừ điểm).");
+        navigate("/tasker/bookings");
+      } else {
+        showToast.error(data.message || "Không thể hủy booking");
+      }
+    } catch (err) {
+      console.error("❌ Lỗi khi hủy free-confirm:", err);
+      showToast.error("Đã xảy ra lỗi khi hủy công việc");
     }
   };
 
   return (
     <Container className="py-5">
+      <style>{`
+      .cancel-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background-color: rgba(0, 0, 0, 0.45);
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          z-index: 2000;
+      }
+
+      .cancel-box {
+          background: white;
+          padding: 24px;
+          border-radius: 12px;
+          max-width: 480px;
+          width: 90%;
+          box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+          animation: fadeIn 0.25s ease;
+      }
+
+      @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(-10px); }
+          to { opacity: 1; transform: translateY(0); }
+      }
+      `}</style>
       {/* Tiêu đề */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
@@ -303,38 +358,50 @@ export default function TaskerBookingDetail() {
           <div className="d-flex align-items-center justify-content-end gap-2">
             {type === 'SOS' ? <Badge bg="danger" className="px-3 py-2">SOS</Badge> : null}
             <Badge
-            bg={
-              status === "Chờ xử lý"
-                ? "warning"
+              bg={
+                status === "Chờ xử lý"
+                  ? "warning"
+                  : status === "Đã chấp nhận"
+                    ? "info"
+                    : status === "Đã thanh toán"
+                      ? "success"
+                      : status === "Đang tiến hành"
+                        ? "primary"
+                        : status === "Hoàn thành"
+                          ? "success"
+                          : status === "Hủy"
+                            ? "danger"
+                            : status === "Chờ duyệt báo cáo"
+                              ? "warning"
+                              : status === "Báo cáo được duyệt"
+                                ? "info"
+                                : status === "Báo cáo bị từ chối"
+                                  ? "dark"
+                                  : "secondary"
+              }
+              className="px-3 py-2 fs-6"
+            >
+              {status === "Chờ xử lý"
+                ? "⏳"
                 : status === "Đã chấp nhận"
-                  ? "info"
+                  ? "🤝"
                   : status === "Đã thanh toán"
-                    ? "success"
+                    ? "💰"
                     : status === "Đang tiến hành"
-                      ? "primary"
+                      ? "🔄"
                       : status === "Hoàn thành"
-                        ? "success"
+                        ? "🎉"
                         : status === "Hủy"
-                          ? "danger"
-                          : "secondary"
-            }
-            className="px-3 py-2 fs-6"
-          >
-            {status === "Chờ xử lý"
-              ? "⏳"
-              : status === "Đã chấp nhận"
-                ? "✅"
-                : status === "Đã thanh toán"
-                  ? "💰"
-                  : status === "Đang tiến hành"
-                    ? "🔄"
-                    : status === "Hoàn thành"
-                      ? "🎉"
-                      : status === "Hủy"
-                        ? "❌"
-                        : "❓"}{" "}
-            {status}
-          </Badge>
+                          ? "❌"
+                          : status === "Chờ duyệt báo cáo"
+                            ? "📝"
+                            : status === "Báo cáo được duyệt"
+                              ? "✔"
+                              : status === "Báo cáo bị từ chối"
+                                ? "✖"
+                                : "❓"}{" "}
+              {status}
+            </Badge>
           </div>
         </div>
       </div>
@@ -430,6 +497,7 @@ export default function TaskerBookingDetail() {
         </Col>
 
         {/* Chi tiết công việc */}
+
         <Col md={7}>
           <Card className="shadow-sm border-0 h-100" style={{ borderRadius: "14px" }}>
             <Card.Body>
@@ -441,13 +509,13 @@ export default function TaskerBookingDetail() {
               </h6>
               <p className="text-muted">{task_checklist || "Không có mô tả."}</p>
 
-              {photos.length > 0 && (
+              {previewImages.length > 0 && (
                 <>
                   <h6 className="mt-4 mb-2">
                     <i className="bi bi-images me-2"></i>Ảnh đính kèm
                   </h6>
                   <div className="d-flex flex-wrap gap-3">
-                    {photos.map((url, i) => (
+                    {previewImages.map((url, i) => (
                       <img
                         key={i}
                         src={url}
@@ -516,76 +584,85 @@ export default function TaskerBookingDetail() {
             </>
           )}
 
-        {status === "Đã chấp nhận" && (
-          <>
-            {/* KHÁCH CHƯA THANH TOÁN */}
-            <Button
-              variant="danger"
-              size="lg"
-              className="px-5 fw-semibold"
-              style={{ borderRadius: "10px", minWidth: "200px" }}
-              onClick={handleCancelTask}
-            >
-              ❌ Hủy công việc (Không trừ điểm)
-            </Button>
-          </>
-        )}
-
-        {status === "Đã thanh toán" && (
-          <>
-            {/* BẮT ĐẦU CÔNG VIỆC */}
-            <Button
-              variant="info"
-              size="lg"
-              className="px-5 fw-semibold"
-              style={{ borderRadius: "10px", minWidth: "160px" }}
-              onClick={() => handleStatusUpdate("Đang tiến hành")}
-            >
-              ▶ Bắt đầu công việc
-            </Button>
-
-            {/* >2h: hủy bình thường */}
-            {diffHours > 2 ? (
+          {status === "Đã chấp nhận" && (
+            <>
+              {/* KHÁCH CHƯA THANH TOÁN */}
               <Button
                 variant="danger"
                 size="lg"
                 className="px-5 fw-semibold"
-                style={{ borderRadius: "10px", minWidth: "160px", marginLeft: "20px" }}
-                onClick={handleCancelTask}
+                style={{ borderRadius: "10px", minWidth: "200px" }}
+                onClick={() => {
+                  setCancelType("free-confirm");
+                  setShowCancelWarning(true);
+                }}
               >
-                ❌ Hủy công việc (–10)
+                ❌ Hủy công việc (Không trừ điểm)
               </Button>
-            ) : (
-              <>
-                {/* <2h: hủy sát giờ */}
+            </>
+          )}
+
+          {status === "Đã thanh toán" && (
+            <>
+              {/* BẮT ĐẦU CÔNG VIỆC */}
+              <Button
+                variant="info"
+                size="lg"
+                className="px-5 fw-semibold"
+                style={{ borderRadius: "10px", minWidth: "160px" }}
+                onClick={() => handleStatusUpdate("Đang tiến hành")}
+              >
+                ▶ Bắt đầu công việc
+              </Button>
+
+              {/* >2h: hủy bình thường */}
+              {diffHours > 2 ? (
                 <Button
                   variant="danger"
                   size="lg"
                   className="px-5 fw-semibold"
-                  style={{
-                    borderRadius: "10px",
-                    minWidth: "180px",
-                    marginLeft: "20px",
+                  style={{ borderRadius: "10px", minWidth: "160px", marginLeft: "20px" }}
+                  onClick={() => {
+                    setCancelType("normal");
+                    setShowCancelWarning(true);
                   }}
-                  onClick={handleCancelLate}
                 >
-                  ❌ Hủy (sát giờ –20)
+                  ❌ Hủy công việc (–10)
                 </Button>
+              ) : (
+                <>
+                  {/* <2h: hủy sát giờ */}
+                  <Button
+                    variant="danger"
+                    size="lg"
+                    className="px-5 fw-semibold"
+                    style={{
+                      borderRadius: "10px",
+                      minWidth: "180px",
+                      marginLeft: "20px",
+                    }}
+                    onClick={() => {
+                      setCancelType("late");
+                      setShowCancelWarning(true);
+                    }}
+                  >
+                    ❌ Hủy (sát giờ –20)
+                  </Button>
 
-                {/* Báo cáo khách no-show */}
-                <Button
-                  variant="warning"
-                  size="lg"
-                  className="px-5 fw-semibold text-dark"
-                  style={{ borderRadius: "10px", minWidth: "240px" }}
-                  onClick={() => navigate(`/tasker/no-show-report/${booking_id}`)}
-                >
-                  📣 Báo cáo khách vắng mặt
-                </Button>
-              </>
-            )}
-          </>
-        )}
+                  {/* Báo cáo khách no-show */}
+                  <Button
+                    variant="warning"
+                    size="lg"
+                    className="px-5 fw-semibold text-dark"
+                    style={{ borderRadius: "10px", minWidth: "240px" }}
+                    onClick={() => navigate(`/tasker/no-show-report/${booking_id}`)}
+                  >
+                    📣 Báo cáo khách vắng mặt
+                  </Button>
+                </>
+              )}
+            </>
+          )}
 
           {status === "Đang tiến hành" && (
             <Button
@@ -627,6 +704,81 @@ export default function TaskerBookingDetail() {
         </div>
       </div>
 
+      {showCancelWarning && (
+        <div className="cancel-overlay" onClick={() => setShowCancelWarning(false)}>
+          <div className="cancel-box" onClick={(e) => e.stopPropagation()}>
+            <h5 className="fw-bold text-danger">
+              ⚠ CẢNH BÁO HỦY CÔNG VIỆC
+            </h5>
+
+            {cancelType === "normal" && (
+              <p className="mt-3">
+                Bạn đang chuẩn bị hủy công việc <strong>trước giờ làm hơn 2 tiếng</strong>.
+                <br />
+                <span className="text-danger fw-semibold">
+                  → Hủy loại này sẽ bị trừ 10 điểm uy tín.
+                </span>
+                <br />
+                Điểm uy tín thấp sẽ ảnh hưởng trực tiếp đến khả năng nhận việc
+                và xếp hạng của bạn trên hệ thống.
+              </p>
+            )}
+
+            {cancelType === "late" && (
+              <p className="mt-3">
+                Bạn đang hủy <strong>sát giờ (&lt; 2 tiếng trước giờ làm)</strong>.
+                <br />
+                <span className="text-danger fw-bold">
+                  → Bạn sẽ bị trừ 20 điểm uy tín và không nhận được bất kỳ khoản thanh toán nào.
+                </span>
+                <br />
+                Đây là vi phạm nghiêm trọng và ảnh hưởng rất lớn đến hồ sơ của bạn.
+              </p>
+            )}
+
+            {cancelType === "free-confirm" && (
+              <p className="mt-3">
+                Khách hàng hiện <strong>chưa thanh toán</strong> cho công việc này.
+                <br />
+                Bạn có chắc chắn muốn hủy công việc không?
+                <br />
+                <span className="text-muted small">Hủy trường hợp này sẽ không bị trừ điểm uy tín.</span>
+              </p>
+            )}
+
+            {cancelType === "late" || cancelType === "normal" && (
+              <p className="mt-3 text-muted small">
+                Việc hủy công việc sẽ khiến khách hàng gặp khó khăn,
+                đồng thời làm giảm độ tin cậy của bạn trong hệ thống.
+              </p>
+            )}
+
+            <div className="d-flex justify-content-end gap-2 mt-4">
+              <Button variant="secondary" onClick={() => setShowCancelWarning(false)}>
+                Đóng
+              </Button>
+
+              {cancelType === "normal" && (
+                <Button variant="danger" onClick={handleCancelTask}>
+                  Xác nhận hủy (–10)
+                </Button>
+              )}
+
+              {cancelType === "late" && (
+                <Button variant="danger" onClick={handleCancelLate}>
+                  Xác nhận hủy sát giờ (–20)
+                </Button>
+              )}
+
+              {cancelType === "free-confirm" && (
+                <Button variant="danger" onClick={handleCancelFreeConfirm}>
+                  Xác nhận hủy
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </Container>
   );
 }

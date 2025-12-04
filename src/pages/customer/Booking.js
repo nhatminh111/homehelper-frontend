@@ -2,11 +2,18 @@ import React, { useMemo, useState, useEffect, useRef } from "react";
 import { Container, Row, Col, Card, Badge, Form, Button, Accordion, ProgressBar, Spinner, InputGroup, FileText } from "react-bootstrap";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
-import { servicesAPI } from "../services/api";
-import api from "../services/api";
+import { servicesAPI } from "../../services/api";
+import api from "../../services/api";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
-import TaskerService from '../services/taskerService';
+import TaskerService from '../../services/taskerService';
 import _ from "lodash";
+
+function normalizeDate(d) {
+    if (!d) return null;
+    if (typeof d === "string") return d; // đã đúng format
+    // DayPicker trả Date object → convert
+    return d.toISOString().split("T")[0];
+}
 
 function formatVND(input) {
     const n = Number(input);
@@ -36,6 +43,7 @@ export default function Booking() {
     const [tasker, setTasker] = useState(null);
     const [services, setServices] = useState([]);
     const [selectedVariantId, setSelectedVariantId] = useState(null);
+    const [previewImages, setPreviewImages] = useState([]);
 
     const [loadingServices, setLoadingServices] = useState(true);
 
@@ -716,8 +724,8 @@ export default function Booking() {
                                                                 onSelect={(dates) =>
                                                                     setSelection({
                                                                         ...selection,
-                                                                        dates: dates || [],
-                                                                        date: dates?.[0] || "",
+                                                                        dates: (dates || []).map(d => normalizeDate(d)),
+                                                                        date: dates?.[0] ? normalizeDate(dates[0]) : "",
                                                                         startTime: "07:00",
                                                                         endTime: "21:00"
                                                                     })
@@ -960,8 +968,8 @@ export default function Booking() {
 
                                                                             setSelection({
                                                                                 ...selection,
-                                                                                date: day,
-                                                                                dates: days,
+                                                                                date: normalizeDate(day),
+                                                                                dates: days.map(d => normalizeDate(d)),
                                                                             });
                                                                         }}
                                                                         modifiersClassNames={{
@@ -1472,13 +1480,17 @@ export default function Booking() {
                                             variant="teal"
                                             className="nav-btn"
                                             onClick={() => {
-                                                const startISO = selection.date && selection.startTime
-                                                    ? new Date(`${selection.date}T${selection.startTime}:00`).toISOString()
-                                                    : null;
+                                                const normDate = normalizeDate(selection.date);
 
-                                                const endISO = selection.date && selection.endTime
-                                                    ? new Date(`${selection.date}T${selection.endTime}:00`).toISOString()
-                                                    : null;
+                                                const startISO =
+                                                    normDate && selection.startTime
+                                                        ? new Date(`${normDate}T${selection.startTime}:00`).toISOString()
+                                                        : null;
+
+                                                const endISO =
+                                                    normDate && selection.endTime
+                                                        ? new Date(`${normDate}T${selection.endTime}:00`).toISOString()
+                                                        : null;
 
                                                 const payload = {
                                                     step,
