@@ -147,7 +147,7 @@ export default function CustomerBookingDetail() {
                 showToast.success(
                     `Hủy thành công. Hoàn: ${Number(data.refundAmount).toLocaleString("vi-VN")}₫ (Rule: ${data.rule})`
                 );
-                navigate("/customer/history");
+                navigate("/customer/bookings");
             } else {
                 showToast.error(`Hủy thất bại: ${data.message}`);
             }

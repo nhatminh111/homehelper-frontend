@@ -127,7 +127,7 @@ const Header = () => {
             className={`${isNavCollapsed ? "collapse" : ""} navbar-collapse`}
             id="ftco-nav"
           >
-            <ul className="navbar-nav ml-auto">
+            <ul className="navbar-nav mx-auto justify-content-center">
               <li className={`nav-item ${isActive('/')}`}>
                 <Link to="/" className="nav-link">Trang chủ</Link>
               </li>
@@ -162,7 +162,7 @@ const Header = () => {
                 </Link>
               </li> */}
 
-              {(isStaff() || isAdmin() || isTasker()) && (
+              {(isCustomer()) && (
                 <li className={`nav-item ${isActive('/become-tasker')}`}>
                   <Link to="/become-tasker" className="nav-link">Become a Tasker</Link>
                 </li>
@@ -349,12 +349,6 @@ const Header = () => {
                       Đăng nhập
                     </Link>
                   </li>
-                  <li className="nav-item">
-                    <Link to="/register" className="nav-link">
-                      <FontAwesomeIcon icon={faUserPlus} className="mr-1" />{" "}
-                      Đăng ký
-                    </Link>
-                  </li>
                 </>
               )}
 
@@ -422,10 +416,6 @@ const Header = () => {
                   <Link to="/login" onClick={() => setIsSidebarOpen(false)}>
                     <FontAwesomeIcon icon={faSignInAlt} className="mr-2" />
                     Đăng nhập
-                  </Link>
-                  <Link to="/register" onClick={() => setIsSidebarOpen(false)}>
-                    <FontAwesomeIcon icon={faUserPlus} className="mr-2" />
-                    Đăng ký
                   </Link>
                 </>
               )}

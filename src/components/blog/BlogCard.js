@@ -73,7 +73,7 @@ const BlogCard = ({ post, onLikeToggle, user }) => {
         <div className="blog-image" style={{ backgroundImage: `url(${getFeaturedImage()})` }}></div>
         <div className="blog-meta">
           <div className="author-avatar">
-            <img src={post.author_avatar_url} alt={post.author_name} /> 
+            <img src={post.author_avatar_url || "/images/person_1.jpg"} alt={post.author_name} /> 
           </div>
           <div className="meta-text">
             <div className="author">Posted by {post.author_name}</div>
