@@ -26,6 +26,7 @@ import BlogDetails from "./pages/BlogDetails";
 import BlogCreate from "./pages/BlogCreate";
 import MyBlogs from "./pages/MyBlogs";
 import Contact from "./pages/Contact";
+import TermsOfService from "./pages/TermsOfService";
 import Video from "./pages/Video";
 import VideoDetail from "./pages/VideoDetail";
 import TopUp from "./pages/TopUp";
@@ -115,6 +116,7 @@ function App() {
                   <ProtectedRoute> <QuotesPage /> </ProtectedRoute>
                 } />
                 <Route path="/contact" element={<Contact />} />
+                <Route path="/terms-of-service" element={<TermsOfService />} />
                 <Route path="/video" element={<Video />} />
                 <Route path="/video/:videoId" element={<VideoDetail />} />
                 <Route path="/videos" element={
