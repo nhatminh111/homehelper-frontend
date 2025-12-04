@@ -271,9 +271,9 @@ const Login = () => {
         <div className="auth-footer">
           <p className="terms-text">
             By continuing, you agree to our{" "}
-            <a href="#" className="link-text">
+            <Link to="/terms-of-service" className="link-text">
               Terms of Service
-            </a>{" "}
+            </Link>{" "}
             and{" "}
             <a href="#" className="link-text">
               Privacy Policy

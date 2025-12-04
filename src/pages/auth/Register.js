@@ -236,7 +236,7 @@ const Register = () => {
         <div className="auth-footer">
           <p className="terms-text">
             By continuing, you agree to our{' '}
-            <a href="#" className="link-text">Terms of Service</a> and{' '}
+            <Link to="/terms-of-service" className="link-text">Terms of Service</Link> and{' '}
             <a href="#" className="link-text">Privacy Policy</a>
           </p>
           
