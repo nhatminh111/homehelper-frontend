@@ -13,6 +13,14 @@ export default function StaffBlogs() {
   const [error, setError] = useState(null);
   const [selectedPost, setSelectedPost] = useState(null);
 
+  // Generic confirmation using CustomToast.confirm if available; fallback to window.confirm
+  const confirmAction = async (message) => {
+    if (showToast && typeof showToast.confirm === "function") {
+      return await showToast.confirm(message);
+    }
+    return window.confirm(message);
+  };
+
   useEffect(() => {
     const fetchBlogs = async () => {
       try {
@@ -31,14 +39,12 @@ export default function StaffBlogs() {
   }, [token]);
 
   const updateStatus = async (post_id, status) => {
-    if (
-      !window.confirm(
-        `Bạn có chắc muốn ${
-          status === "Approved" ? "DUYỆT" : "TỪ CHỐI"
-        } bài viết này?`
-      )
-    )
-      return;
+    const confirmed = await confirmAction(
+      `Bạn có chắc muốn ${
+        status === "Approved" ? "DUYỆT" : "TỪ CHỐI"
+      } bài viết này?`
+    );
+    if (!confirmed) return;
 
     try {
       const url =
@@ -66,7 +72,8 @@ export default function StaffBlogs() {
   };
 
   const deletePost = async (post_id) => {
-    if (!window.confirm("Bạn có chắc muốn xoá bài viết này?")) return;
+    const confirmed = await confirmAction("Bạn có chắc muốn xoá bài viết này?");
+    if (!confirmed) return;
     try {
       await axios.delete(`${API_BASE_URL}/blogs/${post_id}`, {
         headers: { Authorization: `Bearer ${token}` },

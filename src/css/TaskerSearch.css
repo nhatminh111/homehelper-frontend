@@ -27,6 +27,11 @@
   padding-bottom: 80px;
 }
 
+.main-content.sos-mode {
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
 .filters-sidebar {
   border: 1px solid #e9ecef;
   position: sticky;
@@ -74,9 +79,26 @@
   flex-direction: column;
 }
 
+/* Make tasker card content wrap naturally so info columns distribute evenly */
 .tasker-card .row {
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: stretch;
+  gap: 0.5rem;
+}
+
+.tasker-card .col-md-3 {
+  flex: 0 0 18%;
+  max-width: 18%;
+}
+
+.tasker-card .col-md-6 {
+  flex: 1 1 50%;
+  max-width: 60%;
+}
+
+.tasker-card .col-md-auto,
+.tasker-card .col-12 {
+  flex: 0 0 auto;
 }
 
 .tasker-card .col-12 {
@@ -84,6 +106,19 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
+}
+
+/* SOS waiting and accepted booking summary */
+.sos-waiting-card {
+  border: 1px solid rgba(0,0,0,0.04);
+}
+
+.accepted-booking-summary .avatar-circle {
+  flex-shrink: 0;
+}
+
+.accepted-booking-summary .btn {
+  min-width: 88px;
 }
 
 .map-container {
@@ -102,6 +137,61 @@
   color: #007bff;
   font-weight: 500;
   padding: 0.25em 0.5em; /* Thu nhỏ padding badge */
+}
+
+/* Accepted Tasker Section */
+.alert.alert-success {
+  background-color: #f0fdf4;
+  border-color: #dcfce7;
+}
+
+.alert.alert-success .btn {
+  white-space: nowrap;
+}
+
+.alert.alert-success .btn-success {
+  background: linear-gradient(135deg, #28a745, #20c997);
+  border: none;
+}
+
+.alert.alert-success .btn-success:hover {
+  background: linear-gradient(135deg, #218838, #1aa179);
+}
+
+/* Responsive for accepted tasker section */
+@media (max-width: 768px) {
+  .alert.alert-success {
+    padding: 1rem;
+  }
+  
+  .alert.alert-success .d-flex {
+    flex-direction: column;
+  }
+  
+  .alert.alert-success .d-flex > div:first-child {
+    margin-bottom: 1rem;
+  }
+  
+  .alert.alert-success .d-flex.flex-md-row {
+    flex-direction: column;
+  }
+  
+  .alert.alert-success .btn {
+    width: 100%;
+    margin-bottom: 0.5rem;
+  }
+  
+  .alert.alert-success .btn:last-child {
+    margin-bottom: 0;
+  }
+}
+
+/* Hide only the taskers list when SOS is accepted; keep accepted summary visible */
+.tasker-search-container .taskers-list-container.hide-on-sos-accepted .taskers-list {
+  display: none;
+}
+.tasker-search-container .taskers-list-container.hide-on-sos-accepted .accepted-booking-summary {
+  display: block;
 }
 
 .service-item {
@@ -124,6 +214,33 @@
   margin-bottom: 1rem;
   padding: 0.75rem;
   border-radius: 4px;
+}
+
+/* SOS Mode Layout */
+.row.sos-mode-layout {
+  flex-direction: column;
+}
+
+.row.sos-mode-layout .col-12 {
+  max-width: 100%;
+}
+
+.row.sos-mode-layout .search-results-container {
+  max-width: 100%;
+  width: 100%;
+  padding: 0;
+  flex: 0 0 100%;
+}
+
+/* Ensure map and tasker list take full width in SOS mode */
+.search-results-container .map-container {
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.search-results-container .taskers-list-container {
+  margin-left: 0;
+  margin-right: 0;
 }
 
 /* Mobile-Specific Styles */
@@ -323,4 +440,46 @@
   .hero-content p {
     font-size: 1.2rem;
   }
+}
+
+/* Force tasker cards to occupy full width inside the list and
+   ensure inner column flex rules don't compress content. This
+   makes the `.tasker-card.bg-white.rounded.shadow-sm.p-4` look
+   consistent and span the full width of its `.mb-3` wrapper. */
+.taskers-list > .mb-3 {
+  width: 100%;
+  box-sizing: border-box;
+}
+.taskers-list > .mb-3 .tasker-card {
+  display: block !important;
+  width: 100% !important;
+  box-sizing: border-box;
+  padding: 1rem; /* ensure p-4 spacing preserved */
+}
+.taskers-list .tasker-card .row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 0;
+}
+.taskers-list .tasker-card .col-md-3 {
+  flex: 0 0 110px; /* fixed avatar column width */
+  max-width: 110px;
+}
+.taskers-list .tasker-card .col-md-6 {
+  flex: 1 1 auto; /* middle content stretches */
+  max-width: calc(100% - 140px);
+}
+.taskers-list .tasker-card .col-md-auto,
+.taskers-list .tasker-card .col-12 {
+  flex: 0 0 auto;
+  max-width: none;
+}
+.taskers-list .tasker-card .col-12 {
+  flex: 1 1 100%;
+}
+
+/* Ensure buttons and actions don't shrink too small on wide screens */
+.taskers-list .tasker-card .btn {
+  white-space: nowrap;
 }

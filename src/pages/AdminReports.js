@@ -161,7 +161,7 @@ const AdminReports = () => {
             {/* Image Modal */}
             {selectedImage && (
                 <div className="image-modal" onClick={() => setSelectedImage(null)}>
-                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                    <div className="modal-content-custome" onClick={(e) => e.stopPropagation()}>
                         <button className="modal-close" onClick={() => setSelectedImage(null)}>
                             <i className="fas fa-times"></i>
                         </button>

@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { formatDistanceToNow } from 'date-fns';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import './NotificationDropdown.css';
 
@@ -8,17 +9,25 @@ const NotificationDropdown = ({
   unreadCount,
   loading,
   onNotificationClick,
+  onMarkAsRead,
   onMarkAllAsRead,
   onDeleteNotification,
   onRefresh,
   getNotificationIcon,
   getNotificationColor
 }) => {
+  const navigate = useNavigate();
   const [filter, setFilter] = useState('all'); // 'all', 'unread', 'read'
+  const [liveNotifications, setLiveNotifications] = useState([]); // realtime pushed items
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
 
+  // Merge prop notifications + realtime ones
+  const baseList = [
+    ...liveNotifications,
+    ...(notifications || [])
+  ];
   // Ensure all notifications are defined and have is_read
-  const safeNotifications = (notifications || []).filter(n => n && typeof n === 'object').map(n => ({ is_read: false, ...n }));
+  const safeNotifications = baseList.filter(n => n && typeof n === 'object').map(n => ({ is_read: false, ...n }));
   // Filter notifications
   const filteredNotifications = safeNotifications.filter(notification => {
     switch (filter) {
@@ -31,18 +40,154 @@ const NotificationDropdown = ({
     }
   });
 
-  // Format notification time
-  const formatNotificationTime = (dateString) => {
+const formatTime = (dateString) => {
+    if (!dateString) return '';
+
     const date = new Date(dateString);
-    return formatDistanceToNow(date, { 
-      addSuffix: true, 
-      locale: vi 
-    });
+
+
+    if (isNaN(date.getTime())) {
+      return ''; 
+    }
+
+    const hasTimeZone = typeof dateString === 'string' && /Z$|[+-]\d{2}:?\d{2}$/.test(dateString);
+    if (hasTimeZone) {
+      const hh = String(date.getUTCHours()).padStart(2, '0');
+      const mm = String(date.getUTCMinutes()).padStart(2, '0');
+      return `${hh}:${mm}`;
+    }
+    
+    try {
+        return format(date, 'HH:mm', { locale: vi });
+    } catch (e) {
+        return '';
+    }
   };
+
+  // Attach realtime socket listeners
+  useEffect(() => {
+    const socket = window?.socket;
+    if (!socket) return;
+
+    const handleNewNotification = (payload) => {
+      if (!payload) return;
+      // Avoid duplicates based on notification_id
+      setLiveNotifications(prev => {
+        if (payload.notification_id && (
+          prev.some(p => p.notification_id === payload.notification_id) ||
+          (notifications || []).some(p => p.notification_id === payload.notification_id)
+        )) return prev;
+        const wrapped = {
+          notification_id: payload.notification_id || `live-${Date.now()}-${Math.random()}`,
+            title: payload.title || 'Thông báo mới',
+            content: payload.content || '',
+            type: payload.type || 'system',
+            data: payload.data || null,
+            created_at: new Date().toISOString(),
+            is_read: false,
+            _live: true
+        };
+        return [wrapped, ...prev].slice(0, 200); // cap to prevent unlimited growth
+      });
+    };
+
+    const handleSosBroadcast = (payload) => {
+      if (!payload) return;
+      // Convert broadcast into an ephemeral notification
+      setLiveNotifications(prev => {
+        const id = `sos-${payload.booking_id}-${payload.customer_id}`;
+        if (prev.some(p => p.notification_id === id)) return prev;
+        const wrapped = {
+          notification_id: id,
+          title: 'Yêu cầu SOS mới',
+          content: `Khách hàng cần gấp dịch vụ. Đơn #${payload.booking_id}.`,
+          type: 'sos',
+          data: {
+            booking_id: payload.booking_id,
+            customer_id: payload.customer_id,
+            url: `/tasker/sos/${payload.booking_id}`
+          },
+          created_at: new Date().toISOString(),
+          is_read: false,
+          _live: true,
+          _ephemeral: true
+        };
+        return [wrapped, ...prev];
+      });
+    };
+
+    socket.on('new_notification', handleNewNotification);
+    socket.on('sos_created', handleSosBroadcast);
+
+    return () => {
+      try { socket.off('new_notification', handleNewNotification); } catch {}
+      try { socket.off('sos_created', handleSosBroadcast); } catch {}
+    };
+  }, [notifications]);
 
   // Handle notification click
   const handleNotificationClick = (notification) => {
+    // Prefer deep-link navigation if present
+    try {
+      const data = typeof notification?.data === 'string'
+        ? JSON.parse(notification.data)
+        : notification?.data;
+      const url = data?.url;
+      if (url) {
+        // If backend provided absolute URL (with protocol), use full-page navigation
+        if (/^https?:\/\//i.test(url)) {
+          window.location.assign(url);
+        } else {
+          // SPA internal route
+          navigate(url);
+        }
+        // Mark read after navigation trigger
+        if (notification?.notification_id) {
+          if (!notification._ephemeral) {
+            if (typeof onMarkAsRead === 'function') {
+              onMarkAsRead(notification.notification_id);
+            } else if (window?.socket?.emit) {
+              try { window.socket.emit('notification_read', { notificationId: notification.notification_id }); } catch {}
+            } else {
+              // REST fallback
+              const token = localStorage.getItem('token') || localStorage.getItem('access_token');
+              if (token) {
+                try {
+                  fetch(`http://localhost:3001/api/notifications/${notification.notification_id}/read`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                  });
+                } catch {}
+              }
+            }
+          }
+          if (typeof onRefresh === 'function') onRefresh();
+        }
+        return;
+      }
+    } catch (_) {}
     onNotificationClick(notification);
+    // Also mark read for non-deeplink notifications (e.g., message types)
+    if (notification?.notification_id) {
+      if (!notification._ephemeral) {
+        if (typeof onMarkAsRead === 'function') {
+          onMarkAsRead(notification.notification_id);
+        } else if (window?.socket?.emit) {
+          try { window.socket.emit('notification_read', { notificationId: notification.notification_id }); } catch {}
+        } else {
+          const token = localStorage.getItem('token') || localStorage.getItem('access_token');
+          if (token) {
+            try {
+              fetch(`/api/notifications/${notification.notification_id}/read`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+              });
+            } catch {}
+          }
+        }
+        if (typeof onRefresh === 'function') onRefresh();
+      }
+    }
   };
 
   // Handle delete confirmation
@@ -172,7 +317,7 @@ const getNotificationPreview = (notification) => {
             return (
               <div
                 key={notification.notification_id}
-                className={`notification-item ${!notification.is_read ? 'unread' : ''}`}
+                className={`notification-item ${!notification.is_read ? 'unread' : ''} ${notification._ephemeral ? 'ephemeral' : ''}`}
                 onClick={() => handleNotificationClick(notification)}
               >
                 {/* Notification Icon */}
@@ -193,23 +338,24 @@ const getNotificationPreview = (notification) => {
                     {notification.data && (() => {
                       try {
                         const parsed = typeof notification.data === 'string' ? JSON.parse(notification.data) : notification.data;
+                        if (parsed?.url) {
+                          return (<span className="notification-link"> · Nhấn để mở chi tiết</span>);
+                        }
                         if (parsed && parsed.conversation_id) {
-                          return (
-                            <span className="notification-link"> · Nhấn để mở cuộc trò chuyện</span>
-                          );
+                          return (<span className="notification-link"> · Nhấn để mở cuộc trò chuyện</span>);
                         }
                       } catch (_) {}
                       return null;
                     })()}
                   </div>
                   <div className="notification-time">
-                    {formatNotificationTime(notification.created_at)}
+                    {formatTime(notification.created_at)}
                   </div>
                 </div>
 
                 {/* Notification Actions */}
                 <div className="notification-actions">
-                  {!notification.is_read && (
+                  {!notification.is_read && !notification._ephemeral && (
                     <div className="unread-indicator"></div>
                   )}
                   <button
@@ -222,7 +368,7 @@ const getNotificationPreview = (notification) => {
                 </div>
 
                 {/* Delete Confirmation */}
-                {showDeleteConfirm === notification.notification_id && (
+                {showDeleteConfirm === notification.notification_id && !notification._ephemeral && (
                   <div className="delete-confirmation">
                     <div className="confirmation-content">
                       <p>Xóa thông báo này?</p>

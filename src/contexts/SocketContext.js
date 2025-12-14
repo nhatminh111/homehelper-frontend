@@ -97,8 +97,65 @@ export const SocketProvider = ({ children }) => {
 
     // New notification
     socketService.on('new_notification', (data) => {
+      // Normalize payload
+      const notification = (data && data.notification) ? data.notification : data;
+      // Only process if notification targets current user
+      try {
+        const recipientId = notification.user_id ?? notification.recipient_id ?? notification.target_user_id;
+        const currentUserId = (user && (user.user_id ?? user.userId));
+        if (recipientId && currentUserId && String(recipientId) !== String(currentUserId)) {
+          return; // ignore notifications not for this user
+        }
+      } catch (_) {}
+
       setUnreadCount(prev => prev + 1);
-      window.dispatchEvent(new CustomEvent('socket_new_notification', { detail: data }));
+      window.dispatchEvent(new CustomEvent('socket_new_notification', { detail: { notification } }));
+    });
+
+    // Unread count updates from server (after mark-as-read etc.)
+    socketService.on('notifications_unread_count', (data) => {
+      try {
+        const count = typeof data === 'number' ? data : (data && data.unread) ? data.unread : 0;
+        setUnreadCount(count);
+        window.dispatchEvent(new CustomEvent('socket_notifications_unread_count', { detail: { unread: count } }));
+      } catch (_) {
+        // no-op
+      }
+    });
+
+    // SOS events (Tasker receives new SOS job)
+    socketService.on('new_sos_job', (data) => {
+      console.log('🔔 socket new_sos_job event:', data);
+      // Cập nhật unreadCount khi nhận được SOS job mới
+      setUnreadCount(prev => prev + 1);
+      window.dispatchEvent(new CustomEvent('socket_new_sos_job', { detail: data }));
+    });
+
+    // When customer receives confirmation of created sos job
+    socketService.on('sos_job_created', (data) => {
+      console.log('🔔 socket sos_job_created event:', data);
+      window.dispatchEvent(new CustomEvent('socket_sos_job_created', { detail: data }));
+    });
+
+    // When a tasker accepts an sos job (broadcast to all)
+    socketService.on('sos_job_taken', (data) => {
+      console.log('🔔 socket sos_job_taken event:', data);
+      window.dispatchEvent(new CustomEvent('socket_sos_job_taken', { detail: data }));
+    });
+
+    socketService.on('sos_job_accepted', (data) => {
+      console.log('🔔 socket sos_job_accepted event:', data);
+      window.dispatchEvent(new CustomEvent('socket_sos_job_accepted', { detail: data }));
+    });
+
+    socketService.on('sos_accept_success', (data) => {
+      console.log('🔔 socket sos_accept_success event:', data);
+      window.dispatchEvent(new CustomEvent('socket_sos_accept_success', { detail: data }));
+    });
+
+    socketService.on('sos_accept_failed', (data) => {
+      console.log('🔔 socket sos_accept_failed event:', data);
+      window.dispatchEvent(new CustomEvent('socket_sos_accept_failed', { detail: data }));
     });
 
     // User status changed
@@ -139,9 +196,16 @@ export const SocketProvider = ({ children }) => {
       socketService.off('message_read');
   socketService.off('message_updated');
       socketService.off('new_notification');
+      socketService.off('notifications_unread_count');
       socketService.off('user_status_changed');
       socketService.off('socket_error');
       socketService.off('online_users');
+        socketService.off('new_sos_job');
+        socketService.off('sos_job_created');
+        socketService.off('sos_job_taken');
+        socketService.off('sos_job_accepted');
+        socketService.off('sos_accept_success');
+        socketService.off('sos_accept_failed');
     };
   }, []);
 
@@ -178,6 +242,15 @@ export const SocketProvider = ({ children }) => {
 
   const startTyping = (conversationId) => {
     socketService.startTyping(conversationId);
+  };
+
+  // SOS helpers (front-end API)
+  const createSOSJob = (payload) => {
+    socketService.createSOSJob(payload);
+  };
+
+  const acceptSOSJob = (bookingId) => {
+    socketService.acceptSOSJob(bookingId);
   };
 
   const stopTyping = (conversationId) => {
@@ -236,6 +309,9 @@ export const SocketProvider = ({ children }) => {
     stopTyping,
     markMessageAsRead,
     markNotificationAsRead,
+    // SOS
+    createSOSJob,
+    acceptSOSJob,
     
     // Utility
     getConnectionStatus: socketService.getConnectionStatus,

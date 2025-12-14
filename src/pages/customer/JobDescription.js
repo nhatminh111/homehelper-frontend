@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import CompletionStatus from "../components/CompletionStatus"
+import CompletionStatus from "../../components/CompletionStatus"
 import { useLocation, useNavigate } from "react-router-dom";
-import blogService from "../services/blogService";
+import blogService from "../../services/blogService";
 import { Container, Row, Col, Card, Button, Nav, Form, InputGroup } from "react-bootstrap";
 
 export default function JobDescription() {
@@ -25,6 +25,7 @@ export default function JobDescription() {
   const [jobTitle, setJobTitle] = useState("");
   const [description, setDescription] = useState("");
   const [photos, setPhotos] = useState([]);
+  const [previewImages, setPreviewImages] = useState([]);
 
   const isComplete = jobTitle.trim() !== "" && description.trim() !== "" && photos.length > 0;
 
@@ -113,10 +114,18 @@ export default function JobDescription() {
         tasker_id: bookingData.tasker_id,
         service_id: bookingData.service_id,
         variant_id: chosenVariants?.[0]?.variant_id || null,
+
         start_time: selection.startISO || selection.start_time || null,
         end_time: selection.endISO || selection.end_time || null,
+
         location: bookingData.location || selection.address || "",
+
         expected_price: Number(expectedPrice || bookingData.expected_price || 0),
+
+        quantity: selection.quantity ?? 1,
+        unit: selection.unit || "",
+        total_hours: selection.totalHours || null,
+
         status: "Pending",
         created_at: new Date().toISOString(),
 
@@ -129,6 +138,10 @@ export default function JobDescription() {
       };
 
       console.log("📦 [JobDescription] Payload gửi BE:", payload);
+      console.log("🔢 [JobDescription] Quantity:", selection.quantity);
+      console.log("🔢 [JobDescription] Unit:", selection.unit);
+      console.log("⏱️ [JobDescription] TotalHours:", selection.totalHours);
+      console.log("📅 [JobDescription] Dates length:", selection.dates?.length);
 
       // ✅ Gửi request POST tạo Booking + Task
       const token = user.token;
@@ -168,6 +181,7 @@ export default function JobDescription() {
       setTimeout(() => setShowError(false), 2000);
     }
   };
+
 
   return (
     <>
@@ -369,6 +383,10 @@ export default function JobDescription() {
           to { opacity: 1; transform: scale(1); }
         }
 
+        .small text-success mt-1 {
+          font-size: 1.2em
+        }
+
       `}</style>
       {/* Header */}
       <header className="bg-white border-bottom sticky-top shadow-sm">
@@ -516,6 +534,13 @@ export default function JobDescription() {
                             ({description.length}/2000 ký tự)
                           </span>
                         </Form.Label>
+
+                        {/* 👇 Chèn hướng dẫn vào đây */}
+                        <div className="text-muted small mb-2">
+                          • Mỗi dòng sẽ được tính như <strong>1 checklist</strong>.
+                          Nhấn Enter để thêm mục mới.
+                        </div>
+
                         <Form.Control
                           as="textarea"
                           rows={5}
@@ -570,7 +595,7 @@ export default function JobDescription() {
                             )}
                           </Button>
                           {priceConfirmed && (
-                            <small className="text-success mt-1">✅ Giá mong muốn đã được xác nhận!</small>
+                            <span className="text-success mt-1" style={{ fontWeight: 500, marginLeft: "10px", fontSize: "18px" }}>✅ Giá mong muốn đã được xác nhận!</span>
                           )}
                         </InputGroup>
                       </Form.Group>
@@ -623,7 +648,7 @@ export default function JobDescription() {
                       </div>
 
                       {/* Nút thêm ảnh */}
-                      {photos.length < 5 && (
+                      {photos.length < 4 && (
                         <div className="text-center mt-4">
                           <label className="btn btn-add-photo d-inline-flex align-items-center justify-content-center">
                             <i className="bi bi-plus-circle me-2"></i> Thêm ảnh
@@ -636,19 +661,20 @@ export default function JobDescription() {
                                 if (!file) return;
 
                                 // Giới hạn tối đa 5 ảnh
-                                if (photos.length >= 5) {
-                                  alert("Bạn chỉ có thể thêm tối đa 5 ảnh.");
+                                if (photos.length >= 4) {
+                                  alert("Bạn chỉ có thể thêm tối đa 4 ảnh.");
                                   return;
                                 }
 
                                 const previewUrl = URL.createObjectURL(file);
-                                setPhotos([...photos, previewUrl]);
+                                setPreviewImages((prev) => [...prev, previewUrl]);
 
                                 const formData = new FormData();
                                 formData.append("images", file);
 
                                 try {
                                   const user = JSON.parse(localStorage.getItem("user") || "{}");
+
                                   const res = await fetch("http://localhost:3001/api/uploads/post-images", {
                                     method: "POST",
                                     headers: {
@@ -656,15 +682,27 @@ export default function JobDescription() {
                                     },
                                     body: formData,
                                   });
+
                                   const data = await res.json();
-                                  if (data.success && data.data.urls && data.data.urls.length > 0) {
-                                    setPhotos((prev) =>
-                                      prev.map((p) => (p === previewUrl ? data.data.urls[0] : p))
+
+                                  if (data.success && data.data.urls?.length > 0) {
+                                    const realUrl = data.data.urls[0];
+
+                                    // Thêm URL thật vào photos (để gửi backend + hiển thị)
+                                    setPhotos((prev) => [...prev, realUrl]);
+
+                                    // Thay preview trong UI bằng ảnh thật
+                                    setPreviewImages((prev) =>
+                                      prev.map((p) => (p === previewUrl ? realUrl : p))
                                     );
+
                                     URL.revokeObjectURL(previewUrl);
+                                  } else {
+                                    alert("Upload ảnh thất bại!");
                                   }
                                 } catch (err) {
                                   console.error("Upload error:", err);
+                                  alert("Không thể upload ảnh.");
                                 }
                               }}
                             />

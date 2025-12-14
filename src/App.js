@@ -4,6 +4,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import "./App.css";
 import CustomToastContainer from "./components/common/CustomToast";
+import ChatBot from "./components/ChatBot/ChatBot";
 
 import { AuthProvider } from "./contexts/AuthContext";
 import { SocketProvider } from "./contexts/SocketContext";
@@ -25,38 +26,59 @@ import BlogDetails from "./pages/BlogDetails";
 import BlogCreate from "./pages/BlogCreate";
 import MyBlogs from "./pages/MyBlogs";
 import Contact from "./pages/Contact";
+import TermsOfService from "./pages/TermsOfService";
 import Video from "./pages/Video";
 import VideoDetail from "./pages/VideoDetail";
 import TopUp from "./pages/TopUp";
 import PaymentResult from "./pages/PaymentResult";
 import PaymentPage from "./pages/PaymentPage";
 import Wallet from "./pages/Wallet";
-import Booking from "./pages/Booking";
-import JobDescription from "./pages/JobDescription";
-import Contract from "./pages/Contract";
-import TaskerBookingDetail from "./pages/TaskerBookingDetail";
-import TaskerBookings from "./pages/TaskerBookings";
-import TaskerJobProgress from "./pages/TaskerJobProgress";
-import TaskerJobCompletion from "./pages/TaskerJobCompletion";
-import TaskerJobDone from "./pages/TaskerJobDone";
+
+// Customer Pages
+import Booking from "./pages/customer/Booking";
+import JobDescription from "./pages/customer/JobDescription";
+import Contract from "./pages/customer/Contract";
+import CustomerHome from "./pages/customer/CustomerHome";
+import BookingHistory from "./pages/customer/BookingHistory";
+import CustomerBookingDetail from "./pages/customer/CustomerBookingDetail";
+import VoucherCenter from "./pages/customer/VoucherCenter";
+import BookingRating from "./pages/customer/BookingRating";
+
+// Tasker Pages
+import NoShowReportPage from "./pages/tasker/NoShowReportPage";
+import TaskerBookingDetail from "./pages/tasker/TaskerBookingDetail";
+import TaskerBookings from "./pages/tasker/TaskerBookings";
+import TaskerHome from "./pages/tasker/TaskerHome";
+import TaskerJobProgress from "./pages/tasker/TaskerJobProgress";
+import TaskerJobCompletion from "./pages/tasker/TaskerJobCompletion";
+import TaskerJobDone from "./pages/tasker/TaskerJobDone";
+import TaskerSearch from "./pages/tasker/TaskerSearch";
+import TaskerProfile from "./pages/tasker/TaskerProfile";
+import TaskerManagement from "./pages/tasker/TaskerManagement";
+
+// Admin Pages
+import AdminHome from "./pages/admin/AdminHome";
+import AdminUsers from "./pages/admin/AdminUsers";
+import AdminTaskers from "./pages/admin/AdminTaskers";
+import AdminEvidenceReview from "./pages/admin/AdminEvidenceReview";
+import AdminTaskReview from "./pages/admin/AdminTaskReview";
+import AdminBookingList from "./pages/admin/AdminBookingList";
+
 // Import authentication pages
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import ForgotPassword from "./pages/auth/ForgotPassword";
 import ResetPassword from "./pages/auth/ResetPassword";
 import AuthDemo from "./pages/auth/AuthDemo";
+
 import Dashboard from "./pages/Dashboard";
-import TaskerSearch from "./pages/TaskerSearch";
-import TaskerProfile from "./pages/TaskerProfile";
 import UserProfile from "./pages/UserProfile";
-import TaskerMyProfile from "./pages/TaskerMyProfile";
 import AccountManagement from "./pages/AccountManagement";
 import TaskManagement from "./pages/TaskManagement";
 import PaymentInvoicing from "./pages/PaymentInvoicing";
 import RatingComplaints from "./pages/RatingComplaints";
 import ContentManagement from "./pages/ContentManagement";
 import VideoUpload from "./pages/VideoUpload";
-import TaskerManagement from "./pages/TaskerManagement";
 import AIInteraction from "./pages/AIInteraction";
 import SystemManagement from "./pages/SystemManagement";
 import QuotesPage from "./pages/QuotesPage";
@@ -64,10 +86,8 @@ import VideoManager from "./pages/VideoManager";
 import ServiceManagement from "./pages/ServiceManagement";
 // import NegotiateSessionTest from './pages/NegotiateSessionTest';
 // Role landing pages
-import TaskerHome from "./pages/tasker/TaskerHome";
-import AdminHome from "./pages/admin/AdminHome";
-import CustomerHome from "./pages/customer/CustomerHome";
-import BookingHistory from "./pages/customer/BookingHistory";
+
+
 import ChatPage from "./pages/Chat";
 import CCCDExtractor from "./pages/CCCDExtractor";
 import BecomeTasker from "./pages/BecomeTasker";
@@ -78,8 +98,7 @@ import StaffBlogs from "./pages/StaffBlogs";
 import ReportIssue from "./pages/ReportIssue";
 import AdminReports from "./pages/AdminReports";
 import StaffBadges from "./pages/StaffBadges";
-import AdminUsers from "./pages/admin/AdminUsers";
-import AdminTaskers from "./pages/admin/AdminTaskers";
+
 
 function App() {
 
@@ -113,6 +132,7 @@ function App() {
                   <ProtectedRoute> <QuotesPage /> </ProtectedRoute>
                 } />
                 <Route path="/contact" element={<Contact />} />
+                <Route path="/terms-of-service" element={<TermsOfService />} />
                 <Route path="/video" element={<Video />} />
                 <Route path="/video/:videoId" element={<VideoDetail />} />
                 <Route path="/videos" element={
@@ -152,6 +172,20 @@ function App() {
                 } />
                 <Route path="/job-description" element={<JobDescription />} />
                 <Route path="/contract" element={<Contract />} />
+              <Route path="/topUp" element={<TopUp />} />
+              <Route path="/payment-result" element={<PaymentResult />} />
+              <Route path="/wallet" element={<Wallet />} />
+              <Route path="/cccd" element={<CCCDExtractor />} />
+              <Route path="/booking/:taskerId" element={<Booking />} />
+              <Route path="/tasker/bookings/:id" element={<TaskerBookingDetail />} />
+               <Route path="/tasker/bookings" element={
+                  <ProtectedRoute requiredRole="Tasker">
+                    <TaskerBookings />
+                  </ProtectedRoute>
+                } />
+              <Route path="/job-description" element={<JobDescription />} />
+              <Route path="/contract" element={<Contract />} />
+
                 <Route path="/become-tasker" element={<BecomeTasker />} />
 
                 <Route path="/report-issue" element={
@@ -169,12 +203,12 @@ function App() {
                 } />
                 <Route path="/tasker-search" element={<TaskerSearch />} />
                 <Route path="/tasker-profile/:id" element={<TaskerProfile />} />
+                <Route path="/tasker-profile" element={
+                  <ProtectedRoute requiredRole="Tasker"> <TaskerProfile /> </ProtectedRoute>
+                } />
                 {/* Profile routes - separate for User and Tasker */}
                 <Route path="/user-profile" element={
                   <ProtectedRoute requiredRole="Customer"> <UserProfile /> </ProtectedRoute>
-                } />
-                <Route path="/tasker-profile" element={
-                  <ProtectedRoute requiredRole="Tasker"> <TaskerMyProfile /> </ProtectedRoute>
                 } />
                 <Route path="/account" element={
                   <ProtectedRoute> <AccountManagement /> </ProtectedRoute>
@@ -215,11 +249,23 @@ function App() {
                 <Route path="/tasker" element={
                   <ProtectedRoute requiredRole="Tasker"> <TaskerHome /> </ProtectedRoute>
                 } />
+                <Route path="/tasker/no-show-report/:bookingId" element={
+                  <ProtectedRoute requiredRole="Tasker"> <NoShowReportPage /> </ProtectedRoute>
+                } />
                 <Route path="/customer" element={
                   <ProtectedRoute requiredRole="Customer"> <CustomerHome /> </ProtectedRoute>
                 } />
                 <Route path="/customer/bookings" element={
                   <ProtectedRoute requiredRole="Customer"> <BookingHistory /> </ProtectedRoute>
+                } />
+                <Route path="/customer/booking/:id" element={
+                  <ProtectedRoute requiredRole="Customer"> <CustomerBookingDetail /> </ProtectedRoute>
+                } />
+                <Route path="/customer/vouchers" element={ 
+                  <ProtectedRoute requiredRole="Customer"><VoucherCenter /> </ProtectedRoute> 
+                } />
+                <Route path="/customer/booking/:bookingId/rating" element={ 
+                  <ProtectedRoute requiredRole="Customer"><BookingRating /> </ProtectedRoute> 
                 } />
               </Route>
 
@@ -245,6 +291,9 @@ function App() {
                 <Route path="taskers" element={<AdminTaskers />} />
                 <Route path="service-management" element={<ServiceManagement />} />
                 <Route path="reports" element={<AdminReports  />} />
+                <Route path="evidence-review" element={<AdminEvidenceReview />} />
+                <Route path="admin-review/:id" element={<AdminTaskReview />} />
+                <Route path="bookings" element={<AdminBookingList />} />
               </Route>
 
               <Route
@@ -264,8 +313,10 @@ function App() {
                 path="/staff"
                 element={<Navigate to="/staff/dashboard/applications" replace />}
               />              
-            </Routes>
+            </Routes>      
           </div>
+          {/* AI ChatBot - appears on all pages */}
+          <ChatBot />
         </Router>
       </SocketProvider>
     </AuthProvider>
