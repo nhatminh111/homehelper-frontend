@@ -193,7 +193,22 @@ export default function TaskerBookings() {
   };
 
   const handleBookingClick = (booking) => {
-    // Navigate to preview page with booking data
+    // Nếu đang chờ khách hoặc admin xác nhận → vào trang job done
+    if (booking.status === "Chờ xác nhận") {
+      return navigate(`/tasker/bookings/${booking.booking_id}/jobdone`, {
+        state: { booking }
+      });
+    }
+
+    // Nếu đang trong quá trình → vào progress
+    if (booking.status === "Đang tiến hành") {
+      return navigate(`/tasker/bookings/${booking.booking_id}/progress`, {
+        replace: true,
+        state: { booking }
+      });
+    }
+
+    // Các trạng thái còn lại → vào trang detail như cũ
     navigate(`/tasker/bookings/${booking.booking_id}`, {
       state: { booking }
     });
@@ -506,9 +521,11 @@ export default function TaskerBookings() {
                       <div className="bg-success bg-opacity-10 rounded-3 p-2 text-center">
                         <h5 className="fw-bold text-success mb-0">
                           {formatPrice(
-                            booking.final_price > 0
-                              ? booking.final_price
-                              : booking.expected_price
+                            booking.paid_amount > 0
+                              ? booking.paid_amount
+                              : booking.final_price > 0
+                                ? booking.final_price
+                                : booking.expected_price
                           )}
                         </h5>
                         <small className="text-muted">Giá</small>

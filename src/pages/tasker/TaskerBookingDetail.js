@@ -5,6 +5,50 @@ import NegotiatePriceButton from "../../components/negotiation/NegotiatePriceBut
 import api from "../../services/api";
 import { showToast } from "../../components/common/CustomToast";
 
+const parseChecklist = (rawChecklist) => {
+  if (!rawChecklist) return [];
+
+  if (Array.isArray(rawChecklist)) {
+    return rawChecklist;
+  }
+
+  if (typeof rawChecklist === "string") {
+    try {
+      const parsed = JSON.parse(rawChecklist);
+      if (Array.isArray(parsed)) return parsed;
+      if (parsed && Array.isArray(parsed.items)) return parsed.items;
+    } catch (err) {
+      // ignore JSON parse error
+    }
+
+    let normalized = String(rawChecklist);
+    normalized = normalized.replace(/\r\n/g, "\n").replace(/\\n/g, "\n");
+    normalized = normalized.replace(/^\s+/, "");
+
+    const hyphenMatches = normalized.match(/-\s*[^-\n]+/g);
+    if (hyphenMatches && hyphenMatches.length) {
+      return hyphenMatches.map((item) => item.replace(/^-\s*/, "").trim()).filter(Boolean);
+    }
+
+    const bulletRegex = /(?:^|\n)\s*[-•]\s*(.+?)(?=(?:\n\s*[-•])|\n*$)/g;
+    const bullets = [];
+    let match;
+    while ((match = bulletRegex.exec(normalized)) !== null) {
+      const value = match[1].trim();
+      if (value) bullets.push(value);
+    }
+    if (bullets.length) return bullets;
+
+    const lines = normalized
+      .split("\n")
+      .map((line) => line.replace(/^\s*[-•]\s*/, "").trim())
+      .filter(Boolean);
+    if (lines.length) return lines;
+  }
+
+  return [];
+};
+
 export default function TaskerBookingDetail() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -117,29 +161,43 @@ export default function TaskerBookingDetail() {
     );
   }
 
+  const checklistItems = parseChecklist(task_checklist);
+
   const formatPrice = (price) => {
     if (!price) return "Chưa có giá";
     return new Intl.NumberFormat("vi-VN").format(price) + "đ";
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    const endsWithZ = /z$/i.test(String(dateString)); // ISO UTC like 2025-09-20T12:07:00Z
-    const options = {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    };
-    // If the input is explicitly UTC (ends with 'Z'), format in UTC to avoid +7h shift
-    if (endsWithZ) {
-      return new Intl.DateTimeFormat('vi-VN', { ...options, timeZone: 'UTC' }).format(date);
+  const formatDate = (t) => {
+    if (!t) return "";
+    const d = new Date(t);
+
+    const dd = String(d.getDate()).padStart(2, "0");
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const yyyy = d.getFullYear();
+
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mi = String(d.getMinutes()).padStart(2, "0");
+
+    return `Lúc ${hh}:${mi} ${dd} tháng ${mm},${yyyy}`;
+  };
+
+  const canStartJob = () => {
+    if (!start_time) return true;
+
+    let start = new Date(start_time);
+
+    // Nếu chuỗi không có "Z" và không có timezone, xem như giờ local VN
+    const hasTimezone = /[zZ]|[+\-]\d{2}:?\d{2}$/.test(start_time);
+    if (!hasTimezone) {
+      // Tạo date ở múi giờ VN (UTC+7)
+      const [datePart, timePart] = start_time.split(" ");
+      const [year, month, day] = datePart.split("-").map(Number);
+      const [hour, minute, second] = timePart.split(":").map(Number);
+      start = new Date(year, month - 1, day, hour, minute, second);
     }
-    // Otherwise, render with default locale settings
-    return new Intl.DateTimeFormat('vi-VN', options).format(date);
+
+    return Date.now() >= start.getTime();
   };
 
   const handleStatusUpdate = async (newStatus) => {
@@ -192,6 +250,16 @@ export default function TaskerBookingDetail() {
       const data = await response.json();
 
       if (data.success) {
+        // Cập nhật state booking
+        setBooking((prev) =>
+          prev
+            ? {
+              ...prev,
+              status: newStatus,
+            }
+            : prev
+        );
+
         let message = "";
 
         switch (newStatus) {
@@ -211,8 +279,20 @@ export default function TaskerBookingDetail() {
             message = `Cập nhật trạng thái: ${newStatus}`;
         }
 
-        showToast.success(message);
-        navigate("/tasker/bookings");
+        // Nếu đang tiến hành → chuyển trang
+        if (newStatus === "Đang tiến hành") {
+          showToast.success(message);
+          navigate(`/tasker/bookings/${booking_id}/progress`, {
+            replace: true,
+            state: {
+              booking: {
+                ...booking,
+                status: newStatus,
+              },
+            },
+          });
+        }
+
       } else {
         showToast.error("Có lỗi xảy ra khi cập nhật trạng thái");
       }
@@ -464,11 +544,14 @@ export default function TaskerBookingDetail() {
                   </div>
                 ) : null}
 
-                {(start_time || end_time) && (
+                {start_time && (
                   <div>
                     <i className="bi bi-clock text-primary me-2"></i>
-                    {formatDate(start_time)} → {formatDate(end_time)}
-                    <br />
+
+                    {end_time
+                      ? `${formatDate(start_time)} → ${formatDate(end_time)}`
+                      : `${formatDate(start_time)}`
+                    }
                   </div>
                 )}
               </div>
@@ -507,7 +590,7 @@ export default function TaskerBookingDetail() {
               <h6 className="text-primary fw-semibold mb-2">
                 <i className="bi bi-file-text me-2"></i>Tóm tắt công việc :
               </h6>
-              <p className="text-muted">{task_checklist || "Không có mô tả."}</p>
+              <p className="text-muted" style={{ whiteSpace: "pre-line" }}>{task_checklist || "Không có mô tả."}</p>
 
               {previewImages.length > 0 && (
                 <>

@@ -15,6 +15,11 @@ import api from "../../services/api";
 import { showToast } from "../../components/common/CustomToast";
 import MediaUpload from "../../components/MediaUpload";
 
+const NO_PHOTO_SERVICES = [
+  "Chăm sóc người già và bệnh nhân",
+  "Chăm sóc trẻ em",
+];
+
 const DEFAULT_TASKS = [
   {
     id: "default-1",
@@ -113,6 +118,9 @@ export default function TaskerJobCompletion() {
   const [beforePhotos, setBeforePhotos] = useState([]);
   const [afterPhotos, setAfterPhotos] = useState([]);
 
+  const [disablePhoto, setDisablePhoto] = useState(false);
+  const bookingData = booking || location.state?.booking || {};
+
   useEffect(() => {
     return () => {
       beforePhotos.forEach(({ preview }) => URL.revokeObjectURL(preview));
@@ -154,6 +162,12 @@ export default function TaskerJobCompletion() {
     }
   }, [booking, id]);
 
+  useEffect(() => {
+    if (bookingData?.service_name) {
+      setDisablePhoto(NO_PHOTO_SERVICES.includes(bookingData.service_name));
+    }
+  }, [bookingData?.service_name]);
+
   const completionStats = useMemo(() => {
     const total = tasks.length;
     const completed = tasks.filter(
@@ -189,36 +203,63 @@ export default function TaskerJobCompletion() {
       });
     }
   };
+
   const uploadPhotos = async (type) => {
+
     const files = type === "before" ? beforePhotos : afterPhotos;
-    if (!files.length) return;
+    if (!files.length) return [];
 
     const formData = new FormData();
     files.forEach((f) => formData.append("photos", f.file));
 
-    // Backend cần task_id từ bảng Tasks
-    // Nếu không có task_id, có thể cần tạo task trước hoặc backend sẽ tự xử lý
-    const taskId = booking.task_id || booking.booking_id;
+    const bookingId = booking.booking_id;
+    if (!bookingId) throw new Error("Missing booking_id");
 
-    if (!taskId) {
-      throw new Error("Không tìm thấy task_id hoặc booking_id");
-    }
+    // Backend: /uploads/task-photos/before/:bookingId
+    const endpoint = `/uploads/task-photos/${type}/${bookingId}`;
 
-    // Backend routes: /task-photos/before/:taskId hoặc /task-photos/after/:taskId
-    const endpoint = `/uploads/task-photos/${type}/${taskId}`;
+    console.log("🔵 Uploading type:", type, "FILES:", files);
 
     try {
       const response = await api.post(endpoint, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      return response.data;
-    } catch (error) {
-      console.error(`Error uploading ${type} photos:`, error);
-      const errorMessage =
-        error?.response?.data?.message ||
-        error?.message ||
-        `Lỗi upload ${type} photos`;
-      throw new Error(errorMessage);
+
+      console.log("🟢 Upload response:", response.data);
+
+      // Trả về danh sách file (SQL insert sẽ chạy trong backend)
+      return response.data.data || [];
+    } catch (err) {
+      console.error(`Error uploading ${type} photos:`, err);
+      throw new Error(err?.response?.data?.message || "Upload failed");
+    }
+  };
+
+  const loadTimersFromProgress = (bookingId) => {
+    try {
+      console.log("⏱️ [Completion] Loading timers for booking:", bookingId);
+
+      const raw = localStorage.getItem(`tasker_daily_sessions_${bookingId}`);
+      if (!raw) {
+        console.warn("⚠️ [Completion] No timer data found in localStorage");
+        return {};
+      }
+
+      const sessions = JSON.parse(raw);
+      const dayKey = Object.keys(sessions)[0];
+      const timers = sessions[dayKey]?.timers || {};
+
+      const result = {};
+      Object.keys(timers).forEach(k => {
+        result[k] = timers[k].elapsedMs || 0;
+      });
+
+      console.log("⏱️ [Completion] Parsed timers:", result);
+      return result;
+
+    } catch (err) {
+      console.error("❌ [Completion] Failed to parse timers:", err);
+      return {};
     }
   };
 
@@ -227,23 +268,61 @@ export default function TaskerJobCompletion() {
       setLoading(true);
       setError(null);
 
+      console.log("🔥 STEP 0 — START SUBMISSION PROCESS");
+
       let uploadedBeforePhotos = [];
       let uploadedAfterPhotos = [];
 
       // Upload photos nếu có và lưu URLs
-      if (beforePhotos.length > 0) {
-        const beforeResult = await uploadPhotos("before");
-        uploadedBeforePhotos = beforeResult?.files || [];
-      }
-      if (afterPhotos.length > 0) {
-        const afterResult = await uploadPhotos("after");
-        uploadedAfterPhotos = afterResult?.files || [];
+      if (disablePhoto) {
+        uploadedBeforePhotos = [];
+        uploadedAfterPhotos = [];
+      } else {
+        console.log("STEP 1 — Before photos:", beforePhotos);
+        console.log("STEP 2 — After photos:", afterPhotos);
+
+        const extractUrl = (obj) => {
+          console.log("DEBUG — object từ backend:", obj);
+          return (
+            obj.secure_url ||
+            obj.url ||
+            obj.photo_url ||
+            obj.secureUrl ||
+            obj.photoUrl ||
+            obj.location ||
+            obj.path ||
+            ""
+          );
+        };
+
+        // ✅ Dịch vụ cần ảnh → thực hiện upload
+        if (beforePhotos.length > 0) {
+          console.log("STEP 3 — Uploading BEFORE...");
+          const beforeResult = await uploadPhotos("before");
+          console.log("STEP 4 — Upload BEFORE result (RAW):", beforeResult);
+          console.log("STEP 4 — BEFORE data:", beforeResult?.data);
+
+          uploadedBeforePhotos = Array.isArray(beforeResult)
+            ? beforeResult.map(extractUrl)
+            : [];
+          console.log("STEP 4 — Parsed BEFORE photos:", uploadedBeforePhotos);
+        }
+
+        if (afterPhotos.length > 0) {
+          console.log("STEP 5 — Uploading AFTER...");
+          const afterResult = await uploadPhotos("after");
+          uploadedAfterPhotos = Array.isArray(afterResult)
+            ? afterResult.map(extractUrl)
+            : [];
+          console.log("STEP 6 — Upload AFTER result:", uploadedAfterPhotos);
+        }
       }
 
       // Thêm gửi notes nếu muốn (best-effort)
       try {
         if (notes.trim()) {
-          await api.patch(`/bookings/${booking.booking_id}`, { notes });
+          console.log("STEP 7 — Saving notes:", notes);
+          await api.patch(`/bookings/${booking.booking_id}/notes`, { notes });
         }
       } catch (e) {
         console.warn("Non-fatal: failed to save notes", e);
@@ -252,10 +331,15 @@ export default function TaskerJobCompletion() {
         );
       }
 
+      const checklistTimers = loadTimersFromProgress(booking.booking_id);
+
+      console.log("STEP 7.5 — Collected checklist timers:", checklistTimers);
+
       // Use the shared status endpoint so route exists on backend
       try {
+        console.log("STEP 8 — Updating status...");
         await api.patch(`/bookings/${booking.booking_id}/status`, {
-          status: "Hoàn thành",
+          status: "Chờ xác nhận",
         });
       } catch (e) {
         // If the status update fails, surface error but still attempt to navigate
@@ -265,27 +349,50 @@ export default function TaskerJobCompletion() {
         // continue — we'll still navigate to the completion screen so tasker can proceed
       }
 
+      const submitPayload = {
+        booking_id: booking.booking_id,
+        notes,
+        before_photos: uploadedBeforePhotos,
+        after_photos: uploadedAfterPhotos,
+        checklist_timers: checklistTimers, // ⭐ NEW
+      };
+
+      console.log("📤 STEP 8.5 — SUBMITTING COMPLETION PAYLOAD:", submitPayload);
+
+      await api.patch(`/bookings/${booking.booking_id}/complete`, submitPayload);
+
+      console.log("📤 STEP 8.6 — API COMPLETE SENT SUCCESSFULLY");
+
       // Format tasks để truyền sang TaskerJobDone (expect array of strings)
-      const taskLabels = tasks.map((task) =>
-        typeof task === "string" ? task : task.label || task.id
-      );
-      // Lưu checklist theo ngày
-      localStorage.setItem(
-        `task-${booking.booking_id}`,
-        JSON.stringify({
-          date: new Date().toDateString(),
-          tasks,
-        })
-      );
+      // const taskLabels = tasks.map((task) =>
+      //   typeof task === "string" ? task : task.label || task.id
+      // );
+      // // Lưu checklist theo ngày
+      // localStorage.setItem(
+      //   `task-${booking.booking_id}`,
+      //   JSON.stringify({
+      //     date: new Date().toDateString(),
+      //     tasks,
+      //   })
+      // );
 
       // Navigate đến TaskerJobDone với state
+      console.log("STEP 9 — Preparing navigate data");
+      console.log(">>> GO JOB DONE WITH:", {
+        tasks: tasks.map((t) => t.label || t),
+        notes,
+        beforePhotos: uploadedBeforePhotos,
+        afterPhotos: uploadedAfterPhotos,
+      });
+
       navigate(`/tasker/bookings/${booking.booking_id}/jobdone`, {
         state: {
           booking,
-          tasks: taskLabels,
+          tasks: tasks.map((t) => t.label || t),
           notes,
           beforePhotos: uploadedBeforePhotos,
           afterPhotos: uploadedAfterPhotos,
+          checklistTimers,
         },
       });
     } catch (err) {
@@ -296,6 +403,19 @@ export default function TaskerJobCompletion() {
       alert(`Lỗi: ${errorMessage}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const safeBack = () => {
+    const bookingId = location.state?.booking?.booking_id || id;
+
+    if (location.state?.fromProgress && bookingId) {
+      navigate(`/tasker/bookings/${bookingId}/progress`);
+    } else if (bookingId) {
+      // fallback nếu reload nhưng vẫn còn id trong URL
+      navigate(`/tasker/bookings/${bookingId}/progress`);
+    } else {
+      navigate("/tasker/bookings");
     }
   };
 
@@ -312,7 +432,7 @@ export default function TaskerJobCompletion() {
     return (
       <Container className="py-5 text-center">
         <Alert variant="danger">{error}</Alert>
-        <Button variant="secondary" onClick={() => navigate(-1)}>
+        <Button variant="secondary" onClick={safeBack}>
           ← Quay lại
         </Button>
       </Container>
@@ -323,11 +443,8 @@ export default function TaskerJobCompletion() {
     return (
       <Container className="py-5 text-center">
         <p className="text-muted">Không tìm thấy thông tin công việc.</p>
-        <Button
-          variant="secondary"
-          onClick={() => navigate("/tasker/bookings")}
-        >
-          ← Quay lại danh sách
+        <Button variant="secondary" onClick={safeBack}>
+          ← Quay lại
         </Button>
       </Container>
     );
@@ -432,32 +549,34 @@ export default function TaskerJobCompletion() {
         </Card.Body>
       </Card>
 
-      <Card className="border-0 shadow-sm mb-4">
-        <Card.Body className="p-4">
-          <h5 className="fw-semibold mb-3">Media Upload</h5>
-          <Row className="g-4">
-            <Col md={6}>
-              <MediaUpload
-                label="Before Photos"
-                photos={beforePhotos}
-                setPhotos={setBeforePhotos}
-              />
-            </Col>
-            <Col md={6}>
-              <MediaUpload
-                label="After Photos"
-                photos={afterPhotos}
-                setPhotos={setAfterPhotos}
-              />
-            </Col>
-          </Row>
-        </Card.Body>
-      </Card>
+      {!disablePhoto && (
+        <Card className="border-0 shadow-sm mb-4">
+          <Card.Body className="p-4">
+            <h5 className="fw-semibold mb-3">Media Upload</h5>
+            <Row className="g-4">
+              <Col md={6}>
+                <MediaUpload
+                  label="Before Photos"
+                  photos={beforePhotos}
+                  setPhotos={setBeforePhotos}
+                />
+              </Col>
+              <Col md={6}>
+                <MediaUpload
+                  label="After Photos"
+                  photos={afterPhotos}
+                  setPhotos={setAfterPhotos}
+                />
+              </Col>
+            </Row>
+          </Card.Body>
+        </Card>
+      )}
 
       <div className="d-flex justify-content-between align-items-center mt-4 flex-wrap gap-3">
         <Button
           variant="outline-secondary"
-          onClick={() => navigate("/tasker/bookings")}
+          onClick={safeBack}
         >
           ← Quay lại danh sách
         </Button>

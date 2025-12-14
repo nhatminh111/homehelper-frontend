@@ -114,10 +114,18 @@ export default function JobDescription() {
         tasker_id: bookingData.tasker_id,
         service_id: bookingData.service_id,
         variant_id: chosenVariants?.[0]?.variant_id || null,
+
         start_time: selection.startISO || selection.start_time || null,
         end_time: selection.endISO || selection.end_time || null,
+
         location: bookingData.location || selection.address || "",
+
         expected_price: Number(expectedPrice || bookingData.expected_price || 0),
+
+        quantity: selection.quantity ?? 1,
+        unit: selection.unit || "",
+        total_hours: selection.totalHours || null,
+
         status: "Pending",
         created_at: new Date().toISOString(),
 
@@ -130,6 +138,10 @@ export default function JobDescription() {
       };
 
       console.log("📦 [JobDescription] Payload gửi BE:", payload);
+      console.log("🔢 [JobDescription] Quantity:", selection.quantity);
+      console.log("🔢 [JobDescription] Unit:", selection.unit);
+      console.log("⏱️ [JobDescription] TotalHours:", selection.totalHours);
+      console.log("📅 [JobDescription] Dates length:", selection.dates?.length);
 
       // ✅ Gửi request POST tạo Booking + Task
       const token = user.token;
@@ -169,7 +181,7 @@ export default function JobDescription() {
       setTimeout(() => setShowError(false), 2000);
     }
   };
-  
+
 
   return (
     <>
@@ -371,6 +383,10 @@ export default function JobDescription() {
           to { opacity: 1; transform: scale(1); }
         }
 
+        .small text-success mt-1 {
+          font-size: 1.2em
+        }
+
       `}</style>
       {/* Header */}
       <header className="bg-white border-bottom sticky-top shadow-sm">
@@ -518,6 +534,13 @@ export default function JobDescription() {
                             ({description.length}/2000 ký tự)
                           </span>
                         </Form.Label>
+
+                        {/* 👇 Chèn hướng dẫn vào đây */}
+                        <div className="text-muted small mb-2">
+                          • Mỗi dòng sẽ được tính như <strong>1 checklist</strong>.
+                          Nhấn Enter để thêm mục mới.
+                        </div>
+
                         <Form.Control
                           as="textarea"
                           rows={5}
@@ -572,7 +595,7 @@ export default function JobDescription() {
                             )}
                           </Button>
                           {priceConfirmed && (
-                            <small className="text-success mt-1">✅ Giá mong muốn đã được xác nhận!</small>
+                            <span className="text-success mt-1" style={{ fontWeight: 500, marginLeft: "10px", fontSize: "18px" }}>✅ Giá mong muốn đã được xác nhận!</span>
                           )}
                         </InputGroup>
                       </Form.Group>
