@@ -42,6 +42,7 @@ import CustomerHome from "./pages/customer/CustomerHome";
 import BookingHistory from "./pages/customer/BookingHistory";
 import CustomerBookingDetail from "./pages/customer/CustomerBookingDetail";
 import VoucherCenter from "./pages/customer/VoucherCenter";
+import BookingRating from "./pages/customer/BookingRating";
 
 // Tasker Pages
 import NoShowReportPage from "./pages/tasker/NoShowReportPage";
@@ -60,6 +61,8 @@ import AdminHome from "./pages/admin/AdminHome";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminTaskers from "./pages/admin/AdminTaskers";
 import AdminEvidenceReview from "./pages/admin/AdminEvidenceReview";
+import AdminTaskReview from "./pages/admin/AdminTaskReview";
+import AdminBookingList from "./pages/admin/AdminBookingList";
 
 // Import authentication pages
 import Login from "./pages/auth/Login";
@@ -261,6 +264,9 @@ function App() {
                 <Route path="/customer/vouchers" element={ 
                   <ProtectedRoute requiredRole="Customer"><VoucherCenter /> </ProtectedRoute> 
                 } />
+                <Route path="/customer/booking/:bookingId/rating" element={ 
+                  <ProtectedRoute requiredRole="Customer"><BookingRating /> </ProtectedRoute> 
+                } />
               </Route>
 
               <Route
@@ -286,6 +292,8 @@ function App() {
                 <Route path="service-management" element={<ServiceManagement />} />
                 <Route path="reports" element={<AdminReports  />} />
                 <Route path="evidence-review" element={<AdminEvidenceReview />} />
+                <Route path="admin-review/:id" element={<AdminTaskReview />} />
+                <Route path="bookings" element={<AdminBookingList />} />
               </Route>
 
               <Route

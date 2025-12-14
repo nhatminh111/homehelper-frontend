@@ -13,7 +13,6 @@ import {
 import ProgressBar from "react-bootstrap/ProgressBar";
 import api from "../../services/api";
 import { showToast } from "../../components/common/CustomToast";
-import MediaUpload from "../../components/MediaUpload";
 import moment from "moment";
 // import "moment/locale/vi";
 // moment.locale("vi");
@@ -34,7 +33,7 @@ const STORAGE_KEY = "tasker_job_progress";
 const ELAPSED_TIME_KEY = "tasker_daily_elapsed";
 
 // Feature flag: toggle elapsed-time UI
-const SHOW_ELAPSED = false;
+const SHOW_ELAPSED = true;
 
 // LocalStorage helpers (per-booking keys)
 const tasksKeyFor = (bookingId) => `tasker_tasks_${bookingId}`;
@@ -53,13 +52,13 @@ const loadStoredTasks = (bookingId) => {
 const persistStoredTasks = (bookingId, tasks) => {
   try {
     localStorage.setItem(tasksKeyFor(bookingId), JSON.stringify(tasks));
-  } catch (e) {}
+  } catch (e) { }
 };
 
 const clearStoredTasks = (bookingId) => {
   try {
     localStorage.removeItem(tasksKeyFor(bookingId));
-  } catch (e) {}
+  } catch (e) { }
 };
 
 const loadStoredSessions = (bookingId) => {
@@ -74,7 +73,7 @@ const loadStoredSessions = (bookingId) => {
 const persistStoredSessions = (bookingId, sessions) => {
   try {
     localStorage.setItem(sessionsKeyFor(bookingId), JSON.stringify(sessions));
-  } catch (e) {}
+  } catch (e) { }
 };
 
 const loadDailyElapsed = (bookingId) => {
@@ -92,7 +91,7 @@ const saveDailyElapsed = (bookingId, payload) => {
       dailyElapsedKeyFor(bookingId),
       JSON.stringify(payload)
     );
-  } catch (e) {}
+  } catch (e) { }
 };
 const parseChecklist = (rawChecklist) => {
   if (!rawChecklist) return [];
@@ -204,48 +203,55 @@ export default function TaskerJobProgress() {
   );
   const [nowMs, setNowMs] = useState(Date.now());
   const timerRef = useRef(null);
-  const [hasLoadedStoredTasks, setHasLoadedStoredTasks] = useState(
-    Boolean(initialStoredTasks)
-  );
+
+  const NO_PHOTO_SERVICES = [
+    "Chăm sóc người già và bệnh nhân",
+    "Chăm sóc trẻ em"
+  ];
+
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
-    if (!booking && id) {
-      const fetchBooking = async () => {
-        try {
-          setLoading(true);
-          setError(null);
 
-          const response = await api.get(`/bookings/${id}`, {
-            headers: { "Cache-Control": "no-cache" },
-          });
+    if (!id) return;            // chưa có id → không làm gì
+    if (booking) return;        // đã có booking → không fetch lại
 
-          const payload = response?.data;
-          const bookingData =
-            (payload && (payload.booking || payload.data)) || payload;
+    const fetchBooking = async () => {
+      try {
+        setLoading(true);
+        setError(null);
 
-          if (bookingData && bookingData.booking_id) {
-            setBooking(bookingData);
-            const stored = loadStoredTasks(bookingData.booking_id);
-            if (stored) {
-              setTasks(stored);
-              setHasLoadedStoredTasks(true);
-            } else {
-              setTasks(normalizeTasks(bookingData.task_checklist));
-            }
+        const response = await api.get(`/bookings/${id}`, {
+          headers: { "Cache-Control": "no-cache" },
+        });
+
+        const payload = response?.data;
+        const bookingData =
+          (payload && (payload.booking || payload.data)) || payload;
+
+        if (bookingData && bookingData.booking_id) {
+          setBooking(bookingData);
+
+          const stored = loadStoredTasks(bookingData.booking_id);
+
+          if (stored) {
+            setTasks(stored);
           } else {
-            throw new Error("Không tìm thấy thông tin công việc");
+            setTasks(normalizeTasks(bookingData.task_checklist));
           }
-        } catch (err) {
-          console.error("❌ Lỗi tải thông tin công việc:", err);
-          setError("Không thể tải thông tin công việc. Vui lòng thử lại sau.");
-        } finally {
-          setLoading(false);
+        } else {
+          throw new Error("Không tìm thấy thông tin công việc");
         }
-      };
+      } catch (err) {
+        console.error("❌ Lỗi tải thông tin công việc:", err);
+        setError("Không thể tải thông tin công việc. Vui lòng thử lại sau.");
+      } finally {
+        setLoading(false);
+      }
+    };
 
-      fetchBooking();
-    }
-  }, [booking, id]);
+    fetchBooking();
+  }, [id]);
 
   useEffect(() => {
     if (location.state?.booking) {
@@ -254,33 +260,41 @@ export default function TaskerJobProgress() {
       if (location.state.sessions) {
         setSessions(location.state.sessions || {});
       }
-      if (!hasLoadedStoredTasks) {
-        const stored = loadStoredTasks(location.state.booking?.booking_id);
-        if (stored) {
-          setTasks(stored);
-          setHasLoadedStoredTasks(true);
-          return;
-        }
+
+      const stored = loadStoredTasks(location.state.booking?.booking_id);
+      if (stored) {
+        setTasks(stored);
+        return;
       }
       setTasks(normalizeTasks(location.state.booking?.task_checklist));
     }
-  }, [location.state?.booking, hasLoadedStoredTasks]);
+  }, [location.state?.booking]);
 
   useEffect(() => {
-    if (booking?.booking_id && !hasLoadedStoredTasks) {
+    if (booking?.booking_id) {
       const stored = loadStoredTasks(booking.booking_id);
       if (stored) {
         setTasks(stored);
+      } else {
+        setTasks(normalizeTasks(booking.task_checklist));
       }
-      setHasLoadedStoredTasks(true);
     }
-  }, [booking?.booking_id, hasLoadedStoredTasks]);
+  }, [booking?.booking_id]);
 
   useEffect(() => {
     if (booking?.booking_id) {
       persistStoredTasks(booking.booking_id, tasks);
     }
   }, [tasks, booking?.booking_id]);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setTick(t => t + 1);
+    }, 1000);
+
+    return () => clearInterval(id);
+  }, []);
+
 
   const safeParseDate = (value) => {
     if (!value) return null;
@@ -408,41 +422,102 @@ export default function TaskerJobProgress() {
     return grouped;
   }, [isWeeklyOrMonthly, daysList, tasks]);
 
+  const safeBack = () => {
+    if (location.state?.fromProgress && booking?.booking_id) {
+      navigate(`/tasker/bookings/${booking.booking_id}/progress`);
+    } else if (location.state?.booking?.booking_id) {
+      navigate(`/tasker/bookings/${location.state.booking.booking_id}/progress`);
+    } else if (booking?.booking_id) {
+      navigate(`/tasker/bookings/${booking.booking_id}`);
+    } else {
+      navigate("/tasker/bookings");
+    }
+  };
+
   // initialize sessions when booking and daysList are ready (correct placement)
   useEffect(() => {
-    if (!booking?.booking_id || !isWeeklyOrMonthly || !daysList.length) return;
+    console.log(
+      "%c[INIT] Start init sessions",
+      "color: green; font-weight:bold;",
+      {
+        bookingId: booking?.booking_id,
+        isWeeklyOrMonthly,
+        daysList,
+        tasksBeforeInit: tasks,
+        storedBeforeInit: loadStoredSessions(booking?.booking_id),
+      }
+    );
+
+    if (!booking?.booking_id) return;
+
+    // xác định loại booking
+    const safeDaysList =
+      isWeeklyOrMonthly && daysList.length > 0
+        ? daysList
+        : [{ dayKey: "default" }];
+
     const stored = loadStoredSessions(booking.booking_id) || {};
     const next = { ...stored };
-    daysList.forEach(({ dayKey }) => {
+
+    console.log("%c[INIT] Stored sessions loaded", "color:purple", next);
+    console.log("[INIT] Loaded timers:", stored?.default?.timers);
+
+    safeDaysList.forEach(({ dayKey }) => {
+      console.log("%c[INIT] Processing dayKey:", "color:cyan", dayKey);
       if (!next[dayKey]) {
+        console.log(" → creating new empty session");
+
         next[dayKey] = {
           done: false,
-          beforePhotos: [],
-          afterPhotos: [],
           taskStatuses: {},
+          timers: {},
           accumulatedMs: 0,
           startedAt: null,
         };
       }
-      // Ensure numeric fields exist
-      if (typeof next[dayKey].accumulatedMs !== "number")
-        next[dayKey].accumulatedMs = 0;
-      if (!next[dayKey].hasOwnProperty("startedAt"))
-        next[dayKey].startedAt = null;
-      // Initialize taskStatuses for each task only if missing/empty.
-      // Use the current global task status if available so session
-      // views reflect already-completed items and Start works per-session.
-      if (
-        !next[dayKey].taskStatuses ||
-        Object.keys(next[dayKey].taskStatuses).length === 0
-      ) {
-        next[dayKey].taskStatuses = {};
-        tasks.forEach((t) => {
-          // prefer the task's existing status if present; otherwise default to 'pending'
-          next[dayKey].taskStatuses[t.id] = t.status || "pending";
-        });
-      }
+
+      const session = next[dayKey];
+
+      console.log("Before fill:", JSON.stringify(session, null, 2));
+
+      // 2) Đảm bảo các field quan trọng luôn tồn tại
+      if (!session.taskStatuses) session.taskStatuses = {};
+      if (!session.timers) session.timers = {};
+      if (typeof session.accumulatedMs !== "number")
+        session.accumulatedMs = 0;
+      if (!session.hasOwnProperty("startedAt"))
+        session.startedAt = null;
+
+      // 3) Đồng bộ taskStatuses — thêm những task mới, giữ nguyên task cũ
+      tasks.forEach((t) => {
+        if (!session.taskStatuses.hasOwnProperty(t.id)) {
+          console.log(" → Adding missing taskStatus for:", t.id);
+
+          session.taskStatuses[t.id] = t.status || "pending";
+        }
+      });
+
+      // 4) Đồng bộ timers — thêm những task mới, giữ nguyên elapsed cũ
+      tasks.forEach((t) => {
+        if (!session.timers[t.id]) {
+          console.log(" → Adding missing TIMER for:", t.id);
+          session.timers[t.id] = {
+            elapsedMs: 0,
+            startedAt: null,
+          };
+        }
+      });
+
+      console.log(
+        "After fill:",
+        JSON.stringify(session, null, 2)
+      );
     });
+
+    console.log("%c[INIT] Final session object:", "color:#00ff99",
+      next
+    );
+
     setSessions(next);
     // persist to localStorage
     persistStoredSessions(booking.booking_id, next);
@@ -501,6 +576,14 @@ export default function TaskerJobProgress() {
       setNowMs(Date.now());
     }, 1000);
     return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setNowMs(Date.now());
+    }, 1000);
+
+    return () => clearInterval(interval);
   }, []);
 
   // Tính elapsed time cho từng ngày (nếu là tuần/tháng)
@@ -578,382 +661,186 @@ export default function TaskerJobProgress() {
     };
   }, [computeElapsedMs, startDate, hasTimeInfo]);
 
-  const handleTaskStatus = (taskId, dayKey = null) => {
+  const handleTaskStatus = async (taskId, dayKey = null) => {
+    let isStart = false;
+    let isComplete = false;
     // If dayKey provided (multi-day), toggle session-local task status
     if (dayKey && isWeeklyOrMonthly) {
+
       setSessions((prev) => {
         // deep clone previous sessions to ensure React detects nested changes
-        let next = {};
-        try {
-          next = prev ? JSON.parse(JSON.stringify(prev)) : {};
-        } catch (e) {
-          next = { ...(prev || {}) };
+        let next = JSON.parse(JSON.stringify(prev || {}));
+
+        const cur =
+          next[dayKey] || {
+            done: false,
+            taskStatuses: {},
+            timers: {},
+            accumulatedMs: 0,
+            startedAt: null,
+          };
+        const current = cur.taskStatuses?.[taskId] || "pending";
+        const now = Date.now();
+
+        // ❗CHẶN START LẦN 2 (MULTI-DAY)
+        const tmr = cur.timers?.[taskId];
+        if (current === "completed" && tmr) {
+          if (tmr.elapsedMs > 0 || tmr.startedAt) {
+            showToast.warning("Checklist này đã được bắt đầu trước đó. Không thể bắt đầu lại.");
+            return prev;
+          }
         }
-        const cur = next[dayKey] || {
-          done: false,
-          beforePhotos: [],
-          afterPhotos: [],
-          taskStatuses: {},
-        };
+
+
         // For session tasks: only allow pending -> in_progress (Start),
         // and allow toggling in_progress -> pending (undo Start).
         // Converting in_progress -> completed is done when the session
         // is finalized via `toggleSessionDone` (Mark Session Done).
-        const current = cur.taskStatuses?.[taskId] || "pending";
         // Cycle: pending -> in_progress -> completed -> pending
-        let nextStatus = current;
-        if (current === "pending") {
-          nextStatus = "in_progress"; // Start
-        } else if (current === "in_progress") {
-          nextStatus = "completed"; // clicking while in-progress completes the task
-        } else if (current === "completed") {
-          nextStatus = "pending"; // allow undo from completed back to pending
+        const nextStatus =
+          current === "pending"
+            ? "in_progress"
+            : current === "in_progress"
+              ? "completed"
+              : "pending";
+
+        if (current === "pending" && nextStatus === "in_progress") {
+          isStart = true;
+          cur.timers[taskId] = {
+            ...(cur.timers[taskId] || { elapsedMs: 0 }),
+            startedAt: now,
+          };
+          if (!cur.startedAt) cur.startedAt = now;
         }
+
 
         // If transitioning to in_progress, start session timer if not started
-        if (current !== "in_progress" && nextStatus === "in_progress") {
-          if (!cur.startedAt) cur.startedAt = Date.now();
-        }
-
-        // If transitioning to completed, finalize any running timer for that session
-        if (nextStatus === "completed") {
-          const now = Date.now();
-          if (cur.startedAt) {
-            cur.accumulatedMs =
-              (cur.accumulatedMs || 0) + Math.max(0, now - cur.startedAt);
-            cur.startedAt = null;
+        if (current === "in_progress" && nextStatus === "completed") {
+          isComplete = true;
+          const t = cur.timers[taskId];
+          if (t?.startedAt) {
+            t.elapsedMs += now - t.startedAt;
+            t.startedAt = null;
           }
         }
 
-        cur.taskStatuses = {
-          ...(cur.taskStatuses || {}),
-          [taskId]: nextStatus,
-        };
+        cur.taskStatuses[taskId] = nextStatus;
 
-        // temporary visual flash indicator so Start has immediate UI feedback
-        cur._flash = cur._flash || {};
-        cur._flash[taskId] = true;
-        // clear flash after short delay
-        setTimeout(() => {
-          setSessions((innerPrev) => {
-            try {
-              const innerNext = innerPrev
-                ? JSON.parse(JSON.stringify(innerPrev))
-                : {};
-              if (innerNext?.[dayKey]?._flash) {
-                delete innerNext[dayKey]._flash[taskId];
-              }
-              if (booking?.booking_id)
-                persistStoredSessions(booking.booking_id, innerNext);
-              return innerNext;
-            } catch (e) {
-              return innerPrev;
-            }
-          });
-        }, 600);
-
-        // Debug/log + lightweight feedback so user sees Start took effect
-        try {
-          console.debug(
-            `handleTaskStatus: booking=${booking?.booking_id} day=${dayKey} task=${taskId} ${current} -> ${nextStatus}`
-          );
-        } catch (e) {}
-
-        try {
-          if (nextStatus === "in_progress") {
-            showToast?.info("Bắt đầu: " + (taskId || "task"));
-          } else if (nextStatus === "pending") {
-            showToast?.info("Hoàn tác bắt đầu: " + (taskId || "task"));
-          }
-        } catch (e) {}
         next[dayKey] = cur;
-        if (booking?.booking_id)
-          persistStoredSessions(booking.booking_id, next);
+
+        if (booking?.booking_id) persistStoredSessions(booking.booking_id, next);
         return next;
       });
+
+      if (isStart) {
+        await api.post("/tasker/timers/start", {
+          booking_id: booking.booking_id,
+          task_id: taskId,
+          checklist_key: taskId,
+          session_date: dayKey,
+        });
+      }
+
+      if (isComplete) {
+        await api.post("/tasker/timers/end", {
+          booking_id: booking.booking_id,
+          task_id: taskId,
+          checklist_key: taskId,
+          session_date: dayKey,
+        });
+      }
       return;
     }
 
     // Fallback: toggle global task status
+    // Fallback: toggle global task status  (NON-WEEKLY FIX INCLUDED)
     setTasks((prev) => {
-      const next = prev.map((task) => {
-        if (task.id !== taskId) return task;
-
-        const nextStatus =
-          task.status === "pending"
-            ? "in_progress"
-            : task.status === "in_progress"
+      const current = prev.find((t) => t.id === taskId)?.status || "pending";
+      const nextStatus =
+        current === "pending"
+          ? "in_progress"
+          : current === "in_progress"
             ? "completed"
             : "pending";
 
-        try {
-          console.debug(
-            `handleTaskStatus (global): booking=${booking?.booking_id} task=${taskId} ${task.status} -> ${nextStatus}`
-          );
-        } catch (e) {}
-
-        try {
-          if (nextStatus === "in_progress")
-            showToast?.info("Bắt đầu: " + (task.label || taskId));
-          else if (nextStatus === "completed")
-            showToast?.success("Hoàn thành: " + (task.label || taskId));
-        } catch (e) {}
-
-        return { ...task, status: nextStatus };
-      });
-      return next;
-    });
-  };
-
-  // Helpers for session photo previews
-  const createPreviewObjs = (files) =>
-    Array.from(files || []).map((file) => ({
-      file,
-      name: file.name,
-      preview: URL.createObjectURL(file),
-    }));
-
-  const handleSessionBeforeChange = (dayKey, event) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
-    try {
-      console.debug(
-        `handleSessionBeforeChange: booking=${booking?.booking_id} day=${dayKey} files=${files.length}`
-      );
-    } catch (e) {}
-    setSessions((prev) => {
-      const next = { ...(prev || {}) };
-      const cur = next[dayKey] || {
-        done: false,
-        beforePhotos: [],
-        afterPhotos: [],
-      };
-      cur.beforePhotos = [
-        ...(cur.beforePhotos || []),
-        ...createPreviewObjs(files),
-      ];
-      next[dayKey] = cur;
-      if (booking?.booking_id) persistStoredSessions(booking.booking_id, next);
-      return next;
-    });
-    // reset file input so the same file can be selected again if needed
-    try {
-      event.target.value = null;
-    } catch (e) {}
-  };
-
-  const handleSessionAfterChange = (dayKey, event) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
-    try {
-      console.debug(
-        `handleSessionAfterChange: booking=${booking?.booking_id} day=${dayKey} files=${files.length}`
-      );
-    } catch (e) {}
-    setSessions((prev) => {
-      const next = { ...(prev || {}) };
-      const cur = next[dayKey] || {
-        done: false,
-        beforePhotos: [],
-        afterPhotos: [],
-      };
-      cur.afterPhotos = [
-        ...(cur.afterPhotos || []),
-        ...createPreviewObjs(files),
-      ];
-      next[dayKey] = cur;
-      if (booking?.booking_id) persistStoredSessions(booking.booking_id, next);
-      return next;
-    });
-    try {
-      event.target.value = null;
-    } catch (e) {}
-  };
-
-  const setSessionPhotos = (dayKey, type, photos) => {
-    // Accept either an array of photos OR an updater function (like setState)
-    setSessions((prev) => {
-      const next = prev ? JSON.parse(JSON.stringify(prev)) : {};
-      const cur = next[dayKey] || {
-        done: false,
-        beforePhotos: [],
-        afterPhotos: [],
-        taskStatuses: {},
-      };
-
-      if (typeof photos === "function") {
-        const current =
-          type === "before" ? cur.beforePhotos || [] : cur.afterPhotos || [];
-        const updated = photos(current) || [];
-        if (type === "before") cur.beforePhotos = updated;
-        else cur.afterPhotos = updated;
-      } else {
-        if (type === "before") cur.beforePhotos = photos || [];
-        else cur.afterPhotos = photos || [];
-      }
-
-      next[dayKey] = cur;
-      if (booking?.booking_id) persistStoredSessions(booking.booking_id, next);
-      return next;
-    });
-  };
-
-  // Upload files to backend for a session (returns array of uploaded URLs)
-  const uploadSessionPhotosFiles = async (dayKey, type, files) => {
-    if (!booking?.booking_id) throw new Error("Missing booking id");
-    try {
-      const form = new FormData();
-      for (const file of files) form.append("photos", file);
-      form.append("type", type);
-      showToast?.info("Uploading photos...");
-      const resp = await api.post(
-        `/bookings/${booking.booking_id}/sessions/${dayKey}/photos`,
-        form
-      );
-      // backend responds { success: true, files: [...] }
-      const urls = resp.data && resp.data.files ? resp.data.files : [];
-      showToast?.success("Photos uploaded");
-      return urls;
-    } catch (err) {
-      console.error("uploadSessionPhotosFiles error:", err);
-      // Prefer server-provided message when available
-      const serverMsg =
-        err?.response?.data?.message || err?.response?.data?.error || null;
-      if (serverMsg) {
-        showToast?.error(`Upload failed: ${serverMsg}`);
-      } else if (err?.message) {
-        showToast?.error(`Upload failed: ${err.message}`);
-      } else {
-        showToast?.error("Upload failed");
-      }
-      return err?.response?.data || null;
-    }
-  };
-
-  // Wrapper to pass to MediaUpload so new file selections are uploaded automatically
-  const makeSessionSetPhotos = (dayKey, type) => (photosOrUpdater) => {
-    // Compute new array and detech files to upload
-    setSessions((prev) => {
-      const next = prev ? JSON.parse(JSON.stringify(prev)) : {};
-      const cur = next[dayKey] || {
-        done: false,
-        beforePhotos: [],
-        afterPhotos: [],
-        taskStatuses: {},
-      };
-      const currentArr =
-        type === "before" ? cur.beforePhotos || [] : cur.afterPhotos || [];
-      const newArr =
-        typeof photosOrUpdater === "function"
-          ? photosOrUpdater(currentArr)
-          : photosOrUpdater || [];
-
-      // Assign temp ids for newly added files so we can replace them after upload
-      const processed = newArr.map((it) => {
-        if (it && it.file) {
-          return {
-            ...it,
-            tempId: `local-${Date.now()}-${Math.random()
-              .toString(36)
-              .slice(2, 9)}`,
-            uploading: true,
-          };
+      const session = sessions?.default;
+      const tmrCheck = session?.timers?.[taskId];
+      if (current === "completed" && tmrCheck) {
+        if (tmrCheck.elapsedMs > 0 || tmrCheck.startedAt) {
+          showToast.warning("Checklist này đã được bắt đầu. Không thể bắt đầu lại.");
+          return prev;
         }
-        return it;
+      }
+
+      const updatedTasks = prev.map((t) =>
+        t.id === taskId ? { ...t, status: nextStatus } : t
+      );
+
+      // 🔥 UPDATE SESSION TIMERS FOR NON-WEEKLY BOOKINGS
+      setSessions((prevSessions) => {
+        let next = {};
+        try {
+          next = prevSessions ? JSON.parse(JSON.stringify(prevSessions)) : {};
+        } catch (e) {
+          next = { ...(prevSessions || {}) };
+        }
+
+        const cur =
+          next["default"] || {
+            done: false,
+            taskStatuses: {},
+            timers: {},
+            accumulatedMs: 0,
+            startedAt: null,
+          };
+
+        const now = Date.now();
+        const tmr = cur.timers?.[taskId] || { elapsedMs: 0, startedAt: null };
+
+        // START
+        if (current === "pending" && nextStatus === "in_progress") {
+          isStart = true;
+          tmr.startedAt = now;
+          if (!cur.startedAt) cur.startedAt = now;
+        }
+
+        // COMPLETE
+        if (current === "in_progress" && nextStatus === "completed") {
+          isComplete = true;
+          if (tmr.startedAt) {
+            tmr.elapsedMs += now - tmr.startedAt;
+            tmr.startedAt = null;
+          }
+        }
+
+        cur.timers[taskId] = tmr;
+        cur.taskStatuses[taskId] = nextStatus;
+        next["default"] = cur;
+
+        if (booking?.booking_id) persistStoredSessions(booking.booking_id, next);
+        return next;
       });
 
-      if (type === "before") cur.beforePhotos = processed;
-      else cur.afterPhotos = processed;
-      next[dayKey] = cur;
-      if (booking?.booking_id) persistStoredSessions(booking.booking_id, next);
-      return next;
+      return updatedTasks;
     });
 
-    // Start async upload for newly added files
-    (async () => {
-      try {
-        // Determine files to upload from the photosOrUpdater result
-        // We need to reconstruct the newArr similarly
-        const prevSnapshot = sessions?.[dayKey] || {
-          beforePhotos: [],
-          afterPhotos: [],
-        };
-        const currentArr =
-          type === "before"
-            ? prevSnapshot.beforePhotos || []
-            : prevSnapshot.afterPhotos || [];
-        const newArr =
-          typeof photosOrUpdater === "function"
-            ? photosOrUpdater(currentArr)
-            : photosOrUpdater || [];
-        const toUpload = newArr.filter((p) => p && p.file);
-        if (!toUpload || toUpload.length === 0) return;
+    if (isStart) {
+      await api.post("/tasker/timers/start", {
+        booking_id: booking.booking_id,
+        task_id: taskId,
+        checklist_key: taskId,
+        session_date: null,
+      });
+    }
 
-        // Extract File objects and keep tempIds order by matching previews or file names
-        const files = toUpload.map((p) => p.file);
-        const tempIds = toUpload.map(
-          (p) =>
-            p.tempId ||
-            `local-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
-        );
-
-        const urls = await uploadSessionPhotosFiles(dayKey, type, files);
-        if (!urls) return;
-
-        // Replace placeholders with server urls in sessions
-        setSessions((prev) => {
-          const next = prev ? JSON.parse(JSON.stringify(prev)) : {};
-          const cur = next[dayKey] || {
-            beforePhotos: [],
-            afterPhotos: [],
-            taskStatuses: {},
-          };
-          const arrKey = type === "before" ? "beforePhotos" : "afterPhotos";
-          const arr = cur[arrKey] || [];
-
-          // Replace uploading placeholders in order of appearance with returned urls
-          let urlIndex = 0;
-          const replaced = arr.map((item) => {
-            if (item && item.uploading && urlIndex < urls.length) {
-              const url = urls[urlIndex++];
-              return { url, fileName: item.name || null, uploaded: true };
-            }
-            return item;
-          });
-
-          cur[arrKey] = replaced;
-          next[dayKey] = cur;
-          if (booking?.booking_id)
-            persistStoredSessions(booking.booking_id, next);
-          return next;
-        });
-      } catch (e) {
-        console.error("Auto-upload session photos failed:", e);
-      }
-    })();
-  };
-
-  const removeSessionPhoto = (dayKey, type, index) => {
-    setSessions((prev) => {
-      const next = { ...(prev || {}) };
-      const cur = next[dayKey];
-      if (!cur) return prev;
-      const arr =
-        type === "before"
-          ? [...(cur.beforePhotos || [])]
-          : [...(cur.afterPhotos || [])];
-      const [removed] = arr.splice(index, 1);
-      if (removed && removed.preview) {
-        try {
-          URL.revokeObjectURL(removed.preview);
-        } catch (e) {}
-      }
-      if (type === "before") cur.beforePhotos = arr;
-      else cur.afterPhotos = arr;
-      next[dayKey] = cur;
-      if (booking?.booking_id) persistStoredSessions(booking.booking_id, next);
-      return next;
-    });
+    if (isComplete) {
+      await api.post("/tasker/timers/end", {
+        booking_id: booking.booking_id,
+        task_id: taskId,
+        checklist_key: taskId,
+        session_date: null,
+      });
+    }
   };
 
   const toggleSessionDone = (dayKey) => {
@@ -961,8 +848,6 @@ export default function TaskerJobProgress() {
       const next = { ...(prev || {}) };
       const cur = next[dayKey] || {
         done: false,
-        beforePhotos: [],
-        afterPhotos: [],
         accumulatedMs: 0,
         startedAt: null,
       };
@@ -980,14 +865,14 @@ export default function TaskerJobProgress() {
         cur.done = true;
         try {
           showToast?.success(`Đã hoàn thành phiên ${dayKey}`);
-        } catch (e) {}
+        } catch (e) { }
       } else {
         // Unmark done -> resume session
         cur.done = false;
         cur.startedAt = now;
         try {
           showToast?.info(`Đã bỏ tick phiên ${dayKey}`);
-        } catch (e) {}
+        } catch (e) { }
       }
 
       next[dayKey] = cur;
@@ -1002,27 +887,19 @@ export default function TaskerJobProgress() {
     persistStoredSessions(booking.booking_id, sessions || {});
   }, [sessions, booking?.booking_id]);
 
+  useEffect(() => {
+    console.log(
+      "%c[SESSIONS UPDATED]",
+      "color:#ff8800; font-weight:bold;",
+      JSON.parse(JSON.stringify(sessions))
+    );
+  }, [sessions]);
+
   // Debug: log session changes for easier tracing
   useEffect(() => {
     try {
       console.debug("sessions updated:", sessions);
-    } catch (e) {}
-  }, [sessions]);
-
-  // Cleanup created object URLs on unmount
-  useEffect(() => {
-    return () => {
-      try {
-        Object.values(sessions || {}).forEach((s) => {
-          (s.beforePhotos || []).forEach(
-            (p) => p.preview && URL.revokeObjectURL(p.preview)
-          );
-          (s.afterPhotos || []).forEach(
-            (p) => p.preview && URL.revokeObjectURL(p.preview)
-          );
-        });
-      } catch (e) {}
-    };
+    } catch (e) { }
   }, [sessions]);
 
   const handleCompleteJob = async () => {
@@ -1035,45 +912,13 @@ export default function TaskerJobProgress() {
       return;
     }
 
-    try {
-      setLoading(true);
-      const token = api.getStoredToken();
-      const response = await fetch(
-        `http://localhost:3001/api/bookings/${booking.booking_id}/status`,
-        {
-          method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ status: "Hoàn thành" }),
-        }
-      );
-      const result = await response.json();
-
-      if (result.success) {
-        clearStoredTasks(booking.booking_id);
-        const updatedBooking = {
-          ...booking,
-          status: "Hoàn thành",
-        };
-        showToast.success("Công việc đã được đánh dấu hoàn thành!");
-        navigate(`/tasker/bookings/${booking.booking_id}/complete`, {
-          replace: true,
-          state: {
-            booking: updatedBooking,
-            tasks,
-          },
-        });
-      } else {
-        showToast.error("Không thể cập nhật trạng thái. Vui lòng thử lại.");
-      }
-    } catch (err) {
-      console.error("❌ Lỗi cập nhật trạng thái:", err);
-      showToast.error("Có lỗi xảy ra khi cập nhật trạng thái.");
-    } finally {
-      setLoading(false);
-    }
+    navigate(`/tasker/bookings/${booking.booking_id}/complete`, {
+      state: {
+        booking,
+        tasks,
+        fromProgress: true,
+      },
+    });
   };
 
   const progress = useMemo(() => {
@@ -1287,7 +1132,7 @@ export default function TaskerJobProgress() {
     return (
       <Container className="py-5 text-center">
         <Alert variant="danger">{error}</Alert>
-        <Button variant="secondary" onClick={() => navigate(-1)}>
+        <Button variant="secondary" onClick={safeBack}>
           ← Quay lại
         </Button>
       </Container>
@@ -1298,7 +1143,7 @@ export default function TaskerJobProgress() {
     return (
       <Container className="py-5 text-center">
         <p className="text-muted">Không tìm thấy dữ liệu công việc.</p>
-        <Button variant="secondary" onClick={() => navigate(-1)}>
+        <Button variant="secondary" onClick={safeBack}>
           ← Quay lại
         </Button>
       </Container>
@@ -1307,6 +1152,12 @@ export default function TaskerJobProgress() {
 
   return (
     <Container className="py-4">
+      <style>{`
+      .task-action-btn {
+    flex: 0 0 auto !important;
+    width: 110px !important;
+}
+      `}</style>
       <Card className="border-0 shadow-sm mb-4">
         <Card.Body className="py-4 px-4">
           <Row className="align-items-center g-3">
@@ -1344,7 +1195,7 @@ export default function TaskerJobProgress() {
                 </div>
               </div>
             </Col>
-            {hasTimeInfo && SHOW_ELAPSED && (
+            {/* {SHOW_ELAPSED && (
               <Col md={3} className="text-md-end">
                 <div className="text-uppercase text-muted small fw-semibold">
                   Time Elapsed
@@ -1368,7 +1219,7 @@ export default function TaskerJobProgress() {
                   </span>
                 </div>
               </Col>
-            )}
+            )} */}
           </Row>
         </Card.Body>
       </Card>
@@ -1395,185 +1246,211 @@ export default function TaskerJobProgress() {
                 </div>
 
                 <div className="d-flex flex-column gap-4">
-                  {groupedTasks.map(({ group, items, dayKey }, groupIndex) => (
-                    <div
-                      key={group || `group-${groupIndex}`}
-                      className="d-flex flex-column gap-3"
-                    >
-                      {/* Session card for weekly/monthly bookings */}
-                      {isWeeklyOrMonthly && dayKey && (
-                        <Card className="mb-2 border-0">
-                          <Card.Body className="d-flex align-items-center justify-content-between">
-                            <div>
-                              <div className="fw-semibold">{group}</div>
-                              <div className="text-muted small">
-                                Session: 07:00 - 21:00
-                              </div>
-                            </div>
-                            <div className="d-flex align-items-center gap-3">
-                              {SHOW_ELAPSED && (
-                                <div className="text-center">
-                                  <i className="bi bi-clock-history text-primary"></i>
-                                  <div className="fw-bold">
-                                    {formatDailyElapsed(dayKey)}
-                                  </div>
-                                </div>
-                              )}
+                  {groupedTasks.map(({ group, items, dayKey }, groupIndex) => {
+                    const safeDayKey = dayKey ?? "default";
+                    return (
+                      <div
+                        key={group || `group-${groupIndex}`}
+                        className="d-flex flex-column gap-3"
+                      >
+                        {/* Session card for weekly/monthly bookings */}
+                        {isWeeklyOrMonthly && dayKey && (
+                          <Card className="mb-2 border-0">
+                            <Card.Body className="d-flex align-items-center justify-content-between">
                               <div>
-                                <div className="d-flex gap-2 align-items-center">
-                                  <div style={{ minWidth: 220 }}>
-                                    <MediaUpload
-                                      label="Before"
-                                      photos={
-                                        sessions?.[dayKey]?.beforePhotos || []
-                                      }
-                                      setPhotos={makeSessionSetPhotos(
-                                        dayKey,
-                                        "before"
-                                      )}
-                                    />
+                                <div className="fw-semibold">{group}</div>
+                                <div className="text-muted small">
+                                  Ca làm: 07:00 – 21:00
+                                </div>
+                              </div>
+                              <div className="d-flex align-items-center gap-3">
+                                {SHOW_ELAPSED && (
+                                  <div className="text-center">
+                                    <i className="bi bi-clock-history text-primary"></i>
+                                    <div className="fw-bold">
+                                      {formatDailyElapsed(dayKey)}
+                                    </div>
                                   </div>
-                                  <div style={{ minWidth: 220 }}>
-                                    <MediaUpload
-                                      label="After"
-                                      photos={
-                                        sessions?.[dayKey]?.afterPhotos || []
-                                      }
-                                      setPhotos={makeSessionSetPhotos(
-                                        dayKey,
-                                        "after"
-                                      )}
-                                    />
-                                  </div>
-                                  <div className="ms-2">
-                                    <button
-                                      className={`btn ${
-                                        sessions?.[dayKey]?.done
+                                )}
+                                <div>
+                                  <div className="d-flex gap-2 align-items-center">
+                                    <div className="ms-2">
+                                      <button
+                                        className={`btn ${sessions?.[dayKey]?.done
                                           ? "btn-success"
                                           : "btn-primary"
-                                      } btn-sm`}
-                                      onClick={() => toggleSessionDone(dayKey)}
-                                    >
-                                      {sessions?.[dayKey]?.done
-                                        ? "Session Done"
-                                        : "Mark Session Done"}
-                                    </button>
+                                          } btn-sm`}
+                                        onClick={() => toggleSessionDone(dayKey)}
+                                      >
+                                        {sessions?.[dayKey]?.done
+                                          ? "Session Done"
+                                          : "Mark Session Done"}
+                                      </button>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
+                            </Card.Body>
+                            <div className="px-3 pb-3">
+                              {/* session debug removed */}
                             </div>
-                          </Card.Body>
-                          <div className="px-3 pb-3">
-                            {/* session debug removed */}
-                            {/* MediaUpload renders previews and remove controls */}
-                          </div>
-                        </Card>
-                      )}
-                      {group && (
-                        <div className="d-flex align-items-center justify-content-between">
-                          <div className="d-flex align-items-center gap-2">
-                            <span className="badge bg-secondary-subtle text-secondary fw-semibold px-3 py-2">
-                              {group}
-                            </span>
-                            <span className="text-muted small">
-                              {isWeeklyOrMonthly && dayKey
-                                ? Object.values(
+                          </Card>
+                        )}
+                        {group && (
+                          <div className="d-flex align-items-center justify-content-between">
+                            <div className="d-flex align-items-center gap-2">
+                              <span className="badge bg-secondary-subtle text-secondary fw-semibold px-3 py-2">
+                                {group}
+                              </span>
+                              <span className="text-muted small">
+                                {isWeeklyOrMonthly && dayKey
+                                  ? Object.values(
                                     sessions?.[dayKey]?.taskStatuses || {}
                                   ).filter((v) => v === "completed").length
-                                : items.filter(
+                                  : items.filter(
                                     (item) => item.status === "completed"
                                   ).length}{" "}
-                              / {items.length} tasks
-                            </span>
+                                / {items.length} tasks
+                              </span>
+                            </div>
+                            {isWeeklyOrMonthly &&
+                              dayKey &&
+                              hasTimeInfo &&
+                              SHOW_ELAPSED && (
+                                <div className="d-flex align-items-center gap-2">
+                                  <i className="bi bi-clock-history text-primary"></i>
+                                  <span className="fw-bold text-primary">
+                                    {formatDailyElapsed(dayKey)}
+                                  </span>
+                                </div>
+                              )}
                           </div>
-                          {isWeeklyOrMonthly &&
-                            dayKey &&
-                            hasTimeInfo &&
-                            SHOW_ELAPSED && (
-                              <div className="d-flex align-items-center gap-2">
-                                <i className="bi bi-clock-history text-primary"></i>
-                                <span className="fw-bold text-primary">
-                                  {formatDailyElapsed(dayKey)}
-                                </span>
-                              </div>
-                            )}
-                        </div>
-                      )}
-                      {items.map((task) => {
-                        const currentStatus =
-                          isWeeklyOrMonthly && dayKey
-                            ? sessions?.[dayKey]?.taskStatuses?.[task.id] ||
+                        )}
+                        {items.map((task) => {
+                          const currentStatus =
+                            isWeeklyOrMonthly && dayKey
+                              ? sessions?.[dayKey]?.taskStatuses?.[task.id] ||
                               task.status
-                            : task.status;
+                              : task.status;
 
-                        return (
-                          <Card
-                            key={`${task.id}-${dayKey || "global"}`}
-                            className="border-0 shadow-sm"
-                            style={{
-                              borderRadius: "16px",
-                              ...(sessions?.[dayKey]?._flash?.[task.id]
-                                ? { backgroundColor: "#e6f7ff" }
-                                : {}),
-                            }}
-                          >
-                            <Card.Body className="d-flex align-items-center justify-content-between py-3 px-4">
-                              <div className="d-flex align-items-center gap-3">
-                                <div
-                                  className={`d-flex align-items-center justify-content-center rounded-circle ${
-                                    currentStatus === "completed"
+                          const safeDayKey = dayKey || "default";
+                          const session = sessions?.[safeDayKey] ?? {
+                            timers: {},
+                            taskStatuses: {},
+                          };
+                          const tmr = session?.timers?.[task.id];
+
+                          console.log(
+                            "%c[UI RENDER] Task Timer Check",
+                            "color: #00aaff; font-weight: bold;",
+                            {
+                              taskId: task.id,
+                              dayKey,
+                              session,
+                              timers: session?.timers,
+                              tmr: session?.timers?.[task.id],
+                            }
+                          );
+
+                          return (
+                            <Card
+                              key={`${task.id}-${dayKey || "global"}`}
+                              className="border-0 shadow-sm"
+                              style={{
+                                borderRadius: "16px",
+                                ...(sessions?.[dayKey]?._flash?.[task.id]
+                                  ? { backgroundColor: "#e6f7ff" }
+                                  : {}),
+                              }}
+                            >
+                              <Card.Body className="d-flex justify-content-between py-3 px-4">
+                                <div className="d-flex align-items-center gap-3">
+                                  <div
+                                    className={`d-flex align-items-center justify-content-center rounded-circle ${currentStatus === "completed"
                                       ? "bg-success bg-opacity-10 text-success"
                                       : currentStatus === "in_progress"
-                                      ? "bg-primary bg-opacity-10 text-primary"
-                                      : "bg-light text-secondary"
-                                  }`}
-                                  style={{ width: 44, height: 44 }}
-                                >
-                                  {currentStatus === "completed" ? (
-                                    <i className="bi bi-check-circle-fill fs-5"></i>
-                                  ) : currentStatus === "in_progress" ? (
-                                    <i className="bi bi-hourglass-split fs-5"></i>
-                                  ) : (
-                                    <i className="bi bi-circle fs-5"></i>
-                                  )}
-                                </div>
-                                <div>
-                                  <div className="fw-semibold text-dark">
-                                    {task.label}
+                                        ? "bg-primary bg-opacity-10 text-primary"
+                                        : "bg-light text-secondary"
+                                      }`}
+                                    style={{ width: 44, height: 44 }}
+                                  >
+                                    {currentStatus === "completed" ? (
+                                      <i className="bi bi-check-circle-fill fs-5"></i>
+                                    ) : currentStatus === "in_progress" ? (
+                                      <i className="bi bi-hourglass-split fs-5"></i>
+                                    ) : (
+                                      <i className="bi bi-circle fs-5"></i>
+                                    )}
                                   </div>
-                                  <small className="text-muted">
-                                    {STATUS_LABELS[currentStatus] || "Pending"}
-                                  </small>
+
+                                  <div>
+                                    <div className="fw-semibold text-dark">{task.label}</div>
+
+                                    <small className="text-muted d-block">
+                                      {STATUS_LABELS[currentStatus] || "Pending"}
+                                    </small>
+                                  </div>
                                 </div>
-                              </div>
-                              <Button
-                                variant={
-                                  currentStatus === "completed"
-                                    ? "outline-success"
-                                    : currentStatus === "in_progress"
-                                    ? "primary"
-                                    : "outline-secondary"
-                                }
-                                size="sm"
-                                className="fw-semibold"
-                                onClick={() =>
-                                  handleTaskStatus(task.id, dayKey || null)
-                                }
-                              >
-                                {currentStatus === "completed"
-                                  ? "Completed"
-                                  : currentStatus === "in_progress"
-                                  ? isWeeklyOrMonthly && dayKey
-                                    ? "In progress"
-                                    : "Mark done"
-                                  : "Start"}
-                              </Button>
-                            </Card.Body>
-                          </Card>
-                        );
-                      })}
-                    </div>
-                  ))}
+
+                                {/* RIGHT SIDE */}
+                                <div className="d-flex align-items-center gap-3 flex-shrink-0">
+
+                                  {/* TIMER HERE — CHỈ Ở ĐÂY MỚI BẢO ĐẢM HIỆN */}
+                                  <small className="text-primary d-block mt-1 data-tick={tick}">
+                                    {(() => {
+                                      if (!tmr) return "";
+                                      const base = tmr.elapsedMs || 0;
+                                      const running = tmr.startedAt
+                                        ? base + (Date.now() - tmr.startedAt)
+                                        : base;
+
+                                      const format = (ms) => {
+                                        const s = Math.floor(ms / 1000);
+                                        const h = Math.floor(s / 3600);
+                                        const m = Math.floor((s % 3600) / 60);
+                                        const sec = s % 60;
+                                        return `${h}h ${m}m ${sec}s`;
+                                      };
+
+                                      return `⏱ ${format(running)}`;
+                                    })()}
+                                  </small>
+
+                                  <Button
+                                    style={{
+                                      width: "110px",
+                                      textAlign: "center",
+                                      whiteSpace: "nowrap",
+                                      paddingLeft: "16px",
+                                      paddingRight: "16px"
+                                    }}
+                                    variant={
+                                      currentStatus === "completed"
+                                        ? "outline-success"
+                                        : currentStatus === "in_progress"
+                                          ? "primary"
+                                          : "outline-secondary"
+                                    }
+                                    size="sm"
+                                    className="fw-semibold task-action-btn"
+                                    onClick={() =>
+                                      handleTaskStatus(task.id, dayKey || null)
+                                    }
+                                  >
+                                    {currentStatus === "in_progress"
+                                      ? "Mark done"
+                                      : currentStatus === "completed"
+                                        ? "Completed"
+                                        : "Start"}
+                                  </Button>
+                                </div>
+                              </Card.Body>
+                            </Card>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
                 </div>
               </Card.Body>
             </Card>
@@ -1602,24 +1479,15 @@ export default function TaskerJobProgress() {
           <div className="d-flex flex-column gap-4">
             <Card className="shadow-sm border-0">
               <Card.Body>
-                <h6 className="fw-semibold mb-3">Customer Notes</h6>
+                <h6 className="fw-semibold mb-3">Thông tin cần chú ý</h6>
                 <div className="d-flex flex-column gap-3 text-muted">
-                  <div>
-                    <div className="fw-semibold text-dark mb-1">
-                      Special Instructions
-                    </div>
-                    <p className="mb-0">
-                      {special_instructions ||
-                        "Không có ghi chú đặc biệt. Vui lòng hoàn thành theo yêu cầu tiêu chuẩn."}
-                    </p>
-                  </div>
                   <div>
                     <div className="fw-semibold text-dark mb-1">
                       Access Information
                     </div>
                     <p className="mb-0">
                       {customer_notes ||
-                        "Khách hàng sẽ có mặt tại nhà. Liên hệ trước khi đến để được hỗ trợ thêm."}
+                        "Liên hệ trước khi đến để được hỗ trợ thêm."}
                     </p>
                   </div>
                   <div>

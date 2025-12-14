@@ -46,6 +46,10 @@ export default function AdminLayout() {
                 <FontAwesomeIcon icon={faCogs} />
                 <span>Evidence Review</span>
               </NavLink>
+              <NavLink to="/admin/bookings" className={linkClass}>
+                <FontAwesomeIcon icon={faCogs} />
+                <span>Task Review</span>
+              </NavLink>
             </nav>
           </div>
           <div className="p-3 border-top">

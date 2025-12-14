@@ -91,6 +91,11 @@ export default function BookingHistory() {
         if (status === "Báo cáo được duyệt") return "info";          // xanh dương nhạt
         if (status === "Báo cáo bị từ chối") return "dark";          // xám đậm
 
+        if (status === "Chờ xác nhận") return "warning";
+        if (status === "Xử lí khiếu nại của khách") return "info";
+        if (status === "Khiếu nại được duyệt") return "success";
+        if (status === "Khiếu nại bị từ chối") return "danger";
+
         // ⭐ Các trạng thái còn lại
         if (status.includes("Hoàn")) return "success";
         if (status.includes("Chờ")) return "warning";
@@ -288,11 +293,13 @@ export default function BookingHistory() {
                                         <Badge bg={getBadgeVariant(b.status)}>{mapCustomerStatus(b.status)}</Badge>
                                     </td>
                                     <td className="fw-bold text-primary">
-                                        {(b.final_price && b.final_price !== 0)
-                                            ? Number(b.final_price).toLocaleString("vi-VN") + " ₫"
-                                            : (b.expected_price
-                                                ? Number(b.expected_price).toLocaleString("vi-VN") + " ₫"
-                                                : "-")}
+                                        {b.paid_amount && b.paid_amount > 0
+                                            ? Number(b.paid_amount).toLocaleString("vi-VN") + " ₫"
+                                            : b.final_price && b.final_price > 0
+                                                ? Number(b.final_price).toLocaleString("vi-VN") + " ₫"
+                                                : b.expected_price
+                                                    ? Number(b.expected_price).toLocaleString("vi-VN") + " ₫"
+                                                    : "-"}
                                     </td>
                                     <td>
                                         <div className="action-buttons">
@@ -320,6 +327,21 @@ export default function BookingHistory() {
                                                         💳 Thanh toán
                                                     </Button>
                                                 )}
+
+                                            {b.status === "Hoàn thành" && (
+                                                <Button
+                                                    variant="warning"
+                                                    size="sm"
+                                                    className="ms-2"
+                                                    onClick={() =>
+                                                        navigate(`/customer/booking/${b.booking_id}/rating`, {
+                                                            state: { booking: b }
+                                                        })
+                                                    }
+                                                >
+                                                    ⭐ Đánh giá
+                                                </Button>
+                                            )}
 
                                             {/* 📄 Ký hợp đồng (nếu là week/month) */}
                                             {b.status === "Đã chấp nhận" &&
