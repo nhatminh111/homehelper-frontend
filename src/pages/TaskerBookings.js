@@ -3,6 +3,8 @@ import { Container, Row, Col, Card, Button, Badge, Spinner, Alert, Toast } from 
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import socketService from '../services/socketService';
+import api from '../../services/api';
+
 
 export default function TaskerBookings() {
   const navigate = useNavigate();
@@ -214,14 +216,11 @@ export default function TaskerBookings() {
 const getTimeRemaining = (expiresAt) => {
   if (!expiresAt) return null;
 
-  // BƯỚC FIX: Luôn hiểu chuỗi là UTC (có Z hoặc không có Z đều ok)
-  let expiresAtStr = expiresAt.trim();
-  if (!expiresAtStr.endsWith('Z')) {
-    expiresAtStr += 'Z';  // Thêm Z để ép JavaScript hiểu là UTC
-  }
-
-  const expires = new Date(expiresAtStr);
-  const now = new Date();
+    // Parse timestamp directly. 
+    // Socket sends UTC (ending in Z), API sends Local (no Z).
+    // Browser handles both correctly if we don't force Z.
+    const expires = new Date(expiresAt);
+    const now = new Date();
 
   const diffMs = expires.getTime() - now.getTime();
   if (diffMs <= 0) return 'Hết hạn';
@@ -427,11 +426,6 @@ const getTimeRemaining = (expiresAt) => {
                         {booking.type === 'SOS' ? (
                           <>
                             <Badge bg="danger">🔥 SOS</Badge>
-                            {booking.sos_expires_at && (
-                              <Badge bg="warning" text="dark" className="ms-1">
-                                ⏱️ {refreshTrigger && getTimeRemaining(booking.sos_expires_at)}
-                              </Badge>
-                            )}
                           </>
                         ) : null}
                         {getStatusBadge(booking.status)}

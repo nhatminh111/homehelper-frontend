@@ -36,8 +36,8 @@ export const SocketProvider = ({ children }) => {
   }, [isAuthenticated, token, user]);
 
   // Thiết lập event listeners (bao gồm cả online_users)
-    useEffect(() => {
-      socketService.on('online_users', (userIds) => {
+  useEffect(() => {
+    socketService.on('online_users', (userIds) => {
       setOnlineUsers(new Set(userIds));
     });
     // Connection status
@@ -97,6 +97,17 @@ export const SocketProvider = ({ children }) => {
 
     // New notification
     socketService.on('new_notification', (data) => {
+      // Normalize payload
+      const notification = (data && data.notification) ? data.notification : data;
+      // Only process if notification targets current user
+      try {
+        const recipientId = notification.user_id ?? notification.recipient_id ?? notification.target_user_id;
+        const currentUserId = (user && (user.user_id ?? user.userId));
+        if (recipientId && currentUserId && String(recipientId) !== String(currentUserId)) {
+          return; // ignore notifications not for this user
+        }
+      } catch (_) { }
+
       setUnreadCount(prev => prev + 1);
       window.dispatchEvent(new CustomEvent('socket_new_notification', { detail: data }));
     });
@@ -136,6 +147,54 @@ export const SocketProvider = ({ children }) => {
       window.dispatchEvent(new CustomEvent('socket_sos_accept_failed', { detail: data }));
     });
 
+    // Audio call events
+    console.log('🔔 [SocketContext] Registering incoming_call listener');
+    socketService.on('incoming_call', (data) => {
+      console.log('📱 SocketContext received incoming_call:', data);
+      window.dispatchEvent(new CustomEvent('socket_incoming_call', { detail: data }));
+    });
+
+    socketService.on('call_accepted', (data) => {
+      console.log('✅ SocketContext received call_accepted:', data);
+      window.dispatchEvent(new CustomEvent('socket_call_accepted', { detail: data }));
+    });
+
+    socketService.on('call_rejected', (data) => {
+      console.log('❌ SocketContext received call_rejected:', data);
+      window.dispatchEvent(new CustomEvent('socket_call_rejected', { detail: data }));
+    });
+
+    socketService.on('call_ended', (data) => {
+      console.log('📞 SocketContext received call_ended:', data);
+      window.dispatchEvent(new CustomEvent('socket_call_ended', { detail: data }));
+    });
+
+    socketService.on('webrtc_offer', (data) => {
+      console.log('🔊 SocketContext received webrtc_offer:', data);
+      window.dispatchEvent(new CustomEvent('socket_webrtc_offer', { detail: data }));
+    });
+
+    socketService.on('webrtc_answer', (data) => {
+      console.log('🔊 SocketContext received webrtc_answer:', data);
+      window.dispatchEvent(new CustomEvent('socket_webrtc_answer', { detail: data }));
+    });
+
+    socketService.on('ice_candidate', (data) => {
+      console.log('❄️ SocketContext received ice_candidate:', data);
+      window.dispatchEvent(new CustomEvent('socket_ice_candidate', { detail: data }));
+    });
+
+    // Forward callee-specific and self events for redundancy
+    socketService.on('call_accepted_self', (data) => {
+      console.log('✅ SocketContext received call_accepted_self:', data);
+      window.dispatchEvent(new CustomEvent('socket_call_accepted_self', { detail: data }));
+    });
+
+    socketService.on('call_ended_self', (data) => {
+      console.log('📞 SocketContext received call_ended_self:', data);
+      window.dispatchEvent(new CustomEvent('socket_call_ended_self', { detail: data }));
+    });
+
     // User status changed
     socketService.on('user_status_changed', (data) => {
       if (data.status === 'online') {
@@ -162,7 +221,7 @@ export const SocketProvider = ({ children }) => {
       if (status?.isConnected) {
         setConnectionStatus('connected');
       }
-    } catch (_) {}
+    } catch (_) { }
 
     // Cleanup function
     return () => {
@@ -172,17 +231,27 @@ export const SocketProvider = ({ children }) => {
       socketService.off('user_left');
       socketService.off('user_typing');
       socketService.off('message_read');
-  socketService.off('message_updated');
+      socketService.off('message_updated');
       socketService.off('new_notification');
       socketService.off('user_status_changed');
       socketService.off('socket_error');
       socketService.off('online_users');
-        socketService.off('new_sos_job');
-        socketService.off('sos_job_created');
-        socketService.off('sos_job_taken');
-        socketService.off('sos_job_accepted');
-        socketService.off('sos_accept_success');
-        socketService.off('sos_accept_failed');
+      socketService.off('new_sos_job');
+      socketService.off('sos_job_created');
+      socketService.off('sos_job_taken');
+      socketService.off('sos_job_accepted');
+      socketService.off('sos_accept_success');
+      socketService.off('sos_accept_failed');
+      // Audio call events
+      socketService.off('incoming_call');
+      socketService.off('call_accepted');
+      socketService.off('call_rejected');
+      socketService.off('call_ended');
+      socketService.off('webrtc_offer');
+      socketService.off('webrtc_answer');
+      socketService.off('ice_candidate');
+      socketService.off('call_accepted_self');
+      socketService.off('call_ended_self');
     };
   }, []);
 
@@ -265,19 +334,19 @@ export const SocketProvider = ({ children }) => {
     // Connection status
     connectionStatus,
     isConnected: connectionStatus === 'connected',
-    
+
     // Online users
     onlineUsers: Array.from(onlineUsers),
     isUserOnline,
-    
+
     // Typing indicators
     typingUsers: Array.from(typingUsers.entries()),
     getTypingUsers,
-    
+
     // Notifications
     unreadCount,
     updateUnreadCount,
-    
+
     // Socket methods
     joinConversation,
     leaveConversation,
@@ -289,10 +358,10 @@ export const SocketProvider = ({ children }) => {
     // SOS
     createSOSJob,
     acceptSOSJob,
-    
+
     // Utility
-    getConnectionStatus: socketService.getConnectionStatus,
-    getSocket: socketService.getSocket
+    getConnectionStatus: socketService.getConnectionStatus.bind(socketService),
+    getSocket: () => socketService.getSocket()
   };
 
   return (

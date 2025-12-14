@@ -80,6 +80,7 @@ import AdminUsers from "./pages/admin/AdminUsers";
 import AdminTaskers from "./pages/admin/AdminTaskers";
 import AdminEvidenceReview from "./pages/admin/AdminEvidenceReview";
 import NoShowReportPage from "./pages/tasker/NoShowReportPage";
+import GlobalCallManager from "./components/chat/GlobalCallManager";
 
 function App() {
 
@@ -88,6 +89,7 @@ function App() {
     <AuthProvider>
       <SocketProvider>
         <Router>
+          <GlobalCallManager />
           <div className="App">
             <CustomToastContainer />
             <Routes>
@@ -152,19 +154,19 @@ function App() {
                 } />
                 <Route path="/job-description" element={<JobDescription />} />
                 <Route path="/contract" element={<Contract />} />
-              <Route path="/topUp" element={<TopUp />} />
-              <Route path="/payment-result" element={<PaymentResult />} />
-              <Route path="/wallet" element={<Wallet />} />
-              <Route path="/cccd" element={<CCCDExtractor />} />
-              <Route path="/booking/:taskerId" element={<Booking />} />
-              <Route path="/tasker/bookings/:id" element={<TaskerBookingDetail />} />
-               <Route path="/tasker/bookings" element={
+                <Route path="/topUp" element={<TopUp />} />
+                <Route path="/payment-result" element={<PaymentResult />} />
+                <Route path="/wallet" element={<Wallet />} />
+                <Route path="/cccd" element={<CCCDExtractor />} />
+                <Route path="/booking/:taskerId" element={<Booking />} />
+                <Route path="/tasker/bookings/:id" element={<TaskerBookingDetail />} />
+                <Route path="/tasker/bookings" element={
                   <ProtectedRoute requiredRole="Tasker">
                     <TaskerBookings />
                   </ProtectedRoute>
                 } />
-              <Route path="/job-description" element={<JobDescription />} />
-              <Route path="/contract" element={<Contract />} />
+                <Route path="/job-description" element={<JobDescription />} />
+                <Route path="/contract" element={<Contract />} />
 
                 <Route path="/become-tasker" element={<BecomeTasker />} />
 
@@ -232,6 +234,12 @@ function App() {
                 <Route path="/customer/bookings" element={
                   <ProtectedRoute requiredRole="Customer"> <BookingHistory /> </ProtectedRoute>
                 } />
+                <Route path="/customer/booking/:id" element={
+                  <ProtectedRoute requiredRole="Customer"> <CustomerBookingDetail /> </ProtectedRoute>
+                } />
+                <Route path="/customer/vouchers" element={
+                  <ProtectedRoute requiredRole="Customer"><VoucherCenter /> </ProtectedRoute>
+                } />
               </Route>
 
               <Route
@@ -254,7 +262,7 @@ function App() {
                 <Route path="users" element={<AdminUsers />} />
                 <Route path="taskers" element={<AdminTaskers />} />
                 <Route path="service-management" element={<ServiceManagement />} />
-                <Route path="reports" element={<AdminReports  />} />
+                <Route path="reports" element={<AdminReports />} />
                 <Route path="evidence-review" element={<AdminEvidenceReview />} />
               </Route>
 
@@ -274,8 +282,8 @@ function App() {
               <Route
                 path="/staff"
                 element={<Navigate to="/staff/dashboard/applications" replace />}
-              />              
-            </Routes>      
+              />
+            </Routes>
           </div>
         </Router>
       </SocketProvider>

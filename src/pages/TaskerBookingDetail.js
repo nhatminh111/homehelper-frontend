@@ -199,8 +199,13 @@ export default function TaskerBookingDetail() {
       }
 
       // If check passed or not SOS, proceed with accepting
+      const isSosAccept = (type === 'SOS' && newStatus === 'Đã chấp nhận');
+      const endpoint = isSosAccept
+        ? `http://localhost:3001/api/bookings/${booking_id}/status-sos`
+        : `http://localhost:3001/api/bookings/${booking_id}/status`;
+
       const response = await fetch(
-        `http://localhost:3001/api/bookings/${booking_id}/status`,
+        endpoint,
         {
           method: "PATCH",
           headers: {
