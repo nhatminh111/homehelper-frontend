@@ -1322,9 +1322,12 @@ const TaskerSearch = () => {
                               <FontAwesomeIcon icon={faEye} className="mr-1" />
                               Xem hồ sơ
                             </Link>
-                            <button className="btn btn-primary btn-sm w-100 w-md-auto">
+                            <Link
+                              to={`/booking/${tasker.user_id}`}
+                              className="btn btn-primary btn-sm w-100 w-md-auto"
+                            >
                               Đặt dịch vụ
-                            </button>
+                            </Link>
                           </div>
                         </div>
                       </div>

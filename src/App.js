@@ -98,7 +98,8 @@ import StaffBlogs from "./pages/StaffBlogs";
 import ReportIssue from "./pages/ReportIssue";
 import AdminReports from "./pages/AdminReports";
 import StaffBadges from "./pages/StaffBadges";
-
+import GlobalCallManager from "./components/chat/GlobalCallManager";
+import VideoStaff from "./pages/VideoStaff";
 
 function App() {
 
@@ -107,6 +108,7 @@ function App() {
     <AuthProvider>
       <SocketProvider>
         <Router>
+          <GlobalCallManager />
           <div className="App">
             <CustomToastContainer />
             <Routes>
@@ -172,19 +174,19 @@ function App() {
                 } />
                 <Route path="/job-description" element={<JobDescription />} />
                 <Route path="/contract" element={<Contract />} />
-              <Route path="/topUp" element={<TopUp />} />
-              <Route path="/payment-result" element={<PaymentResult />} />
-              <Route path="/wallet" element={<Wallet />} />
-              <Route path="/cccd" element={<CCCDExtractor />} />
-              <Route path="/booking/:taskerId" element={<Booking />} />
-              <Route path="/tasker/bookings/:id" element={<TaskerBookingDetail />} />
-               <Route path="/tasker/bookings" element={
+                <Route path="/topUp" element={<TopUp />} />
+                <Route path="/payment-result" element={<PaymentResult />} />
+                <Route path="/wallet" element={<Wallet />} />
+                <Route path="/cccd" element={<CCCDExtractor />} />
+                <Route path="/booking/:taskerId" element={<Booking />} />
+                <Route path="/tasker/bookings/:id" element={<TaskerBookingDetail />} />
+                <Route path="/tasker/bookings" element={
                   <ProtectedRoute requiredRole="Tasker">
                     <TaskerBookings />
                   </ProtectedRoute>
                 } />
-              <Route path="/job-description" element={<JobDescription />} />
-              <Route path="/contract" element={<Contract />} />
+                <Route path="/job-description" element={<JobDescription />} />
+                <Route path="/contract" element={<Contract />} />
 
                 <Route path="/become-tasker" element={<BecomeTasker />} />
 
@@ -228,9 +230,7 @@ function App() {
                 <Route path="/content" element={
                   <ProtectedRoute requiredRole="Admin"> <ContentManagement /> </ProtectedRoute>
                 } />
-                <Route path="/videostaff" element={
-                  <ProtectedRoute requiredRole="Staff"> <VideoUpload /> </ProtectedRoute>
-                } />
+
                 <Route path="/tasker-management" element={
                   <ProtectedRoute requiredRole="Admin"> <TaskerManagement /> </ProtectedRoute>
                 } />
@@ -261,11 +261,11 @@ function App() {
                 <Route path="/customer/booking/:id" element={
                   <ProtectedRoute requiredRole="Customer"> <CustomerBookingDetail /> </ProtectedRoute>
                 } />
-                <Route path="/customer/vouchers" element={ 
-                  <ProtectedRoute requiredRole="Customer"><VoucherCenter /> </ProtectedRoute> 
+                <Route path="/customer/vouchers" element={
+                  <ProtectedRoute requiredRole="Customer"><VoucherCenter /> </ProtectedRoute>
                 } />
-                <Route path="/customer/booking/:bookingId/rating" element={ 
-                  <ProtectedRoute requiredRole="Customer"><BookingRating /> </ProtectedRoute> 
+                <Route path="/customer/booking/:bookingId/rating" element={
+                  <ProtectedRoute requiredRole="Customer"><BookingRating /> </ProtectedRoute>
                 } />
               </Route>
 
@@ -290,7 +290,7 @@ function App() {
                 <Route path="users" element={<AdminUsers />} />
                 <Route path="taskers" element={<AdminTaskers />} />
                 <Route path="service-management" element={<ServiceManagement />} />
-                <Route path="reports" element={<AdminReports  />} />
+                <Route path="reports" element={<AdminReports />} />
                 <Route path="evidence-review" element={<AdminEvidenceReview />} />
                 <Route path="admin-review/:id" element={<AdminTaskReview />} />
                 <Route path="bookings" element={<AdminBookingList />} />
@@ -308,12 +308,13 @@ function App() {
                 <Route path="certifications" element={<StaffCertifications />} />
                 <Route path="blogs" element={<StaffBlogs />} />
                 <Route path="badges" element={<StaffBadges />} />
+                <Route path="videos" element={<VideoStaff />} />
               </Route>
               <Route
                 path="/staff"
                 element={<Navigate to="/staff/dashboard/applications" replace />}
-              />              
-            </Routes>      
+              />
+            </Routes>
           </div>
           {/* AI ChatBot - appears on all pages */}
           <ChatBot />

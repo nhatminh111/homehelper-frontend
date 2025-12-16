@@ -19,7 +19,6 @@ const ChatWindow = ({
   onMarkAsRead,
   onTyping,
   onLoadMore,
-  
   isConnected,
   afterMessagesInline
 }) => {

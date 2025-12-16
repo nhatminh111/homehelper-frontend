@@ -174,6 +174,82 @@ class SocketService {
       console.log('🟢 Online users list:', data);
       this.emit('online_users', data);
     });
+
+    // Audio call events
+    this.socket.on('incoming_call', (data) => {
+      console.log('📱 Incoming call received:', data);
+      this.emit('incoming_call', data);
+    });
+
+    this.socket.on('call_accepted', (data) => {
+      console.log('✅ Call accepted (remote - for caller):', data);
+      this.emit('call_accepted', data);
+      // Dispatch window event for useAudioCall hook
+      window.dispatchEvent(new CustomEvent('socket_call_accepted', { detail: data }));
+    });
+
+    this.socket.on('call_accepted_self', (data) => {
+      console.log('✅ Call accepted self (callee confirmation):', data);
+      this.emit('call_accepted_self', data);
+      // Dispatch window event for useAudioCall hook
+      window.dispatchEvent(new CustomEvent('socket_call_accepted_self', { detail: data }));
+    });
+
+    this.socket.on('call_rejected', (data) => {
+      console.log('❌ Call rejected:', data);
+      this.emit('call_rejected', data);
+      // Dispatch window event
+      window.dispatchEvent(new CustomEvent('socket_call_rejected', { detail: data }));
+    });
+
+    this.socket.on('call_rejected_self', (data) => {
+      console.log('❌ Call rejected self:', data);
+      this.emit('call_rejected_self', data);
+      // Dispatch window event
+      window.dispatchEvent(new CustomEvent('socket_call_rejected_self', { detail: data }));
+    });
+
+    this.socket.on('call_ended', (data) => {
+      console.log('📞 Call ended:', data);
+      this.emit('call_ended', data);
+      // Dispatch window event for useAudioCall hook
+      window.dispatchEvent(new CustomEvent('socket_call_ended', { detail: data }));
+    });
+
+    this.socket.on('call_ended_self', (data) => {
+      console.log('📞 Call ended self:', data);
+      this.emit('call_ended_self', data);
+      // Dispatch window event
+      window.dispatchEvent(new CustomEvent('socket_call_ended_self', { detail: data }));
+    });
+
+    this.socket.on('webrtc_offer', (data) => {
+      console.log('🔊 WebRTC offer received:', data);
+      this.emit('webrtc_offer', data);
+      // Dispatch window event for useAudioCall hook
+      window.dispatchEvent(new CustomEvent('socket_webrtc_offer', { detail: data }));
+    });
+
+    this.socket.on('webrtc_answer', (data) => {
+      console.log('🔊 WebRTC answer received:', data);
+      this.emit('webrtc_answer', data);
+      // Dispatch window event for useAudioCall hook
+      window.dispatchEvent(new CustomEvent('socket_webrtc_answer', { detail: data }));
+    });
+
+    this.socket.on('ice_candidate', (data) => {
+      console.log('❄️ ICE candidate received:', data);
+      this.emit('ice_candidate', data);
+      // Dispatch window event for useAudioCall hook
+      window.dispatchEvent(new CustomEvent('socket_ice_candidate', { detail: data }));
+    });
+
+    this.socket.on('call_error', (data) => {
+      console.log('❌ Call error:', data);
+      this.emit('call_error', data);
+      // Dispatch window event for useAudioCall hook
+      window.dispatchEvent(new CustomEvent('socket_call_error', { detail: data }));
+    });
   }
 
   // Xử lý reconnect

@@ -59,6 +59,7 @@ export default function TaskerBookingDetail() {
   const [error, setError] = useState(null);
 
   const [showCancelWarning, setShowCancelWarning] = useState(false);
+  const [showSosAcceptWarning, setShowSosAcceptWarning] = useState(false);
   const [cancelType, setCancelType] = useState(null); // "normal" hoặc "late"
 
   // 🧾 Giải nén dữ liệu booking
@@ -118,7 +119,14 @@ export default function TaskerBookingDetail() {
 
       } catch (err) {
         console.error("❌ Lỗi fetch booking:", err);
-        setError("Không thể tải thông tin booking. Vui lòng thử lại sau.");
+        if (err.response && err.response.data && err.response.data.code === 'SOS_TAKEN') {
+          setAlreadyTaken(true);
+          setError("Đơn SOS này đã được người khác nhận.");
+        } else if (err.response && err.response.status === 403) {
+          setError("Bạn không có quyền truy cập booking này.");
+        } else {
+          setError("Không thể tải thông tin booking. Vui lòng thử lại sau.");
+        }
       } finally {
         setLoading(false);
       }
@@ -235,8 +243,13 @@ export default function TaskerBookingDetail() {
       }
 
       // If check passed or not SOS, proceed with accepting
+      const isSosAccept = (type === 'SOS' && newStatus === 'Đã chấp nhận');
+      const endpoint = isSosAccept
+        ? `http://localhost:3001/api/bookings/${booking_id}/status-sos`
+        : `http://localhost:3001/api/bookings/${booking_id}/status`;
+
       const response = await fetch(
-        `http://localhost:3001/api/bookings/${booking_id}/status`,
+        endpoint,
         {
           method: "PATCH",
           headers: {
@@ -411,7 +424,7 @@ export default function TaskerBookingDetail() {
           z-index: 2000;
       }
 
-      .cancel-box {
+      .cancel-box, .sos-accept-box {
           background: white;
           padding: 24px;
           border-radius: 12px;
@@ -426,6 +439,39 @@ export default function TaskerBookingDetail() {
           to { opacity: 1; transform: translateY(0); }
       }
       `}</style>
+
+      {/* Modal xác nhận chấp nhận SOS */}
+      {showSosAcceptWarning && (
+        <div className="cancel-overlay">
+          <div className="sos-accept-box text-center">
+            <h4 className="fw-bold text-danger mb-3">⚠️ Xác nhận nhận việc SOS</h4>
+            <p className="mb-4">
+              Lưu ý: Nếu bạn hủy đơn SOS sau khi đã xác nhận, bạn sẽ bị
+              <span className="fw-bold text-danger mx-1">trừ 30 điểm uy tín</span>
+              bất kể lý do (kể cả khi khách chưa thanh toán).
+            </p>
+            <div className="d-flex justify-content-center gap-3">
+              <Button
+                variant="secondary"
+                onClick={() => setShowSosAcceptWarning(false)}
+                className="px-4"
+              >
+                Hủy bỏ
+              </Button>
+              <Button
+                variant="danger"
+                onClick={() => {
+                  setShowSosAcceptWarning(false);
+                  handleStatusUpdate("Đã chấp nhận");
+                }}
+                className="px-4"
+              >
+                Vẫn chấp nhận
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Tiêu đề */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
@@ -660,7 +706,13 @@ export default function TaskerBookingDetail() {
                 size="lg"
                 className="px-5 fw-semibold"
                 style={{ borderRadius: "10px", minWidth: "160px" }}
-                onClick={() => handleStatusUpdate("Đã chấp nhận")}
+                onClick={() => {
+                  if (type === 'SOS') {
+                    setShowSosAcceptWarning(true);
+                  } else {
+                    handleStatusUpdate("Đã chấp nhận");
+                  }
+                }}
               >
                 ✅ Chấp nhận công việc
               </Button>
@@ -680,7 +732,10 @@ export default function TaskerBookingDetail() {
                   setShowCancelWarning(true);
                 }}
               >
-                ❌ Hủy công việc (Không trừ điểm)
+                {type === 'SOS'
+                  ? "❌ Hủy công việc (Trừ 30 điểm)"
+                  : "❌ Hủy công việc (Không trừ điểm)"
+                }
               </Button>
             </>
           )}
@@ -820,13 +875,26 @@ export default function TaskerBookingDetail() {
             )}
 
             {cancelType === "free-confirm" && (
-              <p className="mt-3">
-                Khách hàng hiện <strong>chưa thanh toán</strong> cho công việc này.
-                <br />
-                Bạn có chắc chắn muốn hủy công việc không?
-                <br />
-                <span className="text-muted small">Hủy trường hợp này sẽ không bị trừ điểm uy tín.</span>
-              </p>
+              <div className="mt-3">
+                {type === 'SOS' ? (
+                  <>
+                    <p className="fw-bold text-danger">⚠️ CẢNH BÁO SOS</p>
+                    <p>
+                      Đây là đơn SOS. Nếu bạn hủy đơn này,
+                      <br />
+                      bạn sẽ bị <span className="text-danger fw-bold">TRỪ 30 ĐIỂM UY TÍN</span> ngay lập tức.
+                    </p>
+                  </>
+                ) : (
+                  <p>
+                    Khách hàng hiện <strong>chưa thanh toán</strong> cho công việc này.
+                    <br />
+                    Bạn có chắc chắn muốn hủy công việc không?
+                    <br />
+                    <span className="text-muted small">Hủy trường hợp này sẽ không bị trừ điểm uy tín.</span>
+                  </p>
+                )}
+              </div>
             )}
 
             {cancelType === "late" || cancelType === "normal" && (
@@ -854,8 +922,11 @@ export default function TaskerBookingDetail() {
               )}
 
               {cancelType === "free-confirm" && (
-                <Button variant="danger" onClick={handleCancelFreeConfirm}>
-                  Xác nhận hủy
+                <Button
+                  variant="danger"
+                  onClick={type === 'SOS' ? handleCancelTask : handleCancelFreeConfirm}
+                >
+                  {type === 'SOS' ? "Xác nhận hủy (–30)" : "Xác nhận hủy"}
                 </Button>
               )}
             </div>
