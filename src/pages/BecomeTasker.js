@@ -47,12 +47,19 @@ const getAuthToken = () => {
 
 const decodeJwt = (token) => {
   try {
+    if (!token || typeof token !== 'string') return null;
     const parts = token.split('.');
     if (parts.length !== 3) return null;
-    const payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    let payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    // Add padding if needed for base64 decoding
+    const padding = (4 - payload.length % 4) % 4;
+    payload = payload + '='.repeat(padding);
     const json = JSON.parse(decodeURIComponent(escape(window.atob(payload))));
     return json;
-  } catch { return null; }
+  } catch (e) {
+    console.warn('Failed to decode JWT:', e.message);
+    return null;
+  }
 };
 
 // --- Name comparison helpers for holder vs account name ---

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { authAPI } from "../services/api";
+import api from "../services/api";
 
 const AuthContext = createContext();
 
@@ -24,6 +25,13 @@ export const AuthProvider = ({ children }) => {
         try {
           const response = await authAPI.getCurrentUser(token);
           setUser(response.user);
+          if (response.user.role === "Tasker") {
+            const taskerInfo = await api.get(`/tasker/${response.user.user_id}`);
+            setUser({
+              ...response.user,
+              reliability_score: taskerInfo.data.reliability_score
+            });
+          }
           const oldUser = JSON.parse(localStorage.getItem("user") || "{}");
           localStorage.setItem(
             "user",

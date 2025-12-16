@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Button, Badge, Spinner, Alert, Toast } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
-import api from '../services/api';
-import socketService from '../services/socketService';
+import socketService from '../../services/socketService';
 import api from '../../services/api';
 
 
@@ -24,7 +23,7 @@ export default function TaskerBookings() {
   useEffect(() => {
     const interval = setInterval(() => {
       setRefreshTrigger(prev => prev + 1);
-      
+
       // Remove expired SOS jobs
       setBookings(prev => prev.filter(b => {
         if (b.type === 'SOS' && b.sos_expires_at) {
@@ -41,46 +40,46 @@ export default function TaskerBookings() {
   // Listen for incoming SOS jobs via socket and prepend to bookings list (with dedup)
   useEffect(() => {
     const handleNewSos = (event) => {
-      
-  // ĐẢM BẢO lấy đúng data, không dùng e.detail || e nữa
-  const data = event.detail ?? event.data ?? event;
-  
-  console.log('Raw socket event:', event);
-  console.log('Parsed SOS data:', data);
 
-  if (!data || !data.booking_id) {
-    console.warn('Invalid SOS payload:', event);
-    return;
-  }
+      // ĐẢM BẢO lấy đúng data, không dùng e.detail || e nữa
+      const data = event.detail ?? event.data ?? event;
 
-  setBookings(prev => {
-    const exists = prev.some(b => b.booking_id === data.booking_id);
-    if (exists) return prev;
+      console.log('Raw socket event:', event);
+      console.log('Parsed SOS data:', data);
 
-    const newBooking = {
-      booking_id: data.booking_id,
-      customer_name: data.customer_name || 'Khách hàng',
-      service_name: data.service_name,
-      variant_name: data.variant_name || '',
-      task_description: data.description || data.task_description || '',
-      start_time: data.start_time || new Date().toISOString(),
-      final_price: data.final_price,
-      expected_price: data.expected_price || data.final_price,
-      status: 'Chờ xử lý',
-      type: 'SOS',
-      sos_expires_at: data.sos_expires_at,  // ← BẮT BUỘC phải có
-      location: data.location || ''
+      if (!data || !data.booking_id) {
+        console.warn('Invalid SOS payload:', event);
+        return;
+      }
+
+      setBookings(prev => {
+        const exists = prev.some(b => b.booking_id === data.booking_id);
+        if (exists) return prev;
+
+        const newBooking = {
+          booking_id: data.booking_id,
+          customer_name: data.customer_name || 'Khách hàng',
+          service_name: data.service_name,
+          variant_name: data.variant_name || '',
+          task_description: data.description || data.task_description || '',
+          start_time: data.start_time || new Date().toISOString(),
+          final_price: data.final_price,
+          expected_price: data.expected_price || data.final_price,
+          status: 'Chờ xử lý',
+          type: 'SOS',
+          sos_expires_at: data.sos_expires_at,  // ← BẮT BUỘC phải có
+          location: data.location || ''
+        };
+
+        return [newBooking, ...prev];
+      });
     };
-
-    return [newBooking, ...prev];
-  });
-};
 
     const handleTaken = (e) => {
       const data = e.detail || e;
       setBookings(prev => prev.map(b => b.booking_id === data.booking_id ? { ...b, status: 'Đã chấp nhận' } : b));
       setTakenSosJobs(prev => new Set([...prev, data.booking_id]));
-      
+
       // Show toast if this job was on current user's screen
       if (data.taken_by_tasker_id) {
         setToastMessage({ type: 'info', message: `Đơn SOS #${data.booking_id} đã được ${data.taken_by_name || 'người khác'} nhận` });
@@ -139,15 +138,15 @@ export default function TaskerBookings() {
 
       const regularData = await regularResponse.json();
       const sosData = await sosResponse.json();
-      
+
       if (regularData.success && sosData.success) {
         // Combine SOS jobs with regular bookings, SOS jobs first
         const sosJobs = sosData.data || [];
         const regularBookings = regularData.data || [];
-        
+
         // Filter out any SOS jobs from regular bookings to avoid duplicates
         const filteredRegularBookings = regularBookings.filter(b => b.type !== 'SOS');
-        
+
         // Merge: SOS jobs first, then regular bookings
         setBookings([...sosJobs, ...filteredRegularBookings]);
       } else {
@@ -174,12 +173,12 @@ export default function TaskerBookings() {
       });
 
       const data = await response.json();
-      
+
       if (data.success) {
         // Cập nhật trạng thái trong danh sách
-        setBookings(prevBookings => 
-          prevBookings.map(booking => 
-            booking.booking_id === bookingId 
+        setBookings(prevBookings =>
+          prevBookings.map(booking =>
+            booking.booking_id === bookingId
               ? { ...booking, status: newStatus }
               : booking
           )
@@ -195,9 +194,24 @@ export default function TaskerBookings() {
   };
 
   const handleBookingClick = (booking) => {
-    // Navigate to preview page with booking data
-    navigate(`/tasker/bookings/${booking.booking_id}`, { 
-      state: { booking } 
+    // Nếu đang chờ khách hoặc admin xác nhận → vào trang job done
+    if (booking.status === "Chờ xác nhận") {
+      return navigate(`/tasker/bookings/${booking.booking_id}/jobdone`, {
+        state: { booking }
+      });
+    }
+
+    // Nếu đang trong quá trình → vào progress
+    if (booking.status === "Đang tiến hành") {
+      return navigate(`/tasker/bookings/${booking.booking_id}/progress`, {
+        replace: true,
+        state: { booking }
+      });
+    }
+
+    // Các trạng thái còn lại → vào trang detail như cũ
+    navigate(`/tasker/bookings/${booking.booking_id}`, {
+      state: { booking }
     });
   };
 
@@ -207,14 +221,17 @@ export default function TaskerBookings() {
       'Đã chấp nhận': { variant: 'success', text: 'Đã chấp nhận' },
       'Đang tiến hành': { variant: 'info', text: 'Đang tiến hành' },
       'Hoàn thành': { variant: 'primary', text: 'Hoàn thành' },
-      'Hủy': { variant: 'danger', text: 'Hủy' }
+      'Hủy': { variant: 'danger', text: 'Hủy' },
+      'Chờ duyệt báo cáo': { variant: 'warning', text: 'Chờ duyệt báo cáo' },
+      'Báo cáo được duyệt': { variant: 'info', text: 'Báo cáo được duyệt' },
+      'Báo cáo bị từ chối': { variant: 'dark', text: 'Báo cáo bị từ chối' },
     };
-    
+
     const statusInfo = statusMap[status] || { variant: 'secondary', text: status };
     return <Badge bg={statusInfo.variant}>{statusInfo.text}</Badge>;
   };
-const getTimeRemaining = (expiresAt) => {
-  if (!expiresAt) return null;
+  const getTimeRemaining = (expiresAt) => {
+    if (!expiresAt) return null;
 
     // Parse timestamp directly. 
     // Socket sends UTC (ending in Z), API sends Local (no Z).
@@ -222,21 +239,21 @@ const getTimeRemaining = (expiresAt) => {
     const expires = new Date(expiresAt);
     const now = new Date();
 
-  const diffMs = expires.getTime() - now.getTime();
-  if (diffMs <= 0) return 'Hết hạn';
+    const diffMs = expires.getTime() - now.getTime();
+    if (diffMs <= 0) return 'Hết hạn';
 
-  const totalSeconds = Math.floor(diffMs / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
+    const totalSeconds = Math.floor(diffMs / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
 
-  if (minutes > 0) {
-    return `${minutes}m ${seconds}s`;
-  }
-  return `${seconds}s`;
-};
+    if (minutes > 0) {
+      return `${minutes}m ${seconds}s`;
+    }
+    return `${seconds}s`;
+  };
 
   const formatDate = (dateString) => {
-        if (!dateString) return '';
+    if (!dateString) return '';
     const date = new Date(dateString);
     const endsWithZ = /z$/i.test(String(dateString)); // ISO UTC like 2025-09-20T12:07:00Z
     const options = {
@@ -247,7 +264,7 @@ const getTimeRemaining = (expiresAt) => {
       minute: '2-digit',
       hour12: false,
     };
- if (endsWithZ) {
+    if (endsWithZ) {
       return new Intl.DateTimeFormat('vi-VN', { ...options, timeZone: 'UTC' }).format(date);
     }
     // Otherwise, render with default locale settings
@@ -299,7 +316,7 @@ const getTimeRemaining = (expiresAt) => {
                     size="sm"
                     className="px-3 py-2 rounded-pill"
                     onClick={() => setFilterStatus('all')}
-                    style={{ 
+                    style={{
                       borderRadius: '20px',
                       fontWeight: '500',
                       transition: 'all 0.3s ease'
@@ -313,7 +330,7 @@ const getTimeRemaining = (expiresAt) => {
                     size="sm"
                     className="px-3 py-2 rounded-pill"
                     onClick={() => setFilterStatus('Chờ xử lý')}
-                    style={{ 
+                    style={{
                       borderRadius: '20px',
                       fontWeight: '500',
                       transition: 'all 0.3s ease'
@@ -327,7 +344,7 @@ const getTimeRemaining = (expiresAt) => {
                     size="sm"
                     className="px-3 py-2 rounded-pill"
                     onClick={() => setFilterStatus('Đã chấp nhận')}
-                    style={{ 
+                    style={{
                       borderRadius: '20px',
                       fontWeight: '500',
                       transition: 'all 0.3s ease'
@@ -341,7 +358,7 @@ const getTimeRemaining = (expiresAt) => {
                     size="sm"
                     className="px-3 py-2 rounded-pill"
                     onClick={() => setFilterStatus('Hoàn thành')}
-                    style={{ 
+                    style={{
                       borderRadius: '20px',
                       fontWeight: '500',
                       transition: 'all 0.3s ease'
@@ -355,7 +372,7 @@ const getTimeRemaining = (expiresAt) => {
                     size="sm"
                     className="px-3 py-2 rounded-pill"
                     onClick={() => setFilterStatus('Hủy')}
-                    style={{ 
+                    style={{
                       borderRadius: '20px',
                       fontWeight: '500',
                       transition: 'all 0.3s ease'
@@ -370,11 +387,11 @@ const getTimeRemaining = (expiresAt) => {
           </Col>
         </Row>
 
-      {error && (
-        <Alert variant="danger" className="mb-4">
-          {error}
-        </Alert>
-      )}
+        {error && (
+          <Alert variant="danger" className="mb-4">
+            {error}
+          </Alert>
+        )}
 
         {bookings.length === 0 ? (
           <Row>
@@ -394,9 +411,9 @@ const getTimeRemaining = (expiresAt) => {
           <Row className="g-4">
             {bookings.map((booking) => (
               <Col key={booking.booking_id} lg={6} xl={4}>
-                <Card 
-                  className="h-100 border-0 shadow-lg booking-card" 
-                  style={{ 
+                <Card
+                  className="h-100 border-0 shadow-lg booking-card"
+                  style={{
                     borderRadius: '20px',
                     transition: 'all 0.3s ease',
                     cursor: 'pointer',
@@ -435,8 +452,8 @@ const getTimeRemaining = (expiresAt) => {
                     {/* Customer Info */}
                     <div className="mb-3">
                       <div className="d-flex align-items-center mb-2">
-                        <div className="bg-primary rounded-circle d-flex align-items-center justify-content-center me-3" 
-                             style={{ width: '40px', height: '40px' }}>
+                        <div className="bg-primary rounded-circle d-flex align-items-center justify-content-center me-3"
+                          style={{ width: '40px', height: '40px' }}>
                           <i className="bi bi-person text-white"></i>
                         </div>
                         <div>
@@ -477,8 +494,8 @@ const getTimeRemaining = (expiresAt) => {
                           Mô tả
                         </h6>
                         <p className="text-muted small mb-0">
-                          {booking.task_description.length > 60 
-                            ? `${booking.task_description.substring(0, 60)}...` 
+                          {booking.task_description.length > 60
+                            ? `${booking.task_description.substring(0, 60)}...`
                             : booking.task_description}
                         </p>
                       </div>
@@ -496,7 +513,13 @@ const getTimeRemaining = (expiresAt) => {
                     <div className="mb-3">
                       <div className="bg-success bg-opacity-10 rounded-3 p-2 text-center">
                         <h5 className="fw-bold text-success mb-0">
-                          {formatPrice(booking.final_price)}
+                          {formatPrice(
+                            booking.paid_amount > 0
+                              ? booking.paid_amount
+                              : booking.final_price > 0
+                                ? booking.final_price
+                                : booking.expected_price
+                          )}
                         </h5>
                         <small className="text-muted">Giá</small>
                       </div>

@@ -212,6 +212,28 @@ export const authAPI = {
     });
     return handleResponse(response);
   },
+
+  // Update profile
+  uploadAvatar: async (file, token) => {
+    const formData = new FormData();
+    formData.append("avatar", file);
+
+    const response = await fetch(`${API_BASE_URL}/uploads/avatar`, {
+      method: "POST",
+      headers: createHeaders(token, true), // true = FormData
+      body: formData,
+    });
+    return handleResponse(response);
+  },
+
+  updateProfile: async (profileData, token) => {
+    const response = await fetch(`${API_BASE_URL}/auth/profile`, {
+      method: "PUT",
+      headers: createHeaders(token, false),
+      body: JSON.stringify(profileData),
+    });
+    return handleResponse(response);
+  },
 };
 
 // CCCD API

@@ -40,8 +40,13 @@ const NotificationBell = ({ className = '' }) => {
     };
   }, []);
 
-  // Handle bell click
+// Handle bell click
   const handleBellClick = () => {
+    // Nếu đang chuẩn bị MỞ dropdown thì gọi refresh ngay
+    if (!showDropdown) {
+      refreshNotifications(); 
+    }
+
     setShowDropdown(!showDropdown);
     
     // Animate bell

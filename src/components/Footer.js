@@ -65,6 +65,7 @@ const Footer = () => {
               <li><Link to="/portfolio" className="py-1 d-block">Works</Link></li>
               <li><Link to="/blog" className="py-1 d-block">Blog</Link></li>
               <li><Link to="/contact" className="py-1 d-block">Contact</Link></li>
+              <li><Link to="/terms-of-service" className="py-1 d-block">Điều khoản sử dụng</Link></li>
             </ul>
           </div>
           <div className="col-md-6 col-lg-3 mb-4 mb-md-0">
