@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { addressAPI, servicesAPI } from '../../services/api';
+import { formatVND } from '../../utils/formatVND';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faSearch,
@@ -1086,7 +1087,7 @@ const TaskerSearch = () => {
                                     const multiplier = Number(durationHours || 1);
                                     preview = Math.round(priceMax * multiplier * 1.3);
                                   }
-                                  return `${preview.toLocaleString('vi-VN')}đ`;
+                                  return formatVND(preview);
                                 })() : '—'}
                               </h4>
                             </div>

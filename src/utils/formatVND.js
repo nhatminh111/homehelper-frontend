@@ -1,2 +1,2 @@
 export const formatVND = (n) =>
-  (Number(n) || 0).toLocaleString('vi-VN') + '₫';
+  (Number(n) * 1000 || 0).toLocaleString('vi-VN') + '₫';
