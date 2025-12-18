@@ -32,7 +32,75 @@ export async function getBookingDetails(bookingId) {
   }
 }
 
+export async function getTaskerStats() {
+  try {
+    const token = api.getStoredToken();
+    const res = await api.get('/bookings/tasker/stats', {
+      token,
+      headers: {
+        'Cache-Control': 'no-cache',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      }
+    });
+    // Backend returns { success, data }
+    return res.data?.data || res.data;
+  } catch (error) {
+    console.error('Failed to get tasker stats:', error);
+    throw new Error(error?.message || error?.response?.data?.message || 'Không thể tải thống kê');
+  }
+}
+
+export async function getTaskerEarningsSeries(params = {}) {
+  const token = api.getStoredToken();
+  const res = await api.get('/bookings/tasker/earnings-series', { params, headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  return res.data?.data || [];
+}
+
+export async function getTaskerBookingsMonthly(params = {}) {
+  const token = api.getStoredToken();
+  const res = await api.get('/bookings/tasker/bookings-monthly', { params, headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  return res.data?.data || [];
+}
+
+export async function getTaskerSuccessCancel(params = {}) {
+  const token = api.getStoredToken();
+  const res = await api.get('/bookings/tasker/success-cancel', { params, headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  return res.data?.data || { completed: 0, cancelled: 0 };
+}
+
+export async function getTaskerUpcoming(params = {}) {
+  const token = api.getStoredToken();
+  const res = await api.get('/bookings/tasker/upcoming', { params, headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  return res.data?.data || [];
+}
+
+export async function getTaskerOverdue(params = {}) {
+  const token = api.getStoredToken();
+  const res = await api.get('/bookings/tasker/overdue', { params, headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  return res.data?.data || [];
+}
+
+export async function getTaskerRecentReviews(params = {}) {
+  const token = api.getStoredToken();
+  const res = await api.get('/bookings/tasker/reviews', { params, headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  return res.data?.data || [];
+}
+
+export async function getTaskerByService(params = {}) {
+  const token = api.getStoredToken();
+  const res = await api.get('/bookings/tasker/by-service', { params, headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  return res.data?.data || [];
+}
+
 export default {
   updateFinalPrice,
   getBookingDetails,
+  getTaskerStats,
+  getTaskerEarningsSeries,
+  getTaskerBookingsMonthly,
+  getTaskerSuccessCancel,
+  getTaskerUpcoming,
+  getTaskerOverdue,
+  getTaskerRecentReviews,
+  getTaskerByService,
 };

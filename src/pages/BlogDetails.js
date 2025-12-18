@@ -13,6 +13,8 @@ const BlogDetails = () => {
   const [post, setPost] = useState(null);
   const [comments, setComments] = useState([]);
   const [services, setServices] = useState([]);
+  const [relatedPosts, setRelatedPosts] = useState([]);
+  const [relatedLoading, setRelatedLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [newComment, setNewComment] = useState('');
@@ -30,15 +32,17 @@ const BlogDetails = () => {
     try {
       setLoading(true);
 
-      const [postData, commentsData, servicesData] = await Promise.all([
+      const [postData, commentsData, servicesData, relatedData] = await Promise.all([
         blogService.getPostById(id),
         blogService.getPostComments(id),
-        blogService.getPostServices(id)
+        blogService.getPostServices(id),
+        blogService.getRelatedPosts(id, { strategy: 'combined', limit: 30 })
       ]);
 
       const post = postData.data;
       const comments = commentsData.data || [];
       const services = servicesData.data || [];
+      const related = relatedData.data || [];
 
       console.log('post:', post);
       console.log('services:', comments);
@@ -47,6 +51,7 @@ const BlogDetails = () => {
       setPost(post);
       setComments(comments);
       setServices(services);
+      setRelatedPosts(related);
       setLikesCount(post.likes || 0);
 
       // Check like status
@@ -63,7 +68,25 @@ const BlogDetails = () => {
       console.error('Error fetching post details:', err);
     } finally {
       setLoading(false);
+      setRelatedLoading(false);
     }
+  };
+
+  const getFirstPhoto = (photoField) => {
+    // Accept array, JSON string array, single URL string
+    if (!photoField) return '/images/bg_1.jpg';
+    if (Array.isArray(photoField) && photoField.length > 0) return photoField[0];
+    if (typeof photoField === 'string' && photoField.trim() !== '') {
+      try {
+        const parsed = JSON.parse(photoField);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed[0];
+        // maybe it's a single URL string already
+        return photoField;
+      } catch (_) {
+        return photoField; // fallback to raw string
+      }
+    }
+    return '/images/bg_1.jpg';
   };
 
   const handleLike = async () => {
@@ -135,11 +158,14 @@ const BlogDetails = () => {
   };
 
   const formatPrice = (price) => {
-    if (!price) return '';
+    if (price == null) return '';
+    const n = Number(price);
+    if (Number.isNaN(n)) return '';
+    const value = n * 1000; // convert from thousands to VND
     return new Intl.NumberFormat('vi-VN', {
       style: 'currency',
       currency: 'VND'
-    }).format(price);
+    }).format(value);
   };
 
   // Helper: get preview image
@@ -165,20 +191,6 @@ const BlogDetails = () => {
           <span className="visually-hidden">Đang tải...</span>
         </div>
         <p>Đang tải chi tiết bài viết...</p>
-      </div>
-    );
-  }
-
-  if (error || !post) {
-    return (
-      <div className="blog-details-error">
-        <div className="error-content">
-          <h2>Không tìm thấy bài viết</h2>
-          <p>{error || 'Bài viết không tồn tại hoặc đã bị xóa.'}</p>
-          <Link to="/blog" className="btn btn-primary">
-            Quay lại danh sách
-          </Link>
-        </div>
       </div>
     );
   }
@@ -220,9 +232,6 @@ const BlogDetails = () => {
                     </div>
                   </div>
                   <div className="post-stats">
-                    <span className="stat-item">
-                      <i className="fas fa-eye"></i> {post.views || 0}
-                    </span>
                     <span className={`stat-item like-count ${liked ? 'liked' : ''}`}>
                       <i className="fas fa-heart"></i> {likesCount}
                     </span>
@@ -460,7 +469,28 @@ const BlogDetails = () => {
               <div className="sidebar-widget">
                 <h4>Bài viết liên quan</h4>
                 <div className="related-posts">
-                  <p>Đang tải bài viết liên quan...</p>
+                  {relatedLoading ? (
+                    <p>Đang tải bài viết liên quan...</p>
+                  ) : relatedPosts.length === 0 ? (
+                    <p>Chưa có bài viết liên quan.</p>
+                  ) : (
+                    relatedPosts.slice(0, 8).map((rp) => (
+                      <div key={rp.post_id} className="related-post-item">
+                        <Link to={`/blog/${rp.post_id}`} className="related-post-link">
+                          <div className="related-post-thumb">
+                            <img src={getFirstPhoto(rp.photo_urls)} alt={rp.title} loading="lazy" decoding="async" />
+                          </div>
+                          <div className="related-post-meta">
+                            <h6 className="related-post-title">{rp.title}</h6>
+                            <span className="related-post-date">{formatDate(rp.post_date)}</span>
+                          </div>
+                        </Link>
+                      </div>
+                    ))
+                  )}
+                  {(!relatedLoading && relatedPosts.length > 8) && (
+                    <Link to="/blog" className="btn btn-link related-toggle">Xem thêm</Link>
+                  )}
                 </div>
               </div>
 

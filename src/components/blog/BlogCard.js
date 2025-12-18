@@ -4,6 +4,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faThumbsUp, faComment, faHeart, faEye, faTag } from '@fortawesome/free-solid-svg-icons';
 import './BlogCard.css';
 
+
 const BlogCard = ({ post, onLikeToggle, user }) => {
   const [isLiked, setIsLiked] = useState(post.isLiked || false);
   const [likesCount, setLikesCount] = useState(post.likes || 0);
@@ -72,7 +73,7 @@ const BlogCard = ({ post, onLikeToggle, user }) => {
         <div className="blog-image" style={{ backgroundImage: `url(${getFeaturedImage()})` }}></div>
         <div className="blog-meta">
           <div className="author-avatar">
-            <img src={post.author_avatar_url || "/images/person_1.jpg"} alt={post.author_name} />
+            <img src={post.author_avatar_url || "/images/person_1.jpg"} alt={post.author_name} /> 
           </div>
           <div className="meta-text">
             <div className="author">Posted by {post.author_name}</div>
@@ -111,9 +112,6 @@ const BlogCard = ({ post, onLikeToggle, user }) => {
           </button>
           <span className="stat-item comment-section">
             <span className="comment-icon"><FontAwesomeIcon icon={faComment} /></span> <span className="stat-count">{post.comments_count || 0}</span>
-          </span>
-          <span className="stat-item view-section">
-            <span className="view-icon"><FontAwesomeIcon icon={faEye} /></span> <span className="stat-count">{formatNumber(post.views || 0)}</span>
           </span>
         </div>
       </div>

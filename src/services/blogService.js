@@ -157,6 +157,19 @@ class BlogService {
     }
   }
 
+  // Lấy bài viết liên quan
+  async getRelatedPosts(postId, { strategy = 'auto', limit = 5, includeVariant = false } = {}) {
+    try {
+      const response = await api.get(`/blogs/${postId}/related`, {
+        params: { strategy, limit, includeVariant },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching related posts:', error);
+      throw error;
+    }
+  }
+
   // Lấy thống kê
   async getStats() {
     try {

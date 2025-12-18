@@ -52,7 +52,7 @@ const parseChecklist = (rawChecklist) => {
 export default function TaskerBookingDetail() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { id } = useParams(); // ví dụ: /tasker/bookings/:id
+  const { id } = useParams(); 
 
   const [booking, setBooking] = useState(location.state?.booking || null);
   const [loading, setLoading] = useState(false);
@@ -63,6 +63,8 @@ export default function TaskerBookingDetail() {
   const [cancelType, setCancelType] = useState(null); // "normal" hoặc "late"
 
   // 🧾 Giải nén dữ liệu booking
+  // Safely destructure with a fallback when booking is null (e.g., direct URL navigation)
+  const safeBooking = booking || {};
   const {
     booking_id,
     task_description,

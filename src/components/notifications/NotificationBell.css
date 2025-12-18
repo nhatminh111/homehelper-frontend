@@ -9,9 +9,9 @@
   position: relative;
   width: 40px;
   height: 40px;
-  border: none;
-  background: none;
-  color: #6c757d;
+  border: 1px solid #e9ecef;
+  background-color: #ffffff;
+  color: #343a40;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -19,16 +19,19 @@
   cursor: pointer;
   transition: all 0.2s ease-in-out;
   font-size: 1.1rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .bell-button:hover {
-  color: #495057;
+  color: #212529;
   background-color: #f8f9fa;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
 }
 
 .bell-button.active {
   color: #007bff;
   background-color: #e3f2fd;
+  border-color: #cfe2ff;
 }
 
 /* .bell-button.animating {
@@ -104,17 +107,22 @@
 /* Dark Mode Support */
 @media (prefers-color-scheme: dark) {
   .bell-button {
-    color: #adb5bd;
+    color: #e9ecef;
+    background-color: #2d2d2d;
+    border-color: #3a3a3a;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
   }
 
   .bell-button:hover {
-    color: #e9ecef;
-    background-color: #404040;
+    color: #ffffff;
+    background-color: #3a3a3a;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
   }
 
   .bell-button.active {
     color: #80bdff;
     background-color: #1e3a5f;
+    border-color: #1e3a5f;
   }
 
   .unread-badge {

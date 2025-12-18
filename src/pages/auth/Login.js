@@ -42,7 +42,7 @@ const Login = () => {
       const role = storedUser.role;
       let dest = "/";
       if (role === "Customer") dest = "/";
-      else if (role === "Tasker") dest = "/";
+      else if (role === "Tasker") dest = "/tasker/dashboard";
       else if (role === "Admin") dest = "/admin";
       else if (role === "Staff") dest = "/staff/dashboard";
       navigate(dest, { replace: true });
@@ -125,7 +125,7 @@ const Login = () => {
       // Redirect theo role
       const role = response.user.role;
       if (role === "Customer") navigate("/customer", { replace: true });
-      else if (role === "Tasker") navigate("/tasker", { replace: true });
+      else if (role === "Tasker") navigate("/tasker/dashboard", { replace: true });
       else if (role === "Admin") navigate("/admin", { replace: true });
       else if (role === "Staff") navigate("/staff/dashboard", { replace: true });
       else navigate("/", { replace: true });
@@ -256,10 +256,6 @@ const Login = () => {
               <FontAwesomeIcon icon={faGoogle} />
               <span>Continue with Google</span>
             </div>
-            <button className="social-button facebook">
-              <FontAwesomeIcon icon={faFacebook} />
-              <span>Continue with Facebook</span>
-            </button>
           </div>
 
           {/* Register Link */}
