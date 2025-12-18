@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { Container, Row, Col, Card, Button, Badge, Spinner, Alert } from "react-bootstrap";
 import NegotiatePriceButton from "../../components/negotiation/NegotiatePriceButton";
 import api from "../../services/api";
+import { formatVND } from "../../utils/formatVND";
 import { showToast } from "../../components/common/CustomToast";
 
 const parseChecklist = (rawChecklist) => {
@@ -84,9 +85,25 @@ export default function TaskerBookingDetail() {
     end_time,
     service_name,
     variant_name,
-  } = booking || {};
+    quantity,
+    unit,
+  } = booking;
 
-  const photos = booking?.task_photos ? JSON.parse(booking.task_photos) : [];
+  // Helper
+  const getDisplayUnit = (u) => {
+    if (!u) return "Lượt";
+    const lower = u.toLowerCase();
+    if (lower.includes("m2") || lower.includes("m²") || lower.includes("mét")) return "Mét vuông";
+    if (lower.includes("giờ") || lower.includes("hour")) return "Giờ";
+    if (lower.includes("ngày") || lower.includes("day")) return "Ngày";
+    if (lower.includes("tuần") || lower.includes("week")) return "Tuần";
+    if (lower.includes("tháng") || lower.includes("month")) return "Tháng";
+    if (lower.includes("buổi")) return "Buổi";
+    if (lower.includes("chiếc") || lower.includes("item")) return "Chiếc";
+    return u;
+  };
+
+  const photos = booking.task_photos ? JSON.parse(booking.task_photos) : [];
 
   const [previewImages, setPreviewImages] = useState([]);
 
@@ -175,7 +192,7 @@ export default function TaskerBookingDetail() {
 
   const formatPrice = (price) => {
     if (!price) return "Chưa có giá";
-    return new Intl.NumberFormat("vi-VN").format(price) + "đ";
+    return formatVND(price);
   };
 
   const formatDate = (t) => {
@@ -585,12 +602,28 @@ export default function TaskerBookingDetail() {
                     Thời lượng: {duration_days} ngày
                   </div>
                 ) : null}
+
+                {/* ⭐ HIỂN THỊ QUANTITY */}
+                {booking.quantity && booking.quantity > 1 && (
+                  <div>
+                    <i className="bi bi-boxes text-primary me-2"></i>
+                    Số lượng: <strong>{booking.quantity} {getDisplayUnit(booking.unit)}</strong>
+                  </div>
+                )}
+
                 {type ? (
                   <div>
                     <i className="bi bi-house-door text-primary me-2"></i>
                     Loại: {type}
                   </div>
                 ) : null}
+
+                {booking.description && (
+                  <div>
+                    <i className="bi bi-info-circle text-primary me-2"></i>
+                    Lưu ý: <strong>{booking.description}</strong>
+                  </div>
+                )}
 
                 {start_time && (
                   <div>
@@ -607,9 +640,16 @@ export default function TaskerBookingDetail() {
               <hr className="mt-4 mb-3" />
 
               <div>
-                <span className="fw-medium text-muted">Giá mong muốn</span>
+                <span className="fw-medium text-muted">
+                  {status !== "Chờ xử lý" && quantity > 1 ? "Tổng tiền" : "Giá mong muốn"}
+                </span>
                 <span className="fw-bold text-success fs-5 ms-2">
-                  {formatPrice(expected_price || final_price)}
+                  {(() => {
+                    const isFinalized = ["Đã chấp nhận", "Đã thanh toán", "Đang tiến hành", "Hoàn thành", "Chờ xác nhận", "Chờ duyệt báo cáo", "Báo cáo được duyệt", "Báo cáo bị từ chối"].includes(status);
+                    const mult = (isFinalized && quantity > 1) ? Number(quantity) : 1;
+                    const priceToShow = expected_price || final_price;
+                    return formatPrice(priceToShow * mult);
+                  })()}
                 </span>
               </div>
 
@@ -617,9 +657,15 @@ export default function TaskerBookingDetail() {
                 final_price !== "" &&
                 Number(final_price) !== 0 && (
                   <div className="mt-2">
-                    <span className="fw-medium text-muted">Giá sau thương lượng</span>
+                    <span className="fw-medium text-muted">
+                      {status !== "Chờ xử lý" && quantity > 1 ? "Tổng giá sau thương lượng" : "Giá sau thương lượng"}
+                    </span>
                     <span className="fw-bold text-primary fs-5 ms-2">
-                      {`${(Number(final_price)).toLocaleString("vi-VN")}đ`}
+                      {(() => {
+                        const isFinalized = ["Đã chấp nhận", "Đã thanh toán", "Đang tiến hành", "Hoàn thành", "Chờ xác nhận", "Chờ duyệt báo cáo", "Báo cáo được duyệt", "Báo cáo bị từ chối"].includes(status);
+                        const mult = (isFinalized && quantity > 1) ? Number(quantity) : 1;
+                        return formatVND(Number(final_price) * mult);
+                      })()}
                     </span>
                   </div>
                 )}

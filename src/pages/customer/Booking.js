@@ -7,6 +7,7 @@ import api from "../../services/api";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import TaskerService from '../../services/taskerService';
 import _ from "lodash";
+import { formatVND } from "../../utils/formatVND";
 
 function normalizeDate(d) {
     if (!d) return null;
@@ -15,12 +16,6 @@ function normalizeDate(d) {
     return d.toISOString().split("T")[0];
 }
 
-function formatVND(input) {
-    const n = Number(input);
-    if (Number.isNaN(n)) return "";
-    const value = Math.round(n * 1000);
-    return new Intl.NumberFormat("vi-VN").format(value) + "đ";
-}
 
 function formatTimeForDisplay(time) {
     if (!time) return "—";
@@ -370,8 +365,7 @@ export default function Booking() {
             return (
                 <>
                     <div>
-                        • <strong>Thời lượng:</strong>{" "}
-                        {selection.dates?.length ? `${selection.dates.length} ngày` : "—"}
+                        • <strong>Thời lượng: Ngày</strong>{" "}
                     </div>
                     <div>
                         •  <strong>Ngày đã chọn:</strong>{" "}
@@ -398,54 +392,61 @@ export default function Booking() {
         }
 
         if (unit === "Tuần") {
-            if (serviceId === 4 || serviceId === 8) {
-                return (
-                    <>
-                        <div>• <strong>Thời lượng: Tuần</strong></div>
-                        <div>
-                            • <strong>Thời gian:</strong>{" "}
-                            {selection.dates?.length
-                                ? `${new Date(selection.dates[0]).toLocaleDateString("vi-VN", {
-                                    day: "2-digit",
-                                    month: "2-digit",
-                                    year: "numeric",
-                                })} - ${new Date(selection.dates[selection.dates.length - 1]).toLocaleDateString("vi-VN", {
-                                    day: "2-digit",
-                                    month: "2-digit",
-                                    year: "numeric",
-                                })}`
-                                : "—"}
-                        </div>
-                        {selection.workHours === "Bán thời gian" ? (
-                            <div>• <strong>Giờ:</strong> 07:00 - 21:00</div>
-                        ) : selection.workHours === "Toàn thời gian" ? null : (
-                            <div>• <strong>Giờ:</strong> —</div>
-                        )}
-                    </>
-                );
-            } else if (serviceId === 3) {
-                return (
-                    <>
-                        <div>• <strong>Thời lượng: Tuần</strong></div>
-                        <div>
-                            • <strong>Thời gian:</strong>{" "}
-                            {selection.dates?.length
-                                ? `${new Date(selection.dates[0]).toLocaleDateString("vi-VN", {
-                                    day: "2-digit",
-                                    month: "2-digit",
-                                    year: "numeric",
-                                })} - ${new Date(selection.dates[selection.dates.length - 1]).toLocaleDateString("vi-VN", {
-                                    day: "2-digit",
-                                    month: "2-digit",
-                                    year: "numeric",
-                                })}`
-                                : "—"}
-                        </div>
-                    </>
-                )
-            }
+            return (
+                <>
+                    <div>• <strong>Thời lượng: Tuần</strong></div>
+                    <div>
+                        • <strong>Thời gian:</strong>{" "}
+                        {selection.dates?.length
+                            ? `${new Date(selection.dates[0]).toLocaleDateString("vi-VN", {
+                                day: "2-digit",
+                                month: "2-digit",
+                                year: "numeric",
+                            })} - ${new Date(selection.dates[selection.dates.length - 1]).toLocaleDateString("vi-VN", {
+                                day: "2-digit",
+                                month: "2-digit",
+                                year: "numeric",
+                            })}`
+                            : "—"}
+                    </div>
+                    {selection.workHours === "Bán thời gian" ? (
+                        <div>• <strong>Giờ:</strong> 07:00 - 21:00</div>
+                    ) : selection.workHours === "Toàn thời gian" ? (
+                        <div>• <strong>Giờ:</strong> Qua đêm</div>
+                    ) : (
+                        <div>• <strong>Giờ:</strong> —</div>
+                    )}
+                </>
+            );
+
 
         }
+
+        if (unit === "Buổi") {
+            if (serviceId === 1) {
+                return (
+                    <>
+                        <div>• <strong>Thời lượng:</strong> Buổi</div>
+                        <div>
+                            • <strong>Ngày bắt đầu:</strong>{" "}
+                            {selection.date
+                                ? new Date(selection.date).toLocaleDateString("vi-VN", {
+                                    day: "2-digit",
+                                    month: "2-digit",
+                                    year: "numeric",
+                                })
+                                : "—"}
+                        </div>
+                        <div>
+                            • <strong>Giờ bắt đầu:</strong>{" "}
+                            {selection.startTime || "—"}
+                        </div>
+                    </>
+                );
+            }
+        }
+
+
 
         if (unit === "Tháng") {
             return (
@@ -467,7 +468,9 @@ export default function Booking() {
                     </div>
                     {selection.workHours === "Bán thời gian" ? (
                         <div>• <strong>Giờ:</strong> 07:00 - 21:00</div>
-                    ) : selection.workHours === "Toàn thời gian" ? null : (
+                    ) : selection.workHours === "Toàn thời gian" ? (
+                        <div>• <strong>Giờ:</strong> Qua đêm</div>
+                    ) : (
                         <div>• <strong>Giờ:</strong> —</div>
                     )}
                 </>
@@ -504,30 +507,10 @@ export default function Booking() {
             );
         }
 
-        if (unit === "Buổi") {
-            return (
-                <>
-                    <div>• <strong>Thời lượng:</strong> Buổi</div>
-                    <div>
-                        • <strong>Ngày bắt đầu:</strong>{" "}
-                        {selection.date
-                            ? new Date(selection.date).toLocaleDateString("vi-VN", {
-                                day: "2-digit",
-                                month: "2-digit",
-                                year: "numeric",
-                            })
-                            : "—"}
-                    </div>
-                    <div>
-                        • <strong>Giờ bắt đầu:</strong>{" "}
-                        {selection.startTime || "—"}
-                    </div>
-                </>
-            );
-        }
-
         return null;
     }
+
+    const serviceId = chosenVariants[0]?.service_id || "";
 
     const totalPrice = chosenVariants.reduce((sum, v) => {
         let basePrice =
@@ -742,23 +725,24 @@ export default function Booking() {
                                         if (currentUnit === "Ngày") {
                                             return (
                                                 <Row className="mb-4">
-                                                    {/* Lịch chọn nhiều ngày */}
+                                                    {/* Lịch chọn ngày */}
                                                     <Col md={4} className="mb-3">
                                                         <Form.Group>
-                                                            <Form.Label className="fw-bold text-dark">Chọn một hoặc nhiều ngày</Form.Label>
-                                                            <DayPicker
-                                                                mode="multiple"
-                                                                selected={selection.dates || []}
-                                                                onSelect={(dates) =>
+                                                            <Form.Label className="fw-bold text-dark">Ngày bắt đầu</Form.Label>
+                                                            <Form.Control
+                                                                type="date"
+                                                                className="fw-semibold text-dark"
+                                                                value={selection.date}
+                                                                min={new Date().toISOString().split("T")[0]}
+                                                                onChange={(e) =>
                                                                     setSelection({
                                                                         ...selection,
-                                                                        dates: (dates || []).map(d => normalizeDate(d)),
-                                                                        date: dates?.[0] ? normalizeDate(dates[0]) : "",
+                                                                        date: e.target.value,
+                                                                        dates: [e.target.value],
                                                                         startTime: "07:00",
                                                                         endTime: "21:00"
                                                                     })
                                                                 }
-                                                                disabled={{ before: new Date() }}
                                                             />
                                                         </Form.Group>
                                                     </Col>
@@ -949,147 +933,160 @@ export default function Booking() {
                                             }
                                         }
 
-
-
                                         if (currentUnit === "Tháng") {
-                                            return (
-                                                <Row className="mb-4">
-                                                    {/* Ngày bắt đầu */}
-                                                    <Col md={4} className="mb-3">
-                                                        <Form.Group>
-                                                            <Form.Label className="fw-bold text-dark">Ngày bắt đầu</Form.Label>
-                                                            <InputGroup className="fw-semibold">
-                                                                <Form.Control
-                                                                    readOnly
-                                                                    value={
-                                                                        selection.date
-                                                                            ? new Date(selection.date).toLocaleDateString("vi-VN", {
-                                                                                day: "2-digit",
-                                                                                month: "2-digit",
-                                                                                year: "numeric",
-                                                                            })
-                                                                            : "Chưa chọn"
-                                                                    }
-                                                                    onClick={() => setShowCalendar(!showCalendar)}
-                                                                />
-                                                                <InputGroup.Text
-                                                                    style={{ cursor: "pointer" }}
-                                                                    onClick={() => setShowCalendar(!showCalendar)}
-                                                                >
-                                                                    📅
-                                                                </InputGroup.Text>
-                                                            </InputGroup>
+                                            const formatDate = (d) => {
+                                                const date = d instanceof Date ? d : new Date(d);
+                                                const year = date.getFullYear();
+                                                const month = String(date.getMonth() + 1).padStart(2, "0");
+                                                const day = String(date.getDate()).padStart(2, "0");
+                                                return `${year}-${month}-${day}`;
+                                            };
 
-                                                            {showCalendar && (
-                                                                <div className="mt-2">
-                                                                    <DayPicker
-                                                                        mode="multiple"
-                                                                        selected={selection.dates || []}
-                                                                        onSelect={(day) => {
-                                                                            if (!day) return;
+                                            if (serviceId === 4 || serviceId === 8) {
 
-                                                                            const days = Array.from({ length: 30 }, (_, i) => {
-                                                                                const date = new Date(day);
-                                                                                date.setDate(date.getDate() + i);
-                                                                                return date; // GIỮ DẠNG DATE
-                                                                            });
-
-                                                                            setSelection({
-                                                                                ...selection,
-                                                                                date: normalizeDate(day),
-                                                                                dates: days.map(d => normalizeDate(d)),
-                                                                            });
-                                                                        }}
-                                                                        modifiersClassNames={{
-                                                                            selected: "custom-selected-day",
-                                                                        }}
-                                                                        disabled={{ before: new Date() }}
-                                                                    />
-                                                                </div>
-                                                            )}
-                                                        </Form.Group>
-                                                    </Col>
-
-                                                    {/* Giờ bắt đầu */}
-                                                    {selection.workHours === "Toàn thời gian" ? null : (
-                                                        <>
-                                                            <Col md={{ span: 3, offset: 1 }} className="mb-3">
-                                                                <Form.Group>
-                                                                    <Form.Label className="fw-bold text-dark">Thời gian bắt đầu</Form.Label>
+                                                return (
+                                                    <Row className="mb-4">
+                                                        {/* Ngày bắt đầu */}
+                                                        <Col md={4} className="mb-3">
+                                                            <Form.Group>
+                                                                <Form.Label className="fw-bold text-dark">Ngày bắt đầu</Form.Label>
+                                                                <InputGroup className="fw-semibold">
                                                                     <Form.Control
-                                                                        type="time"
-                                                                        className="fw-semibold text-dark"
-                                                                        value="07:00"
-                                                                        disabled
+                                                                        readOnly
+                                                                        value={
+                                                                            selection.date
+                                                                                ? new Date(selection.date).toLocaleDateString("vi-VN", {
+                                                                                    day: "2-digit",
+                                                                                    month: "2-digit",
+                                                                                    year: "numeric",
+                                                                                })
+                                                                                : "Chưa chọn"
+                                                                        }
+                                                                        onClick={() => setShowCalendar(!showCalendar)}
                                                                     />
-                                                                </Form.Group>
-                                                            </Col>
-
-                                                            {/* Thời gian kết thúc (cố định) */}
-                                                            <Col md={{ span: 3, offset: 1 }} className="mb-3">
-                                                                <Form.Group>
-                                                                    <Form.Label className="fw-bold text-dark">Thời gian kết thúc</Form.Label>
-                                                                    <Form.Control
-                                                                        type="time"
-                                                                        className="fw-semibold text-dark"
-                                                                        value="21:00"
-                                                                        disabled
-                                                                    />
-                                                                </Form.Group>
-                                                            </Col>
-                                                        </>
-                                                    )}
-
-                                                    <Card className="border-0 shadow-sm p-3 mb-3 booking-options-card" style={{ borderRadius: 12 }}>
-                                                        <Card.Body>
-                                                            <div className="service-info-header d-flex align-items-center gap-2 mb-3">
-                                                                <span className="service-info-icon">🔄</span>
-                                                                <h6 className="service-info-text mb-0">Thông tin dịch vụ</h6>
-                                                            </div>
-
-                                                            <div className="mb-4">
-                                                                <Form.Label>Tần suất</Form.Label>
-                                                                <div className="d-flex gap-3">
-                                                                    <Button
-                                                                        variant={currentUnit === "Tuần" ? "teal" : "outline-light"}
-                                                                        className="flex-fill freq-btn"
-                                                                        disabled
+                                                                    <InputGroup.Text
+                                                                        style={{ cursor: "pointer" }}
+                                                                        onClick={() => setShowCalendar(!showCalendar)}
                                                                     >
-                                                                        Theo tuần
-                                                                    </Button>
-                                                                    <Button
-                                                                        variant={currentUnit === "Tháng" ? "teal" : "outline-light"}
-                                                                        className="flex-fill freq-btn"
-                                                                        disabled
-                                                                    >
-                                                                        Theo tháng
-                                                                    </Button>
+                                                                        📅
+                                                                    </InputGroup.Text>
+                                                                </InputGroup>
+
+                                                                {showCalendar && (
+                                                                    <div className="mt-2">
+                                                                        <DayPicker
+                                                                            mode="multiple"
+                                                                            selected={
+                                                                                selection.dates
+                                                                                    ? selection.dates.map((d) => new Date(d))
+                                                                                    : []
+                                                                            }
+                                                                            onSelect={(day) => {
+                                                                                if (!day) return;
+
+                                                                                const days = Array.from({ length: 30 }, (_, i) => {
+                                                                                    const date = new Date(day);
+                                                                                    date.setDate(date.getDate() + i);
+                                                                                    return formatDate(date); // GIỮ DẠNG DATE
+                                                                                });
+
+                                                                                setSelection({
+                                                                                    ...selection,
+                                                                                    date: formatDate(day),
+                                                                                    dates: days,
+                                                                                });
+                                                                            }}
+                                                                            modifiersClassNames={{
+                                                                                selected: "custom-selected-day",
+                                                                            }}
+                                                                            disabled={{ before: new Date() }}
+                                                                        />
+                                                                    </div>
+                                                                )}
+                                                            </Form.Group>
+                                                        </Col>
+
+                                                        {/* Giờ bắt đầu */}
+                                                        {selection.workHours === "Toàn thời gian" ? null : (
+                                                            <>
+                                                                <Col md={{ span: 3, offset: 1 }} className="mb-3">
+                                                                    <Form.Group>
+                                                                        <Form.Label className="fw-bold text-dark">Thời gian bắt đầu</Form.Label>
+                                                                        <Form.Control
+                                                                            type="time"
+                                                                            className="fw-semibold text-dark"
+                                                                            value="07:00"
+                                                                            disabled
+                                                                        />
+                                                                    </Form.Group>
+                                                                </Col>
+
+                                                                {/* Thời gian kết thúc (cố định) */}
+                                                                <Col md={{ span: 3, offset: 1 }} className="mb-3">
+                                                                    <Form.Group>
+                                                                        <Form.Label className="fw-bold text-dark">Thời gian kết thúc</Form.Label>
+                                                                        <Form.Control
+                                                                            type="time"
+                                                                            className="fw-semibold text-dark"
+                                                                            value="21:00"
+                                                                            disabled
+                                                                        />
+                                                                    </Form.Group>
+                                                                </Col>
+                                                            </>
+                                                        )}
+
+                                                        <Card className="border-0 shadow-sm p-3 mb-3 booking-options-card" style={{ borderRadius: 12 }}>
+                                                            <Card.Body>
+                                                                <div className="service-info-header d-flex align-items-center gap-2 mb-3">
+                                                                    <span className="service-info-icon">🔄</span>
+                                                                    <h6 className="service-info-text mb-0">Thông tin dịch vụ</h6>
                                                                 </div>
-                                                            </div>
 
-                                                            <div className="mb-4">
-                                                                <Form.Label>Tùy chọn ca làm cho người giúp việc:</Form.Label>
-                                                                <div className="d-flex gap-3">
-                                                                    <Button
-                                                                        variant={selection.workHours === "Bán thời gian" ? "teal" : "outline-light"}
-                                                                        className="flex-fill"
-                                                                        onClick={() => setSelection({ ...selection, workHours: "Bán thời gian" })}
-                                                                    >
-                                                                        Làm bán thời gian <br /> <small>(7h-21h)</small>
-                                                                    </Button>
-                                                                    <Button
-                                                                        variant={selection.workHours === "Toàn thời gian" ? "teal" : "outline-light"}
-                                                                        className="flex-fill"
-                                                                        onClick={() => setSelection({ ...selection, workHours: "Toàn thời gian" })}
-                                                                    >
-                                                                        Làm toàn thời gian <br /> <small>(Qua đêm)</small>
-                                                                    </Button>
+                                                                <div className="mb-4">
+                                                                    <Form.Label>Tần suất</Form.Label>
+                                                                    <div className="d-flex gap-3">
+                                                                        <Button
+                                                                            variant={currentUnit === "Tuần" ? "teal" : "outline-light"}
+                                                                            className="flex-fill freq-btn"
+                                                                            disabled
+                                                                        >
+                                                                            Theo tuần
+                                                                        </Button>
+                                                                        <Button
+                                                                            variant={currentUnit === "Tháng" ? "teal" : "outline-light"}
+                                                                            className="flex-fill freq-btn"
+                                                                            disabled
+                                                                        >
+                                                                            Theo tháng
+                                                                        </Button>
+                                                                    </div>
                                                                 </div>
-                                                            </div>
-                                                        </Card.Body>
-                                                    </Card>
-                                                </Row>
-                                            );
+
+                                                                <div className="mb-4">
+                                                                    <Form.Label>Tùy chọn ca làm cho người giúp việc:</Form.Label>
+                                                                    <div className="d-flex gap-3">
+                                                                        <Button
+                                                                            variant={selection.workHours === "Bán thời gian" ? "teal" : "outline-light"}
+                                                                            className="flex-fill"
+                                                                            onClick={() => setSelection({ ...selection, workHours: "Bán thời gian" })}
+                                                                        >
+                                                                            Làm bán thời gian <br /> <small>(7h-21h)</small>
+                                                                        </Button>
+                                                                        <Button
+                                                                            variant={selection.workHours === "Toàn thời gian" ? "teal" : "outline-light"}
+                                                                            className="flex-fill"
+                                                                            onClick={() => setSelection({ ...selection, workHours: "Toàn thời gian" })}
+                                                                        >
+                                                                            Làm qua đêm <br /> <small>(+ 500.000đ)</small>
+                                                                        </Button>
+                                                                    </div>
+                                                                </div>
+                                                            </Card.Body>
+                                                        </Card>
+                                                    </Row>
+                                                )
+                                            };
                                         }
 
                                         // ===== Chiếc & m² =====
@@ -1167,52 +1164,53 @@ export default function Booking() {
                                         }
 
                                         if (currentUnit === "Buổi") {
-                                            return (
-                                                <>
-                                                    <Row className="mb-4">
-                                                        <Col md={6} className="mb-3">
-                                                            <Form.Group>
-                                                                <Form.Label className="fw-bold text-dark">Ngày bắt đầu</Form.Label>
-                                                                <Form.Control
-                                                                    type="date"
-                                                                    className="fw-semibold text-dark"
-                                                                    value={selection.date}
-                                                                    min={new Date().toISOString().split("T")[0]}
-                                                                    onChange={(e) =>
-                                                                        setSelection({ ...selection, date: e.target.value })
-                                                                    }
-                                                                />
-                                                            </Form.Group>
-                                                        </Col>
-
-                                                        <Col md={3} className="mb-3">
-                                                            <Form.Group>
-                                                                <Form.Label className="fw-bold text-dark">Thời gian bắt đầu</Form.Label>
-                                                                <Form.Control
-                                                                    type="time"
-                                                                    className="fw-semibold text-dark"
-                                                                    value={selection.startTime || "07:00"}
-                                                                    min="07:00"
-                                                                    max="21:00"
-                                                                    onChange={(e) => {
-                                                                        const value = e.target.value;
-                                                                        if (value >= "07:00" && value <= "21:00") {
-                                                                            setSelection({ ...selection, startTime: value });
+                                            if (serviceId === 1) {
+                                                return (
+                                                    <>
+                                                        <Row className="mb-4">
+                                                            <Col md={6} className="mb-3">
+                                                                <Form.Group>
+                                                                    <Form.Label className="fw-bold text-dark">Ngày bắt đầu</Form.Label>
+                                                                    <Form.Control
+                                                                        type="date"
+                                                                        className="fw-semibold text-dark"
+                                                                        value={selection.date}
+                                                                        min={new Date().toISOString().split("T")[0]}
+                                                                        onChange={(e) =>
+                                                                            setSelection({ ...selection, date: e.target.value })
                                                                         }
-                                                                    }}
-                                                                />
-                                                            </Form.Group>
-                                                        </Col>
-                                                    </Row>
-                                                </>
-                                            );
+                                                                    />
+                                                                </Form.Group>
+                                                            </Col>
+
+                                                            <Col md={3} className="mb-3">
+                                                                <Form.Group>
+                                                                    <Form.Label className="fw-bold text-dark">Thời gian bắt đầu</Form.Label>
+                                                                    <Form.Control
+                                                                        type="time"
+                                                                        className="fw-semibold text-dark"
+                                                                        value={selection.startTime || "07:00"}
+                                                                        min="07:00"
+                                                                        max="21:00"
+                                                                        onChange={(e) => {
+                                                                            const value = e.target.value;
+                                                                            if (value >= "07:00" && value <= "21:00") {
+                                                                                setSelection({ ...selection, startTime: value });
+                                                                            }
+                                                                        }}
+                                                                    />
+                                                                </Form.Group>
+                                                            </Col>
+                                                        </Row>
+                                                    </>
+                                                );
+                                            }
                                         }
                                         return null;
                                     })()}
 
-
                                     {/* Bảng tóm tắt (luôn hiển thị) */}
-                                    <Card className="summary-card border-0">
+                                    <Card className="summary-card border-0 mt-3">
                                         <Card.Body>
                                             <h6 className="fw-bold mb-3">Bảng tóm tắt</h6>
                                             <div className="text-muted small">
@@ -1248,8 +1246,7 @@ export default function Booking() {
                                                 ) : currentUnit === "Ngày" ? (
                                                     <>
                                                         <div>
-                                                            • <strong>Thời lượng: </strong>{" "}
-                                                            {selection.dates?.length ? `${selection.dates.length} ngày` : "—"}
+                                                            • <strong>Thời lượng: Ngày</strong>{" "}
                                                         </div>
                                                         <div>
                                                             • <strong>Ngày đã chọn:</strong>{" "}
@@ -1361,7 +1358,7 @@ export default function Booking() {
                                                             </div>
                                                         )}
                                                     </>
-                                                ) : currentUnit === "Buổi" ? (
+                                                ) : currentUnit === "Buổi" && serviceId === 1 ? (
                                                     <>
                                                         <div>
                                                             • <strong>Thời lượng:</strong> Buổi
@@ -1565,6 +1562,9 @@ export default function Booking() {
                                             className="nav-btn"
                                             onClick={() => {
                                                 const normDate = normalizeDate(selection.date);
+                                                const lastDate = (selection.dates && selection.dates.length > 0)
+                                                    ? normalizeDate(selection.dates[selection.dates.length - 1])
+                                                    : normDate;
 
                                                 const startISO =
                                                     normDate && selection.startTime
@@ -1572,11 +1572,12 @@ export default function Booking() {
                                                         : null;
 
                                                 const endISO =
-                                                    normDate && selection.endTime
-                                                        ? new Date(`${normDate}T${selection.endTime}:00`).toISOString()
+                                                    lastDate && selection.endTime
+                                                        ? new Date(`${lastDate}T${selection.endTime}:00`).toISOString()
                                                         : null;
 
                                                 const unit = chosenVariants[0]?.unit || "";
+                                                const serviceId = chosenVariants[0]?.service_id;
 
                                                 let quantity = 1;
                                                 let totalHours = 1;
@@ -1604,12 +1605,8 @@ export default function Booking() {
                                                         quantity = selection.dates?.length || 1;
                                                         break;
 
-                                                    case "Buổi":
-                                                    case "Tuần":
-                                                    case "Tháng":
                                                     default:
-                                                        quantity = 1; // Các loại này luôn 1
-                                                        break;
+                                                        quantity = 1;
                                                 }
 
                                                 console.log("🧮 [Booking] FINAL QUANTITY:", quantity);
@@ -1624,6 +1621,8 @@ export default function Booking() {
                                                         endISO,
                                                         quantity, // 👈 GIÁ TRỊ QUAN TRỌNG NHẤT
                                                     },
+
+
                                                     chosenVariants,
                                                     allVariants,
                                                     total: totalPrice,
@@ -1652,6 +1651,30 @@ export default function Booking() {
                                                     photo_urls: bookingData?.photo_urls || null,
                                                 };
 
+                                                let total_sessions = 1;
+
+                                                switch (unit) {
+                                                    case "Giờ":
+                                                        total_sessions = 1;
+                                                        break;
+                                                    case "Ngày":
+                                                        total_sessions = selection.dates?.length || 1;
+                                                        break;
+                                                    case "Tuần":
+                                                        total_sessions = 7;
+                                                        break;
+                                                    case "Tháng":
+                                                        total_sessions = 30;
+                                                        break;
+                                                    case "Chiếc":
+                                                    case "Mét vuông":
+                                                    case "m2":
+                                                    case "Buổi":
+                                                        total_sessions = 1;
+                                                        break;
+                                                }
+                                                payload.total_sessions = total_sessions;
+
                                                 console.log("📦 [Booking] Dữ liệu gửi sang JobDescription:", payload);
 
                                                 console.log("🔢 [Booking] Số lượng user nhập:", selection.quantity);
@@ -1668,7 +1691,7 @@ export default function Booking() {
                         </Card.Body>
                     </Card>
                 </Col>
-            </Row>
+            </Row >
         </Container >
     );
 }

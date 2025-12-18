@@ -10,6 +10,7 @@ import AudioCallModal from './AudioCallModal';
 import IncomingCallNotification from './IncomingCallNotification';
 import useAudioCall from '../../hooks/useAudioCall';
 import './Chat.css';
+import { formatVND } from '../../utils/formatVND';
 import QuoteService from '../../services/quoteService';
 
 
@@ -798,7 +799,7 @@ const Chat = () => {
     }
   }, [currentConversation?.conversation_id, isNegotiationContextValid, quoteDetails?.status, quoteDetails?.quote_id, negotiationOpen, negPrice, ackBanner]);
 
-  const currencyVND = (n) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(n || 0));
+  const currencyVND = (n) => formatVND(n);
   const myUserId = user?.user_id || user?.userId;
   // Peer logic: if peerParam exists, treat peer as customer for Tasker
   const peerId = peerParam ? String(peerParam) : null;
@@ -1098,12 +1099,15 @@ const Chat = () => {
     try {
       setNegSubmitting(true);
       const price = Number(negotiationState.pending.price);
-      if (sessionId) {
+      const pendingSessionId = negotiationState.pending.sessionId || negotiationState.pending.session;
+      const effectiveSessionId = sessionId || pendingSessionId;
+
+      if (effectiveSessionId) {
         // Build ACK payload and include bookingId if available (from URL or from pending payload)
         const bidFromUrl = bookingIdParam ? Number(bookingIdParam) : null;
         const bidFromReq = negotiationState?.pending?.bookingId != null ? Number(negotiationState.pending.bookingId) : null;
         const effectiveBid = bidFromUrl ?? bidFromReq;
-        const ackPayload = { sessionId: sessionId, price };
+        const ackPayload = { sessionId: effectiveSessionId, price };
         if (effectiveBid) ackPayload.bookingId = effectiveBid;
         await sendTextMessage(`[NEG_ACK]${JSON.stringify(ackPayload)}`);
         // If bookingId is present (either in URL or from pending payload), persist final price to backend
@@ -1149,8 +1153,11 @@ const Chat = () => {
   const handleRejectNegotiation = async () => {
     if (!negotiationState.pending || pendingFromMe) return;
     try {
-      if (sessionId) {
-        await sendTextMessage(`[NEG_REJ]${JSON.stringify({ sessionId: sessionId, price: negotiationState.pending.price })}`);
+      const pendingSessionId = negotiationState.pending.sessionId || negotiationState.pending.session;
+      const effectiveSessionId = sessionId || pendingSessionId;
+
+      if (effectiveSessionId) {
+        await sendTextMessage(`[NEG_REJ]${JSON.stringify({ sessionId: effectiveSessionId, price: negotiationState.pending.price })}`);
       } else {
         await sendTextMessage(`[NEG_REJ]${JSON.stringify({ quoteId: quoteDetails?.quote_id, price: negotiationState.pending.price })}`);
       }
@@ -1619,18 +1626,26 @@ const Chat = () => {
                           const specific_price =
                             bookingDetails?.specific_price ?? quoteDetails?.specific_price ?? null;
                           const unit = bookingDetails?.unit || quoteDetails?.unit;
-                          const min =
+                          let min =
                             price_min != null
                               ? Number(price_min)
                               : specific_price != null
                                 ? Number(specific_price)
                                 : null;
-                          const max =
+                          let max =
                             price_max != null
                               ? Number(price_max)
                               : specific_price != null
                                 ? Number(specific_price)
                                 : null;
+
+                          // Áp dụng phụ phí qua đêm (giống JobDescription.js)
+                          const isOvernight = (bookingDetails?.description === "Làm qua đêm" || quoteDetails?.description === "Làm qua đêm");
+                          if ((unit === "Tuần" || unit === "Tháng") && isOvernight) {
+                            if (min != null) min += 500;
+                            if (max != null) max += 500;
+                          }
+
                           if (min != null && max != null) {
                             return (
                               <>
@@ -1648,15 +1663,18 @@ const Chat = () => {
                       {/* Input for customer or tasker when not pending */}
                       {canProposePrice ? (
                         <>
-                          <input
-                            type="number"
-                            className={`form-control form-control-sm ${negError ? 'is-invalid' : ''}`}
-                            style={{ width: 160 }}
-                            placeholder="Giá đề xuất..."
-                            onChange={(e) => setNegPrice(e.target.value)}
-                            onWheel={(e) => e.currentTarget.blur()}
-                            disabled={negSubmitting}
-                          />
+                          <div className="input-group input-group-sm" style={{ width: 210 }}>
+                            <input
+                              type="number"
+                              className={`form-control ${negError ? 'is-invalid' : ''}`}
+                              placeholder="Giá đề xuất..."
+                              value={negPrice}
+                              onChange={(e) => setNegPrice(e.target.value)}
+                              onWheel={(e) => e.currentTarget.blur()}
+                              disabled={negSubmitting}
+                            />
+                            <span className="input-group-text">.000đ</span>
+                          </div>
                           <button className="btn btn-sm btn-primary" disabled={negSubmitting} onClick={handleFinalizePrice}>
                             {negSubmitting ? 'Đang gửi...' : 'Chốt giá'}
                           </button>

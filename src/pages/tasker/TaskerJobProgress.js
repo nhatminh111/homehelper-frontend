@@ -9,6 +9,8 @@ import {
   Container,
   Row,
   Spinner,
+  Tabs,
+  Tab,
 } from "react-bootstrap";
 import ProgressBar from "react-bootstrap/ProgressBar";
 import api from "../../services/api";
@@ -58,6 +60,12 @@ const persistStoredTasks = (bookingId, tasks) => {
 const clearStoredTasks = (bookingId) => {
   try {
     localStorage.removeItem(tasksKeyFor(bookingId));
+  } catch (e) { }
+};
+
+const clearStoredSessions = (bookingId) => {
+  try {
+    localStorage.removeItem(sessionsKeyFor(bookingId));
   } catch (e) { }
 };
 
@@ -197,11 +205,12 @@ export default function TaskerJobProgress() {
   const [elapsedMs, setElapsedMs] = useState(0);
   const [dailyElapsed, setDailyElapsed] = useState({});
   const [sessions, setSessions] = useState(() =>
-    initialBooking?.booking_id
+    (initialBooking?.booking_id
       ? loadStoredSessions(initialBooking.booking_id)
-      : {}
+      : {}) || {}
   );
   const [nowMs, setNowMs] = useState(Date.now());
+  const [fetchedSessions, setFetchedSessions] = useState([]);
   const timerRef = useRef(null);
 
   const NO_PHOTO_SERVICES = [
@@ -210,6 +219,9 @@ export default function TaskerJobProgress() {
   ];
 
   const [tick, setTick] = useState(0);
+  const [activeTab, setActiveTab] = useState("");
+
+
 
   useEffect(() => {
 
@@ -252,6 +264,18 @@ export default function TaskerJobProgress() {
 
     fetchBooking();
   }, [id]);
+
+  useEffect(() => {
+    if (booking?.booking_id) {
+      api.get(`/tasker/bookings/${booking.booking_id}/sessions`)
+        .then(res => {
+          if (res.data?.success) {
+            setFetchedSessions(res.data.data);
+          }
+        })
+        .catch(err => console.error("Error fetching sessions:", err));
+    }
+  }, [booking?.booking_id]);
 
   useEffect(() => {
     if (location.state?.booking) {
@@ -361,6 +385,7 @@ export default function TaskerJobProgress() {
       u.includes("tháng") ||
       u.includes("week") ||
       u.includes("month");
+    if (booking?.total_sessions && Number(booking.total_sessions) > 1) return true;
     if (explicitlyMulti) return true;
     if (startDate && endDate) {
       // If booking spans more than one day, treat as multi-day sessions
@@ -368,7 +393,7 @@ export default function TaskerJobProgress() {
       if (endDate.getTime() - startDate.getTime() >= dayMs) return true;
     }
     return false;
-  }, [unit, startDate, endDate]);
+  }, [unit, startDate, endDate, booking?.total_sessions]);
 
   // Format date time cho label ngày
   const formatDateTimeForDay = useMemo(
@@ -384,43 +409,98 @@ export default function TaskerJobProgress() {
 
   // Tính số ngày và danh sách các ngày
   const daysList = useMemo(() => {
-    if (!isWeeklyOrMonthly || !startDate || !endDate) return [];
+    if (!startDate) return [];
 
     const days = [];
-    const current = new Date(startDate);
-    current.setHours(0, 0, 0, 0);
-    const end = new Date(endDate);
-    end.setHours(23, 59, 59, 999);
+    // Prioritize total_sessions count if available
+    const limit = booking?.total_sessions ? Number(booking.total_sessions) : 0;
 
-    while (current <= end) {
-      const dayKey = current.toISOString().split("T")[0]; // YYYY-MM-DD
-      days.push({
-        date: new Date(current),
-        dayKey,
-        label: formatDateTimeForDay.format(current),
-      });
-      current.setDate(current.getDate() + 1);
+    // Check if we effectively have multiple days or sessions
+    const isMulti = limit > 1 || (endDate && (endDate.getTime() - startDate.getTime() >= 24 * 60 * 60 * 1000));
+
+    if (isMulti) {
+      if (limit > 1) {
+        const current = new Date(startDate);
+        current.setHours(0, 0, 0, 0);
+        for (let i = 0; i < limit; i++) {
+          const y = current.getFullYear();
+          const m = String(current.getMonth() + 1).padStart(2, "0");
+          const d = String(current.getDate()).padStart(2, "0");
+          const dayKey = `${y}-${m}-${d}`;
+          days.push({
+            date: new Date(current),
+            dayKey,
+            label: formatDateTimeForDay.format(current),
+          });
+          current.setDate(current.getDate() + 1);
+        }
+        return days;
+      }
+
+      const current = new Date(startDate);
+      current.setHours(0, 0, 0, 0);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+
+      while (current <= end) {
+        const y = current.getFullYear();
+        const m = String(current.getMonth() + 1).padStart(2, "0");
+        const d = String(current.getDate()).padStart(2, "0");
+        const dayKey = `${y}-${m}-${d}`;
+        days.push({
+          date: new Date(current),
+          dayKey,
+          label: formatDateTimeForDay.format(current),
+        });
+        current.setDate(current.getDate() + 1);
+      }
+      return days;
     }
 
-    return days;
-  }, [isWeeklyOrMonthly, startDate, endDate, formatDateTimeForDay]);
+    // Default: Single day
+    const current = new Date(startDate);
+    const y = current.getFullYear();
+    const m = String(current.getMonth() + 1).padStart(2, "0");
+    const d = String(current.getDate()).padStart(2, "0");
+    const dayKey = `${y}-${m}-${d}`;
+    return [{
+      date: new Date(current),
+      dayKey,
+      label: formatDateTimeForDay.format(current),
+    }];
 
-  // Chia tasks thành các nhóm theo ngày (nếu là tuần/tháng)
+  }, [startDate, endDate, formatDateTimeForDay, booking?.total_sessions]);
+
+  // Chia tasks thành các nhóm theo ngày
   const tasksByDay = useMemo(() => {
-    if (!isWeeklyOrMonthly || !daysList.length) return null;
+    if (!daysList.length) return null;
 
-    // For multi-day bookings we want the same checklist for each session (set).
-    // So assign the full `tasks` array to every dayKey instead of slicing.
     const grouped = {};
     daysList.forEach((day) => {
       grouped[day.dayKey] = {
         day,
-        tasks: tasks, // same checklist for every session
+        tasks: tasks,
       };
     });
 
     return grouped;
-  }, [isWeeklyOrMonthly, daysList, tasks]);
+  }, [daysList, tasks]);
+
+  // Tự động chọn tab ngày hiện tại hoặc ngày đầu tiên
+  useEffect(() => {
+    if (daysList.length > 0) {
+      // Nếu đã có activeTab và nó hợp lệ thì giữ nguyên
+      if (activeTab && daysList.some(d => d.dayKey === activeTab)) return;
+
+      const today = new Date().toISOString().split("T")[0];
+      const found = daysList.find((d) => d.dayKey === today);
+      if (found) {
+        setActiveTab(found.dayKey);
+      } else if (daysList[0]) {
+        setActiveTab(daysList[0].dayKey);
+      }
+    }
+  }, [daysList, activeTab]);
 
   const safeBack = () => {
     if (location.state?.fromProgress && booking?.booking_id) {
@@ -441,7 +521,6 @@ export default function TaskerJobProgress() {
       "color: green; font-weight:bold;",
       {
         bookingId: booking?.booking_id,
-        isWeeklyOrMonthly,
         daysList,
         tasksBeforeInit: tasks,
         storedBeforeInit: loadStoredSessions(booking?.booking_id),
@@ -450,78 +529,42 @@ export default function TaskerJobProgress() {
 
     if (!booking?.booking_id) return;
 
-    // xác định loại booking
-    const safeDaysList =
-      isWeeklyOrMonthly && daysList.length > 0
-        ? daysList
-        : [{ dayKey: "default" }];
-
+    const safeDaysList = daysList.length > 0 ? daysList : [{ dayKey: "default" }];
     const stored = loadStoredSessions(booking.booking_id) || {};
     const next = { ...stored };
 
-    console.log("%c[INIT] Stored sessions loaded", "color:purple", next);
-    console.log("[INIT] Loaded timers:", stored?.default?.timers);
-
     safeDaysList.forEach(({ dayKey }) => {
-      console.log("%c[INIT] Processing dayKey:", "color:cyan", dayKey);
       if (!next[dayKey]) {
-        console.log(" → creating new empty session");
-
         next[dayKey] = {
+          status: "pending",
+          checkIn: null,
+          checkOut: null,
           done: false,
           taskStatuses: {},
           timers: {},
-          accumulatedMs: 0,
-          startedAt: null,
         };
       }
 
       const session = next[dayKey];
 
-      console.log("Before fill:", JSON.stringify(session, null, 2));
-
-      // 2) Đảm bảo các field quan trọng luôn tồn tại
+      // Ensure key fields exist
+      if (!session.status) session.status = session.done ? "completed" : "pending";
       if (!session.taskStatuses) session.taskStatuses = {};
       if (!session.timers) session.timers = {};
-      if (typeof session.accumulatedMs !== "number")
-        session.accumulatedMs = 0;
-      if (!session.hasOwnProperty("startedAt"))
-        session.startedAt = null;
 
-      // 3) Đồng bộ taskStatuses — thêm những task mới, giữ nguyên task cũ
+      // Sync tasks
       tasks.forEach((t) => {
         if (!session.taskStatuses.hasOwnProperty(t.id)) {
-          console.log(" → Adding missing taskStatus for:", t.id);
-
           session.taskStatuses[t.id] = t.status || "pending";
         }
       });
-
-      // 4) Đồng bộ timers — thêm những task mới, giữ nguyên elapsed cũ
-      tasks.forEach((t) => {
-        if (!session.timers[t.id]) {
-          console.log(" → Adding missing TIMER for:", t.id);
-          session.timers[t.id] = {
-            elapsedMs: 0,
-            startedAt: null,
-          };
-        }
-      });
-
-      console.log(
-        "After fill:",
-        JSON.stringify(session, null, 2)
-      );
     });
 
-    console.log("%c[INIT] Final session object:", "color:#00ff99",
-      next
-    );
-
     setSessions(next);
-    // persist to localStorage
     persistStoredSessions(booking.booking_id, next);
-  }, [booking?.booking_id, isWeeklyOrMonthly, daysList, tasks]);
+  }, [booking?.booking_id, daysList, tasks]);
+
+
 
   const computeElapsedMs = useCallback(() => {
     if (!startDate) return 0;
@@ -564,11 +607,11 @@ export default function TaskerJobProgress() {
   console.log("Elapsed ms:", computeElapsedMs);
   // Load daily elapsed time khi component mount
   useEffect(() => {
-    if (booking?.booking_id && isWeeklyOrMonthly) {
+    if (booking?.booking_id) {
       const saved = loadDailyElapsed(booking.booking_id);
       setDailyElapsed(saved);
     }
-  }, [booking?.booking_id, isWeeklyOrMonthly]);
+  }, [booking?.booking_id]);
 
   // Tick to update session elapsed displays every second
   useEffect(() => {
@@ -587,44 +630,47 @@ export default function TaskerJobProgress() {
   }, []);
 
   // Tính elapsed time cho từng ngày (nếu là tuần/tháng)
+  // Tính elapsed time cho từng ngày (nếu là tuần/tháng)
   useEffect(() => {
-    if (!isWeeklyOrMonthly || !hasTimeInfo || !startDate || !daysList.length)
+    if (!hasTimeInfo || !startDate || !daysList.length)
       return;
 
     const updateDailyElapsed = () => {
-      const now = Date.now();
-      const newDailyElapsed = { ...dailyElapsed };
+      setDailyElapsed((prev) => {
+        const now = Date.now();
+        const newDailyElapsed = { ...prev };
 
-      daysList.forEach(({ dayKey, date }) => {
-        const dayStart = new Date(date);
-        dayStart.setHours(0, 0, 0, 0);
-        const dayEnd = new Date(date);
-        dayEnd.setHours(23, 59, 59, 999);
+        daysList.forEach(({ dayKey, date }) => {
+          const dayStart = new Date(date);
+          dayStart.setHours(0, 0, 0, 0);
+          const dayEnd = new Date(date);
+          dayEnd.setHours(23, 59, 59, 999);
 
-        const dayStartMs = dayStart.getTime();
-        const dayEndMs = dayEnd.getTime();
+          const dayStartMs = dayStart.getTime();
+          const dayEndMs = dayEnd.getTime();
 
-        if (now < dayStartMs) {
-          newDailyElapsed[dayKey] = 0;
-        } else if (now > dayEndMs) {
-          // Ngày đã qua, tính tổng thời gian trong ngày
-          // Giả sử mỗi ngày làm việc 8 giờ (có thể điều chỉnh)
-          const workHoursPerDay = 8;
-          newDailyElapsed[dayKey] = workHoursPerDay * 60 * 60 * 1000;
-        } else {
-          // Đang trong ngày, tính thời gian từ đầu ngày đến hiện tại
-          const elapsed = Math.max(0, now - dayStartMs);
-          // Giới hạn tối đa là 8 giờ/ngày
-          const maxMs = 8 * 60 * 60 * 1000;
-          newDailyElapsed[dayKey] = Math.min(elapsed, maxMs);
+          if (now < dayStartMs) {
+            newDailyElapsed[dayKey] = 0;
+          } else if (now > dayEndMs) {
+            // Ngày đã qua, tính tổng thời gian trong ngày
+            // Giả sử mỗi ngày làm việc 8 giờ (có thể điều chỉnh)
+            const workHoursPerDay = 8;
+            newDailyElapsed[dayKey] = workHoursPerDay * 60 * 60 * 1000;
+          } else {
+            // Đang trong ngày, tính thời gian từ đầu ngày đến hiện tại
+            const elapsed = Math.max(0, now - dayStartMs);
+            // Giới hạn tối đa là 8 giờ/ngày
+            const maxMs = 8 * 60 * 60 * 1000;
+            newDailyElapsed[dayKey] = Math.min(elapsed, maxMs);
+          }
+        });
+
+        if (booking?.booking_id) {
+          saveDailyElapsed(booking.booking_id, newDailyElapsed);
         }
+
+        return newDailyElapsed;
       });
-
-      setDailyElapsed(newDailyElapsed);
-
-      if (booking?.booking_id) {
-        saveDailyElapsed(booking.booking_id, newDailyElapsed);
-      }
     };
 
     updateDailyElapsed();
@@ -632,12 +678,10 @@ export default function TaskerJobProgress() {
 
     return () => clearInterval(interval);
   }, [
-    isWeeklyOrMonthly,
     hasTimeInfo,
     startDate,
     daysList,
     booking?.booking_id,
-    dailyElapsed,
   ]);
 
   useEffect(() => {
@@ -662,223 +706,166 @@ export default function TaskerJobProgress() {
   }, [computeElapsedMs, startDate, hasTimeInfo]);
 
   const handleTaskStatus = async (taskId, dayKey = null) => {
-    let isStart = false;
-    let isComplete = false;
-    // If dayKey provided (multi-day), toggle session-local task status
-    if (dayKey && isWeeklyOrMonthly) {
+    let action = null; // 'start' | 'end' | null
 
-      setSessions((prev) => {
-        // deep clone previous sessions to ensure React detects nested changes
-        let next = JSON.parse(JSON.stringify(prev || {}));
+    // Fallback: If no dayKey provided, try to use activeTab or the first available day
+    const effectiveDayKey = dayKey || activeTab || (daysList[0] ? daysList[0].dayKey : null);
 
-        const cur =
-          next[dayKey] || {
-            done: false,
-            taskStatuses: {},
-            timers: {},
-            accumulatedMs: 0,
-            startedAt: null,
-          };
-        const current = cur.taskStatuses?.[taskId] || "pending";
-        const now = Date.now();
-
-        // ❗CHẶN START LẦN 2 (MULTI-DAY)
-        const tmr = cur.timers?.[taskId];
-        if (current === "completed" && tmr) {
-          if (tmr.elapsedMs > 0 || tmr.startedAt) {
-            showToast.warning("Checklist này đã được bắt đầu trước đó. Không thể bắt đầu lại.");
-            return prev;
-          }
-        }
-
-
-        // For session tasks: only allow pending -> in_progress (Start),
-        // and allow toggling in_progress -> pending (undo Start).
-        // Converting in_progress -> completed is done when the session
-        // is finalized via `toggleSessionDone` (Mark Session Done).
-        // Cycle: pending -> in_progress -> completed -> pending
-        const nextStatus =
-          current === "pending"
-            ? "in_progress"
-            : current === "in_progress"
-              ? "completed"
-              : "pending";
-
-        if (current === "pending" && nextStatus === "in_progress") {
-          isStart = true;
-          cur.timers[taskId] = {
-            ...(cur.timers[taskId] || { elapsedMs: 0 }),
-            startedAt: now,
-          };
-          if (!cur.startedAt) cur.startedAt = now;
-        }
-
-
-        // If transitioning to in_progress, start session timer if not started
-        if (current === "in_progress" && nextStatus === "completed") {
-          isComplete = true;
-          const t = cur.timers[taskId];
-          if (t?.startedAt) {
-            t.elapsedMs += now - t.startedAt;
-            t.startedAt = null;
-          }
-        }
-
-        cur.taskStatuses[taskId] = nextStatus;
-
-        next[dayKey] = cur;
-
-        if (booking?.booking_id) persistStoredSessions(booking.booking_id, next);
-        return next;
-      });
-
-      if (isStart) {
-        await api.post("/tasker/timers/start", {
-          booking_id: booking.booking_id,
-          task_id: taskId,
-          checklist_key: taskId,
-          session_date: dayKey,
-        });
-      }
-
-      if (isComplete) {
-        await api.post("/tasker/timers/end", {
-          booking_id: booking.booking_id,
-          task_id: taskId,
-          checklist_key: taskId,
-          session_date: dayKey,
-        });
-      }
+    if (!effectiveDayKey) {
+      console.error("Cannot determine session day key for task status update");
       return;
     }
 
-    // Fallback: toggle global task status
-    // Fallback: toggle global task status  (NON-WEEKLY FIX INCLUDED)
-    setTasks((prev) => {
-      const current = prev.find((t) => t.id === taskId)?.status || "pending";
-      const nextStatus =
-        current === "pending"
+    const currentSession = sessions[effectiveDayKey] || {};
+    const currentStatus = currentSession.taskStatuses?.[taskId] || "pending";
+    const tmr = currentSession.timers?.[taskId];
+
+    if (currentStatus === "completed" && tmr && (tmr.elapsedMs > 0 || tmr.startedAt)) {
+      showToast.warning("Checklist này đã được bắt đầu trước đó. Không thể bắt đầu lại.");
+      return;
+    }
+
+    const nextStatus =
+      currentStatus === "pending"
+        ? "in_progress"
+        : currentStatus === "in_progress"
+          ? "completed"
+          : "pending";
+
+    if (currentStatus === "pending" && nextStatus === "in_progress") action = 'start';
+    if (currentStatus === "in_progress" && nextStatus === "completed") action = 'end';
+
+    setSessions((prev) => {
+      let next = JSON.parse(JSON.stringify(prev || {}));
+      const cur = next[effectiveDayKey] || {
+        done: false,
+        taskStatuses: {},
+        timers: {},
+      };
+      const currentInState = cur.taskStatuses?.[taskId] || "pending";
+      const now = Date.now();
+
+      // Re-evaluate nextStatus inside setter to be safe
+      const nextStatusInState =
+        currentInState === "pending"
           ? "in_progress"
-          : current === "in_progress"
+          : currentInState === "in_progress"
             ? "completed"
             : "pending";
 
-      const session = sessions?.default;
-      const tmrCheck = session?.timers?.[taskId];
-      if (current === "completed" && tmrCheck) {
-        if (tmrCheck.elapsedMs > 0 || tmrCheck.startedAt) {
-          showToast.warning("Checklist này đã được bắt đầu. Không thể bắt đầu lại.");
-          return prev;
+      if (currentInState === "pending" && nextStatusInState === "in_progress") {
+        cur.timers[taskId] = {
+          ...(cur.timers[taskId] || { elapsedMs: 0 }),
+          startedAt: now,
+        };
+        if (!cur.startedAt) cur.startedAt = now;
+      }
+
+      if (currentInState === "in_progress" && nextStatusInState === "completed") {
+        const t = cur.timers[taskId];
+        if (t?.startedAt) {
+          t.elapsedMs += now - t.startedAt;
+          t.startedAt = null;
         }
       }
 
-      const updatedTasks = prev.map((t) =>
-        t.id === taskId ? { ...t, status: nextStatus } : t
-      );
-
-      // 🔥 UPDATE SESSION TIMERS FOR NON-WEEKLY BOOKINGS
-      setSessions((prevSessions) => {
-        let next = {};
-        try {
-          next = prevSessions ? JSON.parse(JSON.stringify(prevSessions)) : {};
-        } catch (e) {
-          next = { ...(prevSessions || {}) };
-        }
-
-        const cur =
-          next["default"] || {
-            done: false,
-            taskStatuses: {},
-            timers: {},
-            accumulatedMs: 0,
-            startedAt: null,
-          };
-
-        const now = Date.now();
-        const tmr = cur.timers?.[taskId] || { elapsedMs: 0, startedAt: null };
-
-        // START
-        if (current === "pending" && nextStatus === "in_progress") {
-          isStart = true;
-          tmr.startedAt = now;
-          if (!cur.startedAt) cur.startedAt = now;
-        }
-
-        // COMPLETE
-        if (current === "in_progress" && nextStatus === "completed") {
-          isComplete = true;
-          if (tmr.startedAt) {
-            tmr.elapsedMs += now - tmr.startedAt;
-            tmr.startedAt = null;
-          }
-        }
-
-        cur.timers[taskId] = tmr;
-        cur.taskStatuses[taskId] = nextStatus;
-        next["default"] = cur;
-
-        if (booking?.booking_id) persistStoredSessions(booking.booking_id, next);
-        return next;
-      });
-
-      return updatedTasks;
-    });
-
-    if (isStart) {
-      await api.post("/tasker/timers/start", {
-        booking_id: booking.booking_id,
-        task_id: taskId,
-        checklist_key: taskId,
-        session_date: null,
-      });
-    }
-
-    if (isComplete) {
-      await api.post("/tasker/timers/end", {
-        booking_id: booking.booking_id,
-        task_id: taskId,
-        checklist_key: taskId,
-        session_date: null,
-      });
-    }
-  };
-
-  const toggleSessionDone = (dayKey) => {
-    setSessions((prev) => {
-      const next = { ...(prev || {}) };
-      const cur = next[dayKey] || {
-        done: false,
-        accumulatedMs: 0,
-        startedAt: null,
-      };
-      const now = Date.now();
-      if (!cur.done) {
-        // Marking done -> finalize elapsed
-        const add = cur.startedAt ? Math.max(0, now - cur.startedAt) : 0;
-        cur.accumulatedMs = (cur.accumulatedMs || 0) + add;
-        cur.startedAt = null;
-        // mark all in_progress tasks as completed for this session
-        Object.keys(cur.taskStatuses || {}).forEach((tid) => {
-          if (cur.taskStatuses[tid] === "in_progress")
-            cur.taskStatuses[tid] = "completed";
-        });
-        cur.done = true;
-        try {
-          showToast?.success(`Đã hoàn thành phiên ${dayKey}`);
-        } catch (e) { }
-      } else {
-        // Unmark done -> resume session
-        cur.done = false;
-        cur.startedAt = now;
-        try {
-          showToast?.info(`Đã bỏ tick phiên ${dayKey}`);
-        } catch (e) { }
-      }
-
-      next[dayKey] = cur;
+      cur.taskStatuses[taskId] = nextStatusInState;
+      next[effectiveDayKey] = cur;
       if (booking?.booking_id) persistStoredSessions(booking.booking_id, next);
       return next;
     });
+
+    // Call API if needed
+    if (action && booking?.booking_id) {
+      try {
+        // Find matching session from DB data
+        let target = fetchedSessions.find(s =>
+          s.session_date && moment(s.session_date).format("YYYY-MM-DD") === effectiveDayKey
+        );
+
+        // Fallback: if single session in DB and dayKey matches or we only have 1 session
+        if (!target && fetchedSessions.length === 1) {
+          target = fetchedSessions[0];
+        }
+
+        if (target && target.task_id) {
+          const realTaskId = target.task_id;
+          console.log(`Sending API ${action} timer for checklist ${taskId}, realTaskId=${realTaskId}`);
+          await api.post(`/tasker/bookings/${booking.booking_id}/tasks/${realTaskId}/timer/${action}`, {
+            checklist_key: taskId,
+            session_date: effectiveDayKey
+          });
+        } else {
+          console.warn("Cannot find valid real task_id to sync timer", { effectiveDayKey, fetchedSessions });
+        }
+      } catch (err) {
+        console.error("Timer API sync error", err);
+      }
+    }
+  };
+
+  /* ============================================================
+     *  SESSION LOGIC (START / FINISH)
+     * ============================================================ */
+
+  const handleStartSession = (dayKey) => {
+    const now = new Date();
+    setSessions((prev) => {
+      const next = { ...prev };
+      const s = { ...(next[dayKey] || {}) };
+      s.status = "in_progress";
+      s.checkIn = now.toISOString();
+      next[dayKey] = s;
+
+      if (booking?.booking_id) persistStoredSessions(booking.booking_id, next);
+      return next;
+    });
+    showToast.success("Đã bắt đầu ca làm việc!");
+  };
+
+  const handleFinishSession = (dayKey) => {
+    // Validate: All tasks completed? (This check is also done in render, but good to have)
+    const session = sessions[dayKey];
+    if (!session) return;
+
+    // Check if checklist complete
+    const allDone = tasks.every(t => session.taskStatuses?.[t.id] === "completed");
+    if (!allDone) {
+      showToast.warning("Vui lòng hoàn thành hết checklist trước khi kết thúc ngày.");
+      return;
+    }
+
+    // Navigate to completion page for photos/notes/submission
+    navigate(`/tasker/bookings/${booking.booking_id}/complete`, {
+      state: {
+        booking,
+        tasks: tasks, // Pass tasks definition
+        sessionData: session,
+        dayKey: dayKey,
+        isSessionCompletion: true,
+        fromProgress: true
+      }
+    });
+  };
+
+  const isDayLocked = (dayKey) => {
+    if (!daysList.length) return false;
+    const idx = daysList.findIndex(d => d.dayKey === dayKey);
+    if (idx <= 0) return false; // Day 1 always unlocked or if not found
+
+    const prevDayKey = daysList[idx - 1].dayKey;
+    const prevSession = sessions[prevDayKey];
+    // Locked if previous day is NOT completed
+    return prevSession?.status !== "completed";
+  };
+
+  // Helper to format hours:minutes
+  const formatTimeHHMM = (isoString) => {
+    if (!isoString) return "--:--";
+    const d = new Date(isoString);
+    const h = String(d.getHours()).padStart(2, "0");
+    const m = String(d.getMinutes()).padStart(2, "0");
+    return `${h}:${m}`;
   };
 
   // Persist sessions when they change
@@ -902,23 +889,64 @@ export default function TaskerJobProgress() {
     } catch (e) { }
   }, [sessions]);
 
-  const handleCompleteJob = async () => {
-    if (!booking?.booking_id) return;
 
-    if (!tasks.every((task) => task.status === "completed")) {
-      showToast.warning(
-        "Vui lòng hoàn thành toàn bộ checklist trước khi kết thúc công việc."
-      );
+  // Check if current session from activeTab is finished
+  const isCurrentSessionFinished = useMemo(() => {
+    if (!activeTab || !sessions[activeTab]) return false;
+    if (sessions[activeTab].status !== 'in_progress') return false;
+    // Check if all tasks in this session are completed
+    return tasks.every(t => sessions[activeTab].taskStatuses?.[t.id] === "completed");
+  }, [activeTab, sessions, tasks]);
+
+  const handleCompleteJob = () => {
+    console.log("👉 handleCompleteJob clicked");
+    if (!booking?.booking_id) {
+      console.error("❌ Booking ID missing");
       return;
     }
 
-    navigate(`/tasker/bookings/${booking.booking_id}/complete`, {
-      state: {
-        booking,
-        tasks,
-        fromProgress: true,
-      },
-    });
+    /*
+    if (!isCurrentSessionFinished) {
+      console.warn("⚠️ Checklist not finished");
+      showToast.warning("Vui lòng hoàn thành toàn bộ checklist trước khi kết thúc công việc.");
+      return;
+    }
+    */
+
+    try {
+      // Determine payload based on mode
+      let navState = {
+        booking: JSON.parse(JSON.stringify(booking)), // Ensure clean object
+        tasks: JSON.parse(JSON.stringify(tasks)),
+        fromProgress: true
+      };
+
+      const dayKey = activeTab;
+      const session = sessions[dayKey];
+      console.log("🔄 Nav to complete. Key:", dayKey, "Session:", session);
+
+      if (!session) {
+        console.error("❌ Session data missing for key:", dayKey);
+        showToast.error("Lỗi dữ liệu phiên làm việc. Vui lòng thử lại.");
+        return;
+      }
+
+      navState = {
+        ...navState,
+        sessionData: JSON.parse(JSON.stringify(session)),
+        dayKey: dayKey,
+        isSessionCompletion: true,
+        checklistTimers: session.timers ? JSON.parse(JSON.stringify(session.timers)) : {}
+      };
+
+      console.log("🚀 Navigating to completion page...", navState);
+      navigate(`/tasker/bookings/${booking.booking_id}/complete`, {
+        state: navState,
+      });
+    } catch (err) {
+      console.error("❌ Navigation error:", err);
+      showToast.error("Lỗi điều hướng: " + err.message);
+    }
   };
 
   const progress = useMemo(() => {
@@ -926,7 +954,7 @@ export default function TaskerJobProgress() {
     // If this is a weekly/monthly booking with sessions, derive progress
     // from per-day session taskStatuses when available so that
     // Mark Session Done updates the percent correctly.
-    if (isWeeklyOrMonthly && tasksByDay) {
+    if (tasksByDay) {
       let total = 0;
       let completed = 0;
       Object.values(tasksByDay).forEach(({ day, tasks: dayTasks }) => {
@@ -940,15 +968,11 @@ export default function TaskerJobProgress() {
       return total === 0 ? 0 : Math.round((completed / total) * 100);
     }
 
-    const completed = tasks.filter(
-      (task) => task.status === "completed"
-    ).length;
-    return Math.round((completed / tasks.length) * 100);
-  }, [tasks, isWeeklyOrMonthly, tasksByDay, sessions]);
+    return 0;
+  }, [tasks, tasksByDay, sessions]);
 
   const summary = useMemo(() => {
-    // When sessions are present, compute totals from tasksByDay + sessions
-    if (isWeeklyOrMonthly && tasksByDay) {
+    if (tasksByDay) {
       let total = 0;
       let completed = 0;
       let inProgress = 0;
@@ -963,25 +987,12 @@ export default function TaskerJobProgress() {
       });
       return { total, completed, inProgress };
     }
-
-    const total = tasks.length;
-    const completed = tasks.filter(
-      (task) => task.status === "completed"
-    ).length;
-    const inProgress = tasks.filter(
-      (task) => task.status === "in_progress"
-    ).length;
-    return { total, completed, inProgress };
-  }, [tasks, isWeeklyOrMonthly, tasksByDay, sessions]);
-
-  const allTasksCompleted = useMemo(
-    () => summary.completed === summary.total,
-    [summary.completed, summary.total]
-  );
+    return { total: 0, completed: 0, inProgress: 0 };
+  }, [tasks, tasksByDay, sessions]);
 
   const groupedTasks = useMemo(() => {
-    // Nếu là tuần/tháng, sử dụng tasksByDay
-    if (isWeeklyOrMonthly && tasksByDay) {
+    // Always use tasksByDay
+    if (tasksByDay) {
       return Object.values(tasksByDay).map(({ day, tasks: dayTasks }) => ({
         group: day.label,
         dayKey: day.dayKey,
@@ -989,20 +1000,9 @@ export default function TaskerJobProgress() {
       }));
     }
 
-    // Nếu không phải tuần/tháng, group theo group field như cũ
-    const map = new Map();
-    tasks.forEach((task) => {
-      const key = task.group || "__default__";
-      if (!map.has(key)) {
-        map.set(key, []);
-      }
-      map.get(key).push(task);
-    });
-    return Array.from(map.entries()).map(([groupKey, items]) => ({
-      group: groupKey === "__default__" ? null : groupKey,
-      items,
-    }));
-  }, [tasks, isWeeklyOrMonthly, tasksByDay]);
+    // Fallback
+    return [];
+  }, [tasksByDay]);
 
   // Format elapsed time cho từng ngày
   const formatDailyElapsed = useCallback(
@@ -1153,6 +1153,21 @@ export default function TaskerJobProgress() {
   return (
     <Container className="py-4">
       <style>{`
+        .custom-scroll-tabs {
+          flex-wrap: nowrap;
+          overflow-x: auto;
+          overflow-y: hidden;
+          white-space: nowrap;
+          scrollbar-width: thin;
+        }
+        .custom-scroll-tabs .nav-item {
+          display: inline-block;
+        }
+        .custom-scroll-tabs .nav-link {
+          white-space: nowrap;
+        }
+      `}</style>
+      <style>{`
       .task-action-btn {
     flex: 0 0 auto !important;
     width: 110px !important;
@@ -1246,212 +1261,176 @@ export default function TaskerJobProgress() {
                 </div>
 
                 <div className="d-flex flex-column gap-4">
-                  {groupedTasks.map(({ group, items, dayKey }, groupIndex) => {
-                    const safeDayKey = dayKey ?? "default";
-                    return (
-                      <div
-                        key={group || `group-${groupIndex}`}
-                        className="d-flex flex-column gap-3"
-                      >
-                        {/* Session card for weekly/monthly bookings */}
-                        {isWeeklyOrMonthly && dayKey && (
-                          <Card className="mb-2 border-0">
-                            <Card.Body className="d-flex align-items-center justify-content-between">
-                              <div>
-                                <div className="fw-semibold">{group}</div>
-                                <div className="text-muted small">
-                                  Ca làm: 07:00 – 21:00
-                                </div>
+                  <Tabs
+                    activeKey={activeTab}
+                    onSelect={(k) => setActiveTab(k)}
+                    variant="pills"
+                    className="mb-3 custom-scroll-tabs pb-2"
+                  >
+                    {groupedTasks.map(({ group, items, dayKey }) => {
+                      const safeDayKey = dayKey || "default";
+                      const session = sessions?.[safeDayKey] || { status: 'pending' };
+                      const status = session.status || 'pending'; // pending, in_progress, completed
+                      const locked = isDayLocked(safeDayKey);
+
+                      // Badge logic for Tab Title
+                      let badge = "⏳";
+                      if (status === 'completed') badge = "✔";
+                      else if (status === 'in_progress') badge = "🔵";
+                      else if (locked) badge = "🔒";
+
+                      const tabTitle = (
+                        <div className="d-flex align-items-center gap-2">
+                          <span>{group || "Ca làm việc"}</span>
+                          <small>{badge}</small>
+                        </div>
+                      );
+
+                      // Calculate progress for this day
+                      const dayTasksCompleted = items.filter(t => session.taskStatuses?.[t.id] === 'completed').length;
+                      const dayTasksTotal = items.length;
+                      const isChecklistFinished = dayTasksCompleted === dayTasksTotal && dayTasksTotal > 0;
+
+                      return (
+                        <Tab eventKey={safeDayKey} title={tabTitle} key={safeDayKey}>
+                          {/* --- STATUS BANNER --- */}
+                          <Card className="mb-3 border-0 bg-light">
+                            <Card.Body>
+                              <div className="d-flex align-items-center justify-content-between mb-2">
+                                <div className="fw-bold fs-5">{group || "Chi tiết ca làm"}</div>
+                                <Badge bg={status === 'completed' ? 'success' : status === 'in_progress' ? 'primary' : 'secondary'}>
+                                  {status === 'completed' ? 'Đã hoàn thành' : status === 'in_progress' ? 'Đang làm việc' : 'Chưa thực hiện'}
+                                </Badge>
                               </div>
-                              <div className="d-flex align-items-center gap-3">
-                                {SHOW_ELAPSED && (
-                                  <div className="text-center">
-                                    <i className="bi bi-clock-history text-primary"></i>
-                                    <div className="fw-bold">
-                                      {formatDailyElapsed(dayKey)}
-                                    </div>
-                                  </div>
-                                )}
-                                <div>
-                                  <div className="d-flex gap-2 align-items-center">
-                                    <div className="ms-2">
-                                      <button
-                                        className={`btn ${sessions?.[dayKey]?.done
-                                          ? "btn-success"
-                                          : "btn-primary"
-                                          } btn-sm`}
-                                        onClick={() => toggleSessionDone(dayKey)}
-                                      >
-                                        {sessions?.[dayKey]?.done
-                                          ? "Session Done"
-                                          : "Mark Session Done"}
-                                      </button>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            </Card.Body>
-                            <div className="px-3 pb-3">
-                              {/* session debug removed */}
-                            </div>
-                          </Card>
-                        )}
-                        {group && (
-                          <div className="d-flex align-items-center justify-content-between">
-                            <div className="d-flex align-items-center gap-2">
-                              <span className="badge bg-secondary-subtle text-secondary fw-semibold px-3 py-2">
-                                {group}
-                              </span>
-                              <span className="text-muted small">
-                                {isWeeklyOrMonthly && dayKey
-                                  ? Object.values(
-                                    sessions?.[dayKey]?.taskStatuses || {}
-                                  ).filter((v) => v === "completed").length
-                                  : items.filter(
-                                    (item) => item.status === "completed"
-                                  ).length}{" "}
-                                / {items.length} tasks
-                              </span>
-                            </div>
-                            {isWeeklyOrMonthly &&
-                              dayKey &&
-                              hasTimeInfo &&
-                              SHOW_ELAPSED && (
-                                <div className="d-flex align-items-center gap-2">
-                                  <i className="bi bi-clock-history text-primary"></i>
-                                  <span className="fw-bold text-primary">
-                                    {formatDailyElapsed(dayKey)}
-                                  </span>
+
+                              {locked ? (
+                                <Alert variant="warning" className="mb-0">
+                                  <i className="bi bi-lock-fill me-2"></i>
+                                  <strong>Chờ hoàn thành ngày trước</strong>
+                                </Alert>
+                              ) : (
+                                <div className="d-flex gap-4 text-muted small">
+                                  <div><i className="bi bi-box-arrow-in-right me-1"></i> Check-in: <strong>{formatTimeHHMM(session.checkIn)}</strong></div>
+                                  <div><i className="bi bi-box-arrow-left me-1"></i> Check-out: <strong>{formatTimeHHMM(session.checkOut)}</strong></div>
                                 </div>
                               )}
-                          </div>
-                        )}
-                        {items.map((task) => {
-                          const currentStatus =
-                            isWeeklyOrMonthly && dayKey
-                              ? sessions?.[dayKey]?.taskStatuses?.[task.id] ||
-                              task.status
-                              : task.status;
+                            </Card.Body>
+                          </Card>
 
-                          const safeDayKey = dayKey || "default";
-                          const session = sessions?.[safeDayKey] ?? {
-                            timers: {},
-                            taskStatuses: {},
-                          };
-                          const tmr = session?.timers?.[task.id];
+                          {/* --- LOCKED STATE --- */}
+                          {locked && (
+                            <div className="text-center py-5 text-muted">
+                              <i className="bi bi-lock-fill fs-1 mb-2 d-block"></i>
+                              <p>Ngày này đang bị khóa. Vui lòng hoàn thành các ngày trước đó.</p>
+                            </div>
+                          )}
 
-                          console.log(
-                            "%c[UI RENDER] Task Timer Check",
-                            "color: #00aaff; font-weight: bold;",
-                            {
-                              taskId: task.id,
-                              dayKey,
-                              session,
-                              timers: session?.timers,
-                              tmr: session?.timers?.[task.id],
-                            }
-                          );
+                          {/* --- PENDING (UNLOCKED) STATE --- */}
+                          {!locked && status === 'pending' && (
+                            <div className="text-center py-5">
+                              <div className="mb-4">
+                                <i className="bi bi-calendar-check fs-1 text-primary"></i>
+                              </div>
+                              <h4 className="mb-3">Sẵn sàng làm việc?</h4>
+                              <Button size="lg" variant="primary" onClick={() => handleStartSession(safeDayKey)}>
+                                <i className="bi bi-play-circle-fill me-2"></i>
+                                Bắt đầu ca làm
+                              </Button>
+                            </div>
+                          )}
 
-                          return (
-                            <Card
-                              key={`${task.id}-${dayKey || "global"}`}
-                              className="border-0 shadow-sm"
-                              style={{
-                                borderRadius: "16px",
-                                ...(sessions?.[dayKey]?._flash?.[task.id]
-                                  ? { backgroundColor: "#e6f7ff" }
-                                  : {}),
-                              }}
-                            >
-                              <Card.Body className="d-flex justify-content-between py-3 px-4">
-                                <div className="d-flex align-items-center gap-3">
-                                  <div
-                                    className={`d-flex align-items-center justify-content-center rounded-circle ${currentStatus === "completed"
-                                      ? "bg-success bg-opacity-10 text-success"
-                                      : currentStatus === "in_progress"
-                                        ? "bg-primary bg-opacity-10 text-primary"
-                                        : "bg-light text-secondary"
-                                      }`}
-                                    style={{ width: 44, height: 44 }}
-                                  >
-                                    {currentStatus === "completed" ? (
-                                      <i className="bi bi-check-circle-fill fs-5"></i>
-                                    ) : currentStatus === "in_progress" ? (
-                                      <i className="bi bi-hourglass-split fs-5"></i>
-                                    ) : (
-                                      <i className="bi bi-circle fs-5"></i>
-                                    )}
-                                  </div>
+                          {/* --- IN PROGRESS / COMPLETED STATE --- */}
+                          {!locked && (status === 'in_progress' || status === 'completed') && (
+                            <>
+                              {/* Checklist */}
+                              <div className="d-flex flex-column gap-3 mb-4">
+                                <h6 className="fw-bold text-muted text-uppercase mb-0">Checklist công việc</h6>
+                                {items.map((task) => {
+                                  // For session based logic, we use session.taskStatuses
+                                  const currentStatus = session.taskStatuses?.[task.id] || "pending";
+                                  const tmr = session.timers?.[task.id];
+                                  const isReadOnly = status === 'completed'; // Cannot toggle if day completed
 
+                                  return (
+                                    <Card
+                                      key={`${task.id}-${safeDayKey}`}
+                                      className="border-0 shadow-sm"
+                                      style={{ borderRadius: "12px", opacity: isReadOnly ? 0.8 : 1 }}
+                                    >
+                                      <Card.Body className="d-flex justify-content-between py-3 px-3 align-items-center">
+                                        <div className="d-flex align-items-center gap-3">
+                                          <div
+                                            className={`d-flex align-items-center justify-content-center rounded-circle ${currentStatus === "completed"
+                                              ? "bg-success bg-opacity-10 text-success"
+                                              : currentStatus === "in_progress"
+                                                ? "bg-primary bg-opacity-10 text-primary"
+                                                : "bg-light text-secondary"
+                                              }`}
+                                            style={{ width: 40, height: 40 }}
+                                          >
+                                            {currentStatus === "completed" ? (
+                                              <i className="bi bi-check-circle-fill fs-5"></i>
+                                            ) : currentStatus === "in_progress" ? (
+                                              <i className="bi bi-hourglass-split fs-5"></i>
+                                            ) : (
+                                              <i className="bi bi-circle fs-5"></i>
+                                            )}
+                                          </div>
+                                          <div>
+                                            <div className="fw-semibold text-dark">{task.label}</div>
+                                            <small className="text-muted d-block">
+                                              {STATUS_LABELS[currentStatus] || "Pending"}
+                                            </small>
+                                          </div>
+                                        </div>
+
+                                        <div className="d-flex align-items-center gap-2">
+                                          {/* Timer Display */}
+                                          <small className="text-primary fw-bold" style={{ minWidth: '60px', textAlign: 'right' }}>
+                                            {(() => {
+                                              if (!tmr) return "";
+                                              const base = tmr.elapsedMs || 0;
+                                              const running = tmr.startedAt ? base + (Date.now() - tmr.startedAt) : base;
+                                              const s = Math.floor(running / 1000);
+                                              const h = Math.floor(s / 3600);
+                                              const m = Math.floor((s % 3600) / 60);
+                                              const sec = s % 60;
+                                              return `⏱ ${h}h ${m}m ${sec}s`;
+                                            })()}
+                                          </small>
+
+                                          <Button
+                                            variant={currentStatus === "completed" ? "outline-success" : currentStatus === "in_progress" ? "primary" : "outline-secondary"}
+                                            size="sm"
+                                            disabled={isReadOnly}
+                                            onClick={() => !isReadOnly && handleTaskStatus(task.id, safeDayKey)}
+                                            style={{ minWidth: "100px" }}
+                                          >
+                                            {currentStatus === "in_progress" ? "Done" : currentStatus === "completed" ? "Completed" : "Start"}
+                                          </Button>
+                                        </div>
+                                      </Card.Body>
+                                    </Card>
+                                  );
+                                })}
+                              </div>
+                              {status === 'completed' && (
+                                <div className="alert alert-success d-flex align-items-center">
+                                  <i className="bi bi-check-circle-fill fs-4 me-3"></i>
                                   <div>
-                                    <div className="fw-semibold text-dark">{task.label}</div>
-
-                                    <small className="text-muted d-block">
-                                      {STATUS_LABELS[currentStatus] || "Pending"}
-                                    </small>
+                                    <strong>Ngày này đã hoàn thành!</strong>
+                                    <div>Bạn đã checkout lúc {formatTimeHHMM(session.checkOut)}.</div>
                                   </div>
                                 </div>
-
-                                {/* RIGHT SIDE */}
-                                <div className="d-flex align-items-center gap-3 flex-shrink-0">
-
-                                  {/* TIMER HERE — CHỈ Ở ĐÂY MỚI BẢO ĐẢM HIỆN */}
-                                  <small className="text-primary d-block mt-1 data-tick={tick}">
-                                    {(() => {
-                                      if (!tmr) return "";
-                                      const base = tmr.elapsedMs || 0;
-                                      const running = tmr.startedAt
-                                        ? base + (Date.now() - tmr.startedAt)
-                                        : base;
-
-                                      const format = (ms) => {
-                                        const s = Math.floor(ms / 1000);
-                                        const h = Math.floor(s / 3600);
-                                        const m = Math.floor((s % 3600) / 60);
-                                        const sec = s % 60;
-                                        return `${h}h ${m}m ${sec}s`;
-                                      };
-
-                                      return `⏱ ${format(running)}`;
-                                    })()}
-                                  </small>
-
-                                  <Button
-                                    style={{
-                                      width: "110px",
-                                      textAlign: "center",
-                                      whiteSpace: "nowrap",
-                                      paddingLeft: "16px",
-                                      paddingRight: "16px"
-                                    }}
-                                    variant={
-                                      currentStatus === "completed"
-                                        ? "outline-success"
-                                        : currentStatus === "in_progress"
-                                          ? "primary"
-                                          : "outline-secondary"
-                                    }
-                                    size="sm"
-                                    className="fw-semibold task-action-btn"
-                                    onClick={() =>
-                                      handleTaskStatus(task.id, dayKey || null)
-                                    }
-                                  >
-                                    {currentStatus === "in_progress"
-                                      ? "Mark done"
-                                      : currentStatus === "completed"
-                                        ? "Completed"
-                                        : "Start"}
-                                  </Button>
-                                </div>
-                              </Card.Body>
-                            </Card>
-                          );
-                        })}
-                      </div>
-                    );
-                  })}
+                              )}
+                            </>
+                          )}
+                        </Tab>
+                      );
+                    })}
+                  </Tabs>
                 </div>
+
               </Card.Body>
             </Card>
 
@@ -1459,14 +1438,14 @@ export default function TaskerJobProgress() {
               <Button
                 variant="danger"
                 className="px-4 py-2 fw-semibold"
-                disabled={loading || !allTasksCompleted}
+                disabled={loading}
                 onClick={handleCompleteJob}
               >
                 <i className="bi bi-stop-circle me-2"></i>
                 End Job
               </Button>
             </div>
-            {!allTasksCompleted && (
+            {!isCurrentSessionFinished && (
               <small className="text-muted d-block mt-2">
                 Vui lòng hoàn thành tất cả mục trong checklist trước khi kết
                 thúc công việc.
@@ -1535,6 +1514,6 @@ export default function TaskerJobProgress() {
           </div>
         </Col>
       </Row>
-    </Container>
+    </Container >
   );
 }

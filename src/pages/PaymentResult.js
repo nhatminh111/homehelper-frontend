@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCheckCircle, faXmarkCircle, faArrowLeft, faRepeat } from '@fortawesome/free-solid-svg-icons';
+import { formatVND } from '../utils/formatVND';
 import '../css/topUp.css'; // tái dùng biến màu
 
 function useQuery() {
@@ -17,15 +18,15 @@ const PaymentResult = () => {
 
   useEffect(() => {
     const resultCode = query.get('resultCode');
-    const orderId    = query.get('orderId') || '';
-    const amount     = query.get('amount');
-    const message    = query.get('message');
+    const orderId = query.get('orderId') || '';
+    const amount = query.get('amount');
+    const message = query.get('message');
 
     setInfo({ orderId, amount, message });
     setStatus(resultCode === '0' ? 'success' : 'fail');
-    
+
     if (resultCode === '0') {
-     try { window.dispatchEvent(new Event('wallet:refresh')); } catch {}
+      try { window.dispatchEvent(new Event('wallet:refresh')); } catch { }
     }
   }, [query]);
 
@@ -37,7 +38,7 @@ const PaymentResult = () => {
   const niceAmount = useMemo(() => {
     if (info.amount == null || info.amount === '') return '—';
     const n = Number(info.amount);
-    return Number.isFinite(n) ? n.toLocaleString() + '₫' : String(info.amount) + '₫';
+    return Number.isFinite(n) ? formatVND(n / 1000) : String(info.amount) + '₫';
   }, [info.amount]);
 
   const note = status === 'success'

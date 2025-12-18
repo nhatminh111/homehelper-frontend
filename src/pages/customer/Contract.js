@@ -1,12 +1,19 @@
-import { Container, Row, Col, Card, Button, Tabs, Tab } from "react-bootstrap";
+import { Container, Row, Col, Card, Button, Tabs, Tab, Form } from "react-bootstrap";
 import SignatureCanvas from "react-signature-canvas";
 import { useRef, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import api from "../../services/api";
+import { showToast } from "../../components/common/CustomToast";
 
 export default function ContractPage() {
+    const { id: bookingId } = useParams();
+    const navigate = useNavigate();
     const sigCanvas = useRef(null);
     const [signature, setSignature] = useState("");
-    const [typedSignature, setTypedSignature] = useState("");
-    const [uploadedSignature, setUploadedSignature] = useState(null);
+    const [isConfirmed, setIsConfirmed] = useState(false);
+    const [signatureUrl, setSignatureUrl] = useState(null);
+    const [agreed, setAgreed] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
 
     const partnerSignature = {
         name: "Nguyen Van A",
@@ -16,14 +23,47 @@ export default function ContractPage() {
     };
 
     const clearSignature = () => {
-        if (sigCanvas.current) sigCanvas.current.clear(); // Xóa canvas
+        if (sigCanvas.current) {
+            sigCanvas.current.clear(); // Xóa canvas
+            sigCanvas.current.on(); // Bật lại vẽ
+        }
         setSignature("");        // Xóa signature preview
-        setTypedSignature("");   // Xóa chữ đã nhập
-        setUploadedSignature(null); // Xóa ảnh đã upload
+        setIsConfirmed(false);
+        setSignatureUrl(null);
     };
-    const saveSignature = () => {
-        const dataUrl = sigCanvas.current.getTrimmedCanvas().toDataURL("image/png");
-        setSignature(dataUrl);
+
+    const handleConfirmSignature = async () => {
+        if (!sigCanvas.current || sigCanvas.current.isEmpty()) {
+            showToast.error("Vui lòng vẽ chữ ký trước khi xác nhận");
+            return;
+        }
+
+        // Use getCanvas() instead of getTrimmedCanvas() to avoid "trim_canvas is not a function" error
+        // If trimming is needed, we might need to implement it manually or update the library.
+        const canvas = sigCanvas.current.getCanvas();
+
+        try {
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+            const formData = new FormData();
+            formData.append("signature", blob, "signature.png");
+
+            setSubmitting(true);
+            const res = await api.post("/uploads/signature", formData, {
+                headers: { "Content-Type": "multipart/form-data" }
+            });
+
+            if (res.data.success) {
+                setSignatureUrl(res.data.data.url);
+                setIsConfirmed(true);
+                sigCanvas.current.off(); // Tắt vẽ
+                showToast.success("Đã xác nhận chữ ký!");
+            }
+        } catch (error) {
+            console.error(error);
+            showToast.error("Lỗi khi tải lên chữ ký");
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     return (
@@ -221,83 +261,45 @@ export default function ContractPage() {
                         >
                             <Card.Body>
                                 <h6 className="fw-bold mb-3">✍️ Chữ ký của bạn</h6>
-                                <Tabs defaultActiveKey="draw" className="mb-4">
-                                    <Tab eventKey="draw" title="✍️ Vẽ">
-                                        <SignatureCanvas
-                                            ref={sigCanvas}
-                                            penColor="black"
-                                            canvasProps={{
-                                                width: 350,
-                                                height: 150,
-                                                className: "border rounded w-100 bg-light",
-                                            }}
-                                        />
-                                    </Tab>
-                                    <Tab eventKey="type" title="⌨️ Gõ">
-                                        <input
-                                            type="text"
-                                            className="form-control"
-                                            placeholder="Nhập chữ ký"
-                                            value={typedSignature}
-                                            onChange={(e) => setTypedSignature(e.target.value)}
-                                        />
-                                    </Tab>
-                                    <Tab eventKey="upload" title="📂 Tải lên">
-                                        <div className="d-flex flex-column align-items-center w-100">
-                                            <label className="btn btn-outline-primary w-100">
-                                                <i className="bi bi-upload me-2"></i> Chọn tệp
-                                                <input
-                                                    type="file"
-                                                    hidden
-                                                    accept="image/*"
-                                                    onChange={(e) => {
-                                                        const file = e.target.files[0];
-                                                        if (file) {
-                                                            const preview = URL.createObjectURL(file);
-                                                            setUploadedSignature(preview);
-                                                        }
-                                                    }}
-                                                />
-                                            </label>
-
-                                            {/* Hiển thị tên file nếu có */}
-                                            {uploadedSignature && (
-                                                <div className="position-relative mt-3 border rounded bg-white shadow-sm" style={{ maxWidth: "100%" }}>
-                                                    <img
-                                                        src={uploadedSignature}
-                                                        alt="Uploaded Signature"
-                                                        style={{ maxWidth: "100%", maxHeight: 120, objectFit: "contain" }}
-                                                    />
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setUploadedSignature("")}
-                                                        style={{
-                                                            position: "absolute",
-                                                            top: "6px",
-                                                            right: "6px",
-                                                            border: "none",
-                                                            background: "rgba(255, 0, 0, 0.7)",
-                                                            color: "white",
-                                                            borderRadius: "50%",
-                                                            width: "24px",
-                                                            height: "24px",
-                                                            fontSize: "14px",
-                                                            lineHeight: "20px",
-                                                            cursor: "pointer",
-                                                        }}
-                                                    >
-                                                        ×
-                                                    </button>
-                                                </div>
-                                            )}
+                                <div className="border rounded bg-light mb-3" style={{ position: 'relative' }}>
+                                    <SignatureCanvas
+                                        ref={sigCanvas}
+                                        penColor="black"
+                                        canvasProps={{
+                                            width: 350,
+                                            height: 150,
+                                            className: `w-100 ${isConfirmed ? 'bg-secondary-subtle' : 'bg-white'}`,
+                                        }}
+                                        onBegin={() => !isConfirmed}
+                                    />
+                                    {isConfirmed && (
+                                        <div style={{
+                                            position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            backgroundColor: 'rgba(255,255,255,0.5)'
+                                        }}>
+                                            <div className="badge bg-success fs-6">✔️ Đã khóa</div>
                                         </div>
-                                    </Tab>
-                                </Tabs>
+                                    )}
+                                </div>
 
-                                <div className="d-flex gap-2 mt-3">
-                                    <Button variant="outline-secondary" onClick={clearSignature}>
-                                        Xoá
+                                <div className="d-flex gap-2">
+                                    <Button
+                                        variant="outline-secondary"
+                                        onClick={clearSignature}
+                                        disabled={submitting}
+                                    >
+                                        {isConfirmed ? "Ký lại" : "Xóa"}
                                     </Button>
+                                    {!isConfirmed && (
+                                        <Button
+                                            variant="primary"
+                                            onClick={handleConfirmSignature}
+                                            disabled={submitting}
+                                        >
+                                            {submitting ? "Đang xử lý..." : "Xác nhận"}
+                                        </Button>
+                                    )}
                                 </div>
                             </Card.Body>
                         </Card>
@@ -320,7 +322,19 @@ export default function ContractPage() {
                             </Card.Body>
                         </Card>
 
-                        {/* Next Step: Payment */}
+                        {/* Checkbox Agreement */}
+                        <div className="mb-3">
+                            <Form.Check
+                                type="checkbox"
+                                id="agree-terms"
+                                label="Tôi đồng ý với các điều khoản dịch vụ và hợp đồng điện tử này."
+                                checked={agreed}
+                                onChange={(e) => setAgreed(e.target.checked)}
+                                className="fw-semibold text-primary"
+                            />
+                        </div>
+
+                        {/* Next Step: Sign & Payment */}
                         <div className="mt-3">
                             <Button
                                 className="w-100 fw-semibold"
@@ -331,10 +345,40 @@ export default function ContractPage() {
                                     padding: "0.75rem",
                                     borderRadius: "10px",
                                     boxShadow: "0 4px 10px rgba(33,150,243,0.3)",
+                                    opacity: (!agreed || !isConfirmed) ? 0.6 : 1
                                 }}
-                                onClick={() => window.location.href = "/payment"}
+                                disabled={!agreed || !isConfirmed || submitting}
+                                onClick={async () => {
+                                    if (!bookingId) {
+                                        showToast.error("Không tìm thấy mã booking.");
+                                        return;
+                                    }
+
+                                    if (!signatureUrl) {
+                                        showToast.error("Vui lòng xác nhận chữ ký trước.");
+                                        return;
+                                    }
+
+                                    setSubmitting(true);
+                                    try {
+                                        // Gọi API xác nhận ký với URL chữ ký
+                                        await api.post(`/bookings/${bookingId}/sign`, {
+                                            signatureUrl
+                                        });
+                                        showToast.success("Đã ký hợp đồng thành công!");
+
+                                        // Chuyển sang trang thanh toán
+                                        navigate(`/payment/${bookingId}`);
+                                    } catch (err) {
+                                        console.error(err);
+                                        const msg = err.response?.data?.message || err.message || "Lỗi khi ký hợp đồng. Vui lòng thử lại.";
+                                        showToast.error(msg);
+                                    } finally {
+                                        setSubmitting(false);
+                                    }
+                                }}
                             >
-                                Đến trang thanh toán ➡
+                                {submitting ? "Đang xử lý..." : "✔ Ký & Đến trang thanh toán ➡"}
                             </Button>
                         </div>
                     </Col>
