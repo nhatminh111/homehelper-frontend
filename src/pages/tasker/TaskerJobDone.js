@@ -320,9 +320,11 @@ const TaskerJobDone = () => {
 
   const expected_price = booking?.expected_price ?? 0;
   const final_price = booking?.final_price ?? 0;
-  const rawPrice = Number(
+  const quantity = booking?.quantity ?? 1;
+  const unitPrice = Number(
     final_price && Number(final_price) !== 0 ? final_price : expected_price
   );
+  const rawPrice = unitPrice * quantity;
   const fee = Math.round(rawPrice * 0.1);
   const earnings = rawPrice - fee;
 
@@ -582,17 +584,22 @@ const TaskerJobDone = () => {
 
                       return (
                         <>
-                          {singleSession && (
+                          {(singleSession || startDate) && (
                             <Card className="mb-3 border-0 bg-light">
                               <Card.Body>
+                                {startDate && (
+                                  <div className="fw-bold fs-5 mb-2">
+                                    {formatDateTimeForDay.format(startDate)}
+                                  </div>
+                                )}
                                 <div className="d-flex gap-4 text-muted small">
                                   <div>
                                     <i className="bi bi-box-arrow-in-right me-1"></i> Check-in:{" "}
-                                    <strong>{formatTimeHHMM(singleSession.checkIn)}</strong>
+                                    <strong>{formatTimeHHMM(singleSession?.checkIn)}</strong>
                                   </div>
                                   <div>
                                     <i className="bi bi-box-arrow-left me-1"></i> Check-out:{" "}
-                                    <strong>{formatTimeHHMM(singleSession.checkOut)}</strong>
+                                    <strong>{formatTimeHHMM(singleSession?.checkOut)}</strong>
                                   </div>
                                 </div>
                               </Card.Body>

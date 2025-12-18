@@ -53,7 +53,7 @@ const parseChecklist = (rawChecklist) => {
 export default function TaskerBookingDetail() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { id } = useParams(); 
+  const { id } = useParams();
 
   const [booking, setBooking] = useState(location.state?.booking || null);
   const [loading, setLoading] = useState(false);
