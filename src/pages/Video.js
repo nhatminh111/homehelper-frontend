@@ -31,7 +31,7 @@ const Video = () => {
         views: 'N/A', // Cần bảng riêng để lưu views
         timeAgo: calculateTimeAgo(video.uploaded_at),
         price: 'Liên hệ',
-        expertAvatar: '/images/avatars/default.png',
+        expertAvatar: video.avatar_url || '/images/avatar-placeholder.jpg',
         verified: true,
       }));
       setVideos(mappedVideos);

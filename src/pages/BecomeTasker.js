@@ -112,7 +112,7 @@ const BecomeTasker = () => {
   const [currentUserId, setCurrentUserId] = useState(null);
   const [tokenUserId, setTokenUserId] = useState(null);
 
-  useEffect(()=>{
+  useEffect(() => {
     // Try to get user info from localStorage (assuming auth stores user object JSON under 'user')
     try {
       const raw = localStorage.getItem('user');
@@ -122,7 +122,7 @@ const BecomeTasker = () => {
         const uid = obj?.user_id || obj?.userId || obj?.id;
         if (uid) setCurrentUserId(uid);
       }
-    } catch(e){ /* silent */ }
+    } catch (e) { /* silent */ }
   }, []);
 
   // Check Tasker/app status: hide form if user is already Tasker OR has application Pending/Approved
@@ -145,16 +145,16 @@ const BecomeTasker = () => {
         try {
           const resTasker = await fetch(`${API_BASE_URL}/tasker/${effectiveUserId}`);
           if (resTasker.ok) {
-            const jt = await resTasker.json().catch(()=>null);
+            const jt = await resTasker.json().catch(() => null);
             if (jt && (jt.success === true) && jt.data) {
               alreadyTasker = true;
             }
           }
-        } catch(_) { /* ignore and continue to my-status */ }
+        } catch (_) { /* ignore and continue to my-status */ }
         if (!cancelled && alreadyTasker) { setIsTaskerAccount(true); return; }
         // 2) Else check latest application status
         const resMy = await authFetch(`${API_BASE_URL}/tasker/application/my-status`);
-        const jsonMy = await resMy.json().catch(()=>null);
+        const jsonMy = await resMy.json().catch(() => null);
         if (!cancelled) {
           const st = jsonMy?.data?.status;
           // Hide form when status is Pending or Approved; show when Rejected or no application
@@ -295,17 +295,17 @@ const BecomeTasker = () => {
       }
       setServiceCerts(prev => ({
         ...prev,
-        [service_id]: (prev[service_id] || []).map((c,i)=> i===idx ? { ...c, _signed_url: signed.url, _signed_expiry: expiresAtMs } : c)
+        [service_id]: (prev[service_id] || []).map((c, i) => i === idx ? { ...c, _signed_url: signed.url, _signed_expiry: expiresAtMs } : c)
       }));
     }
   }, [serviceCerts, fetchSignedCertificateUrl, fetchSignedCertificateUrlByPublicId]);
 
   // Periodically refresh about-to-expire URLs (within 30s)
-  useEffect(()=>{
-    const interval = setInterval(()=>{
+  useEffect(() => {
+    const interval = setInterval(() => {
       const now = Date.now();
-      Object.entries(serviceCerts).forEach(([sid, list])=>{
-        list.forEach((c, idx)=>{
+      Object.entries(serviceCerts).forEach(([sid, list]) => {
+        list.forEach((c, idx) => {
           if (c.delivery_type === 'authenticated') {
             const exp = (typeof c._signed_expiry === 'number') ? c._signed_expiry : (c._signed_expiry ? Date.parse(c._signed_expiry) : undefined);
             if ((c.cert_id || c.cert_public_id) && exp && exp - now < 30000) {
@@ -315,13 +315,13 @@ const BecomeTasker = () => {
         });
       });
     }, 15000);
-    return ()=> clearInterval(interval);
+    return () => clearInterval(interval);
   }, [serviceCerts, refreshSignedUrl]);
 
   // Initial fetch for any persisted authenticated certs lacking signed URL
-  useEffect(()=>{
-    Object.entries(serviceCerts).forEach(([sid, list])=>{
-      list.forEach((c, idx)=>{
+  useEffect(() => {
+    Object.entries(serviceCerts).forEach(([sid, list]) => {
+      list.forEach((c, idx) => {
         if (c.delivery_type === 'authenticated' && (c.cert_id || c.cert_public_id) && !c._signed_url) {
           refreshSignedUrl(sid, idx);
         }
@@ -488,8 +488,8 @@ const BecomeTasker = () => {
   const runAIExtraction = async (service_id, idx) => {
     try {
       setExtracting({ service_id, idx });
-  const cert = (serviceCerts[service_id] || [])[idx];
-  if (!cert) { showToast.error('Thiếu dữ liệu chứng chỉ.'); setExtracting(null); return; }
+      const cert = (serviceCerts[service_id] || [])[idx];
+      if (!cert) { showToast.error('Thiếu dữ liệu chứng chỉ.'); setExtracting(null); return; }
       if (!cert.cert_id) {
         const createRes = await authFetch(`${API_BASE_URL}/tasker/certifications`, {
           method: 'POST',
@@ -519,7 +519,7 @@ const BecomeTasker = () => {
         const row = createJson.data;
         setServiceCerts(prev => ({
           ...prev,
-          [service_id]: prev[service_id].map((c,i) => i===idx ? {
+          [service_id]: prev[service_id].map((c, i) => i === idx ? {
             ...c,
             cert_id: row.cert_id || c.cert_id,
             cert_name: row.parsed_cert_name || row.cert_name || c.cert_name,
@@ -552,27 +552,27 @@ const BecomeTasker = () => {
       const updated = json.data;
       setServiceCerts(prev => ({
         ...prev,
-        [service_id]: prev[service_id].map((c,i) => i===idx ? {
+        [service_id]: prev[service_id].map((c, i) => i === idx ? {
           ...c,
-            cert_name: updated.parsed_cert_name || c.cert_name,
-            issued_by: updated.parsed_issued_by || c.issued_by,
-            issued_date: updated.parsed_issued_date || c.issued_date,
-            holder_name: updated.parsed_holder_name || c.holder_name || '',
-            cert_public_id: updated.cert_public_id || c.cert_public_id,
-            delivery_type: updated.delivery_type || c.delivery_type,
-            ai_confidence: updated.ai_confidence,
-            ai_status: updated.ai_status,
-            needs_review: updated.needs_review,
-            parsed_cert_name: updated.parsed_cert_name,
-            parsed_issued_by: updated.parsed_issued_by,
-            parsed_issued_date: updated.parsed_issued_date,
-            parsed_holder_name: updated.parsed_holder_name,
-            parsed_grade_or_level: updated.parsed_grade_or_level,
-            parsed_certificate_code: updated.parsed_certificate_code,
-            extracted_payload: updated.extracted_payload,
-            ai_detected_service: updated.ai_detected_service,
-            ai_service_match: updated.ai_service_match,
-            ai_service_score: updated.ai_service_score
+          cert_name: updated.parsed_cert_name || c.cert_name,
+          issued_by: updated.parsed_issued_by || c.issued_by,
+          issued_date: updated.parsed_issued_date || c.issued_date,
+          holder_name: updated.parsed_holder_name || c.holder_name || '',
+          cert_public_id: updated.cert_public_id || c.cert_public_id,
+          delivery_type: updated.delivery_type || c.delivery_type,
+          ai_confidence: updated.ai_confidence,
+          ai_status: updated.ai_status,
+          needs_review: updated.needs_review,
+          parsed_cert_name: updated.parsed_cert_name,
+          parsed_issued_by: updated.parsed_issued_by,
+          parsed_issued_date: updated.parsed_issued_date,
+          parsed_holder_name: updated.parsed_holder_name,
+          parsed_grade_or_level: updated.parsed_grade_or_level,
+          parsed_certificate_code: updated.parsed_certificate_code,
+          extracted_payload: updated.extracted_payload,
+          ai_detected_service: updated.ai_detected_service,
+          ai_service_match: updated.ai_service_match,
+          ai_service_score: updated.ai_service_score
         } : c)
       }));
     } catch (e) {
@@ -615,7 +615,7 @@ const BecomeTasker = () => {
           ai_detected_service: c.ai_detected_service,
           ai_service_match: c.ai_service_match,
           ai_service_score: c.ai_service_score,
-          holder_mismatch: (()=>{
+          holder_mismatch: (() => {
             const inferredHolder = (c.holder_name || c.parsed_holder_name || '').trim();
             if (!inferredHolder || !accountName) return false;
             const cmp = compareNames(inferredHolder, accountName);
@@ -641,12 +641,12 @@ const BecomeTasker = () => {
       if (introVideo && introVideo.video_url) {
         body.introduction_video = {
           video_url: introVideo.video_url,
-            public_id: introVideo.public_id,
-            title: introVideo.title || 'Video giới thiệu',
-            description: introVideo.description || ''
+          public_id: introVideo.public_id,
+          title: introVideo.title || 'Video giới thiệu',
+          description: introVideo.description || ''
         };
       }
-  const res = await authFetch(`${API_BASE_URL}/tasker/upgrade`, {
+      const res = await authFetch(`${API_BASE_URL}/tasker/upgrade`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
@@ -689,362 +689,363 @@ const BecomeTasker = () => {
           </div>
         </div>
       ) : (
-      <div className="container py-4">
-        <div className="row justify-content-center">
-          <div className="col-lg-10">
-            <div className="bg-white rounded shadow-sm p-4">
-              <h3 className="mb-3">Đăng ký trở thành Tasker</h3>
-              <p className="text-muted mb-4">Chọn dịch vụ bạn có thể cung cấp và thêm chứng chỉ (nếu có).</p>
+        <div className="container py-4">
+          <div className="row justify-content-center">
+            <div className="col-lg-10">
+              <div className="bg-white rounded shadow-sm p-4">
+                <h3 className="mb-3">Đăng ký trở thành Tasker</h3>
+                <p className="text-muted mb-4">Chọn dịch vụ bạn có thể cung cấp và thêm chứng chỉ (nếu có).</p>
 
-              {submitState.done && <div className="alert alert-success d-none">Gửi đơn thành công.</div>}
-              {submitState.error && <div className="alert alert-danger d-none">{submitState.error}</div>}
+                {submitState.done && <div className="alert alert-success d-none">Gửi đơn thành công.</div>}
+                {submitState.error && <div className="alert alert-danger d-none">{submitState.error}</div>}
 
-              <form onSubmit={submit}>
-                <div className="form-group mb-3">
-                  <label className="fw-semibold">Giới thiệu bản thân <span className="text-danger">*</span></label>
-                  <textarea className="form-control" rows={3} value={introduce} onChange={(e) => setIntroduce(e.target.value)} required />
-                </div>
+                <form onSubmit={submit}>
+                  <div className="form-group mb-3">
+                    <label className="fw-semibold">Giới thiệu bản thân <span className="text-danger">*</span></label>
+                    <textarea className="form-control" rows={3} value={introduce} onChange={(e) => setIntroduce(e.target.value)} required />
+                  </div>
 
-                <div className="mb-4">
-                  <h5 className="d-flex align-items-center gap-2">Dịch vụ <span className="text-danger">*</span></h5>
-                  {services.length === 0 && <div className="text-muted small">Đang tải dịch vụ...</div>}
-                  {services.length > 0 && (
-                    <>
-                      <div className="row g-2 mb-2">
-                        <div className="col-md-12">
-                          <select
-                            className="form-select form-select-sm"
-                            value={selectedServiceId}
-                            onChange={e => handleChangeService(e.target.value)}
-                          >
-                            <option value="">-- Chọn dịch vụ --</option>
-                            {filteredServices.map(s => (
-                              <option key={s.service_id} value={s.service_id}>{s.name}</option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-
-                      {currentService && (
-                        <div className="border rounded p-2 mb-3">
-                          <div className="d-flex justify-content-between align-items-center mb-2">
-                            <strong>{currentService.name}</strong>
-                            <small className="text-muted">{(currentService.variants || []).length} lựa chọn</small>
+                  <div className="mb-4">
+                    <h5 className="d-flex align-items-center gap-2">Dịch vụ <span className="text-danger">*</span></h5>
+                    {services.length === 0 && <div className="text-muted small">Đang tải dịch vụ...</div>}
+                    {services.length > 0 && (
+                      <>
+                        <div className="row g-2 mb-2">
+                          <div className="col-md-12">
+                            <select
+                              className="form-select form-select-sm"
+                              value={selectedServiceId}
+                              onChange={e => handleChangeService(e.target.value)}
+                            >
+                              <option value="">-- Chọn dịch vụ --</option>
+                              {filteredServices.map(s => (
+                                <option key={s.service_id} value={s.service_id}>{s.name}</option>
+                              ))}
+                            </select>
                           </div>
-                          <div className="row">
-                            {(currentService.variants || []).map(v => {
-                              const checked = selectedVariants.includes(v.variant_id);
-                              return (
-                                <div key={v.variant_id} className="col-md-4 col-sm-6 mb-2">
-                                  <div className={`form-check small h-100 p-2 rounded border ${checked ? 'bg-light border-primary' : 'border-light'}`}> 
-                                    <input type="checkbox" className="form-check-input" style={{ display: 'none' }} id={`variant-${v.variant_id}`} checked={checked} onChange={() => toggleVariant(v.variant_id)} />
-                                    <label htmlFor={`variant-${v.variant_id}`} className="form-check-label">
-                                      <span className="fw-semibold d-block">{v.variant_name}</span>
-                                      {v.price_min && v.price_max && (
-                                        <span className="text-muted">{v.price_min}-{v.price_max}/{v.unit}</span>
-                                      )}
-                                    </label>
+                        </div>
+
+                        {currentService && (
+                          <div className="border rounded p-2 mb-3">
+                            <div className="d-flex justify-content-between align-items-center mb-2">
+                              <strong>{currentService.name}</strong>
+                              <small className="text-muted">{(currentService.variants || []).length} lựa chọn</small>
+                            </div>
+                            <div className="row">
+                              {(currentService.variants || []).map(v => {
+                                const checked = selectedVariants.includes(v.variant_id);
+                                return (
+                                  <div key={v.variant_id} className="col-md-4 col-sm-6 mb-2">
+                                    <div className={`form-check small h-100 p-2 rounded border ${checked ? 'bg-light border-primary' : 'border-light'}`}>
+                                      <input type="checkbox" className="form-check-input" style={{ display: 'none' }} id={`variant-${v.variant_id}`} checked={checked} onChange={() => toggleVariant(v.variant_id)} />
+                                      <label htmlFor={`variant-${v.variant_id}`} className="form-check-label">
+                                        <span className="fw-semibold d-block">{v.variant_name}</span>
+                                        {v.price_min && v.price_max && (
+                                          <span className="text-muted">{v.price_min}-{v.price_max}/{v.unit}</span>
+                                        )}
+                                      </label>
+                                    </div>
                                   </div>
-                                </div>
-                              );
-                            })}
+                                );
+                              })}
+                            </div>
+                            {currentService.variants && currentService.variants.length === 0 && (
+                              <div className="text-muted small">Dịch vụ này chưa có biến thể.</div>
+                            )}
                           </div>
-                          {currentService.variants && currentService.variants.length === 0 && (
-                            <div className="text-muted small">Dịch vụ này chưa có biến thể.</div>
-                          )}
-                        </div>
-                      )}
-                    </>
-                  )}
+                        )}
+                      </>
+                    )}
 
-                  {groupedSelected.length > 0 && (
-                    <div className="mt-3">
-                      <h6 className="fw-semibold mb-2">Đã chọn:</h6>
-                      {groupedSelected.map(group => (
-                        <div key={group.service.service_id} className="mb-2">
-                          <div className="small fw-semibold mb-1">{group.service.name}</div>
-                          <div className="d-flex flex-wrap gap-2">
-                            {group.variants.map(v => (
-                              <span key={v.variant_id} className="badge text-bg-light border position-relative pe-4">
-                                {v.variant_name}
-                                <button
-                                  type="button"
-                                  className="btn-close btn-close-sm position-absolute top-50 translate-middle-y end-0 me-1"
-                                  aria-label="Remove"
-                                  onClick={() => setSelectedVariants(prev => prev.filter(id => id !== v.variant_id))}
-                                  style={{ fontSize: '0.5rem' }}
-                                />
-                              </span>
-                            ))}
+                    {groupedSelected.length > 0 && (
+                      <div className="mt-3">
+                        <h6 className="fw-semibold mb-2">Đã chọn:</h6>
+                        {groupedSelected.map(group => (
+                          <div key={group.service.service_id} className="mb-2">
+                            <div className="small fw-semibold mb-1">{group.service.name}</div>
+                            <div className="d-flex flex-wrap gap-2">
+                              {group.variants.map(v => (
+                                <span key={v.variant_id} className="badge text-bg-light border position-relative pe-4">
+                                  {v.variant_name}
+                                  <button
+                                    type="button"
+                                    className="btn-close btn-close-sm position-absolute top-50 translate-middle-y end-0 me-1"
+                                    aria-label="Remove"
+                                    onClick={() => setSelectedVariants(prev => prev.filter(id => id !== v.variant_id))}
+                                    style={{ fontSize: '0.5rem' }}
+                                  />
+                                </span>
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                      <div className="mt-2 d-flex gap-2">
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-outline-danger"
-                          onClick={() => setSelectedVariants([])}
-                        >Xóa tất cả</button>
-                        {currentService && (currentService.variants || []).some(v => !selectedVariants.includes(v.variant_id)) && (
+                        ))}
+                        <div className="mt-2 d-flex gap-2">
                           <button
                             type="button"
-                            className="btn btn-sm btn-outline-primary"
-                            onClick={() => {
-                              const currentIds = (currentService.variants || []).map(v => v.variant_id);
-                              setSelectedVariants(prev => Array.from(new Set([...prev, ...currentIds])));
-                            }}
-                          >Chọn tất cả biến thể dịch vụ này</button>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="mb-4">
-                  <h5>Chứng chỉ theo dịch vụ</h5>
-                  {requiredServiceIds.length === 0 && (
-                    <p className="text-muted small mb-2">Không có dịch vụ bắt buộc chứng chỉ trong các lựa chọn hiện tại. Bạn vẫn có thể thêm chứng chỉ tùy chọn bên dưới cho bất kỳ dịch vụ nào.</p>
-                  )}
-                  {groupedSelected.map(group => (
-                    <div key={group.service.service_id} className="border rounded p-3 mb-3">
-                      <div className="d-flex justify-content-between align-items-center mb-2">
-                        <div>
-                          <strong>{group.service.name}</strong>{' '}
-                          {group.service.requires_certificate && <span className="badge bg-danger ms-1">Bắt buộc chứng chỉ</span>}
-                        </div>
-                        <div className="d-flex gap-2">
-                          <label className="btn btn-sm btn-outline-primary mb-0">
-                            {uploading ? 'Đang tải...' : 'Upload file'}
-                            <input type="file" multiple hidden onChange={(e) => { handleCertFileUpload(group.service.service_id, e.target.files); e.target.value=''; }} />
-                          </label>
-                        </div>
-                      </div>
-                      {(serviceCerts[group.service.service_id] || []).length === 0 && (
-                        <div className="text-muted small mb-2">Chưa có chứng chỉ. Vui lòng upload file chứng chỉ.</div>
-                      )}
-                      {(serviceCerts[group.service.service_id] || []).map((c, idx) => {
-                        const warnHolder = c.validation && c.validation.holder_name_match === false;
-                        const aiDetected = c.ai_detected_service;
-                        const aiServiceMismatch = c.ai_service_match === false || c.ai_service_mismatch;
-                        const inferredHolder = (c.holder_name || c.parsed_holder_name || '').trim();
-                        const nameCmp = compareNames(inferredHolder, accountName);
-                        const holderMismatch = !!(inferredHolder && accountName && !nameCmp.match);
-                        return (
-                        <div key={idx} className={`position-relative border rounded p-3 mb-3 bg-light-subtle ${warnHolder || holderMismatch ? 'border-warning' : ''} ${c.error_type ? 'border-danger' : ''} ${extracting && extracting.service_id === group.service.service_id && extracting.idx === idx ? 'opacity-50' : ''}`}>
-                          {extracting && extracting.service_id === group.service.service_id && extracting.idx === idx && (
-                            <div className="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center" style={{backdropFilter:'blur(2px)', zIndex:20, background:'rgba(255,255,255,0.65)'}}>
-                              <div className="spinner-border text-primary mb-2" role="status" style={{width:'2.5rem', height:'2.5rem'}}>
-                                <span className="visually-hidden">Loading...</span>
-                              </div>
-                            </div>
-                          )}
-                          {c.error_type && (
-                            <div className="alert alert-danger py-1 mb-2 small">
-                              {c.error_message || 'Lỗi xác thực chứng chỉ'}
-                            </div>
-                          )}
-
-                          <div className="mb-2">
-                            <label className="form-label form-label-sm mb-1">Tên bằng cấp / chứng chỉ <span className="text-danger">*</span></label>
-                            <textarea rows={3} className="form-control form-control-sm" style={{resize:'vertical'}} placeholder="VD: Chứng chỉ đào tạo – Chăm sóc người cao tuổi (Elderly Care)" value={c.cert_name} onChange={(e) => updateServiceCertField(group.service.service_id, idx, 'cert_name', e.target.value)} />
-                          </div>
-                          
-                          {/* Combined row: Image | Issuer | Code | Date */}
-                          <div className="row g-2 mb-2 align-items-start">
-                            <div className="col-md-4">
-                              <label className="form-label form-label-sm mb-1">Ảnh chứng chỉ</label>
-                              {(c.cert_file_url || (c.delivery_type==='authenticated' && c._signed_url)) ? (
-                                <div className="position-relative border rounded p-1 bg-white">
-                                  {(/\.(pdf)(\?|$)/i).test((c.delivery_type==='authenticated' && c._signed_url) ? c._signed_url : c.cert_file_url || '') ? (
-                                    <div className="small text-muted text-center" style={{minHeight: '120px'}}>
-                                      <a href={(c.delivery_type==='authenticated' && c._signed_url) ? c._signed_url : c.cert_file_url} target="_blank" rel="noreferrer">Xem file PDF</a>
-                                    </div>
-                                  ) : (
-                                    <img
-                                      src={(c.delivery_type==='authenticated' && c._signed_url) ? c._signed_url : c.cert_file_url}
-                                      alt="cert"
-                                      className="img-fluid d-block mx-auto hover-shadow"
-                                      style={{maxHeight:'140px', objectFit:'contain', cursor:'zoom-in'}}
-                                      onClick={() => setZoomImage((c.delivery_type==='authenticated' && c._signed_url) ? c._signed_url : c.cert_file_url)}
-                                      onError={() => {
-                                        if (c.delivery_type==='authenticated' && (c.cert_id || c.cert_public_id)) {
-                                          refreshSignedUrl(group.service.service_id, idx);
-                                        }
-                                      }}
-                                    />
-                                  )}
-                                </div>
-                              ) : (
-                                <div className="border rounded p-2 text-center small bg-light">
-                                  <em>Chưa có file</em>
-                                </div>
-                              )}
-                            </div>
-                            <div className="col-md-4">
-                              <label className="form-label form-label-sm mb-1">Tên đơn vị cấp chứng chỉ <span className="text-danger">*</span></label>
-                              <textarea rows={2} className="form-control form-control-sm" style={{resize:'vertical'}} placeholder="Trường / Tổ chức cấp" value={c.issued_by} onChange={(e) => updateServiceCertField(group.service.service_id, idx, 'issued_by', e.target.value)} />
-                              <label className="form-label form-label-sm mb-1 mt-2">Tên trên chứng chỉ (Holder) <span className="text-danger">*</span></label>
-                              <input type="text" className="form-control form-control-sm" placeholder="Tên người được cấp" value={c.holder_name || c.parsed_holder_name || ''} onChange={(e)=> updateServiceCertField(group.service.service_id, idx, 'holder_name', e.target.value)} />
-                            </div>
-                            <div className="col-md-2">
-                              <label className="form-label form-label-sm mb-1">Mã chứng chỉ <span className="text-danger">*</span></label>
-                              <input type="text" className="form-control form-control-sm" placeholder="Mã" value={c.parsed_certificate_code || ''} onChange={(e) => updateServiceCertField(group.service.service_id, idx, 'parsed_certificate_code', e.target.value)} />
-                            </div>
-                            <div className="col-md-2">
-                              <label className="form-label form-label-sm mb-1">Ngày cấp <span className="text-danger">*</span></label>
-                              <input type="date" className="form-control form-control-sm" value={c.issued_date} onChange={(e) => updateServiceCertField(group.service.service_id, idx, 'issued_date', e.target.value)} />
-                            </div>
-                          </div>
-                          {/* Action buttons bottom-right */}
-                          <div className="d-flex justify-content-end gap-2 mb-2">
+                            className="btn btn-sm btn-outline-danger"
+                            onClick={() => setSelectedVariants([])}
+                          >Xóa tất cả</button>
+                          {currentService && (currentService.variants || []).some(v => !selectedVariants.includes(v.variant_id)) && (
                             <button
                               type="button"
-                              className="btn btn-sm btn-outline-secondary position-relative"
-                              style={{minWidth:'42px'}}
-                              title="Chạy lại AI"
-                              disabled={extracting && extracting.service_id === group.service.service_id && extracting.idx === idx}
-                              onClick={() => runAIExtraction(group.service.service_id, idx)}
-                            >
-                              <span
-                                className="d-inline-block"
-                                style={extracting && extracting.service_id === group.service.service_id && extracting.idx === idx ? {animation:'spin 1s linear infinite'} : {}}
-                              >⟳</span>
-                            </button>
-                            <button type="button" className="btn btn-sm btn-outline-danger" title="Xóa chứng chỉ" onClick={() => removeServiceCert(group.service.service_id, idx)}>&times;</button>
+                              className="btn btn-sm btn-outline-primary"
+                              onClick={() => {
+                                const currentIds = (currentService.variants || []).map(v => v.variant_id);
+                                setSelectedVariants(prev => Array.from(new Set([...prev, ...currentIds])));
+                              }}
+                            >Chọn tất cả biến thể dịch vụ này</button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mb-4">
+                    <h5>Chứng chỉ theo dịch vụ</h5>
+                    {requiredServiceIds.length === 0 && (
+                      <p className="text-muted small mb-2">Không có dịch vụ bắt buộc chứng chỉ trong các lựa chọn hiện tại. Bạn vẫn có thể thêm chứng chỉ tùy chọn bên dưới cho bất kỳ dịch vụ nào.</p>
+                    )}
+                    {groupedSelected.map(group => (
+                      <div key={group.service.service_id} className="border rounded p-3 mb-3">
+                        <div className="d-flex justify-content-between align-items-center mb-2">
+                          <div>
+                            <strong>{group.service.name}</strong>{' '}
+                            {group.service.requires_certificate && <span className="badge bg-danger ms-1">Bắt buộc chứng chỉ</span>}
                           </div>
-                          {/* {c.ai_confidence !== undefined && (
+                          <div className="d-flex gap-2">
+                            <label className="btn btn-sm btn-outline-primary mb-0">
+                              {uploading ? 'Đang tải...' : 'Upload file'}
+                              <input type="file" multiple hidden onChange={(e) => { handleCertFileUpload(group.service.service_id, e.target.files); e.target.value = ''; }} />
+                            </label>
+                          </div>
+                        </div>
+                        {(serviceCerts[group.service.service_id] || []).length === 0 && (
+                          <div className="text-muted small mb-2">Chưa có chứng chỉ. Vui lòng upload file chứng chỉ.</div>
+                        )}
+                        {(serviceCerts[group.service.service_id] || []).map((c, idx) => {
+                          const warnHolder = c.validation && c.validation.holder_name_match === false;
+                          const aiDetected = c.ai_detected_service;
+                          const aiServiceMismatch = c.ai_service_match === false || c.ai_service_mismatch;
+                          const inferredHolder = (c.holder_name || c.parsed_holder_name || '').trim();
+                          const nameCmp = compareNames(inferredHolder, accountName);
+                          const holderMismatch = !!(inferredHolder && accountName && !nameCmp.match);
+                          return (
+                            <div key={idx} className={`position-relative border rounded p-3 mb-3 bg-light-subtle ${warnHolder || holderMismatch ? 'border-warning' : ''} ${c.error_type ? 'border-danger' : ''} ${extracting && extracting.service_id === group.service.service_id && extracting.idx === idx ? 'opacity-50' : ''}`}>
+                              {extracting && extracting.service_id === group.service.service_id && extracting.idx === idx && (
+                                <div className="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center" style={{ backdropFilter: 'blur(2px)', zIndex: 20, background: 'rgba(255,255,255,0.65)' }}>
+                                  <div className="spinner-border text-primary mb-2" role="status" style={{ width: '2.5rem', height: '2.5rem' }}>
+                                    <span className="visually-hidden">Loading...</span>
+                                  </div>
+                                </div>
+                              )}
+                              {c.error_type && (
+                                <div className="alert alert-danger py-1 mb-2 small">
+                                  {c.error_message || 'Lỗi xác thực chứng chỉ'}
+                                </div>
+                              )}
+
+                              <div className="mb-2">
+                                <label className="form-label form-label-sm mb-1">Tên bằng cấp / chứng chỉ <span className="text-danger">*</span></label>
+                                <textarea rows={3} className="form-control form-control-sm" style={{ resize: 'vertical' }} placeholder="VD: Chứng chỉ đào tạo – Chăm sóc người cao tuổi (Elderly Care)" value={c.cert_name} onChange={(e) => updateServiceCertField(group.service.service_id, idx, 'cert_name', e.target.value)} />
+                              </div>
+
+                              {/* Combined row: Image | Issuer | Code | Date */}
+                              <div className="row g-2 mb-2 align-items-start">
+                                <div className="col-md-4">
+                                  <label className="form-label form-label-sm mb-1">Ảnh chứng chỉ</label>
+                                  {(c.cert_file_url || (c.delivery_type === 'authenticated' && c._signed_url)) ? (
+                                    <div className="position-relative border rounded p-1 bg-white">
+                                      {(/\.(pdf)(\?|$)/i).test((c.delivery_type === 'authenticated' && c._signed_url) ? c._signed_url : c.cert_file_url || '') ? (
+                                        <div className="small text-muted text-center" style={{ minHeight: '120px' }}>
+                                          <a href={(c.delivery_type === 'authenticated' && c._signed_url) ? c._signed_url : c.cert_file_url} target="_blank" rel="noreferrer">Xem file PDF</a>
+                                        </div>
+                                      ) : (
+                                        <img
+                                          src={(c.delivery_type === 'authenticated' && c._signed_url) ? c._signed_url : c.cert_file_url}
+                                          alt="cert"
+                                          className="img-fluid d-block mx-auto hover-shadow"
+                                          style={{ maxHeight: '140px', objectFit: 'contain', cursor: 'zoom-in' }}
+                                          onClick={() => setZoomImage((c.delivery_type === 'authenticated' && c._signed_url) ? c._signed_url : c.cert_file_url)}
+                                          onError={() => {
+                                            if (c.delivery_type === 'authenticated' && (c.cert_id || c.cert_public_id)) {
+                                              refreshSignedUrl(group.service.service_id, idx);
+                                            }
+                                          }}
+                                        />
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <div className="border rounded p-2 text-center small bg-light">
+                                      <em>Chưa có file</em>
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="col-md-4">
+                                  <label className="form-label form-label-sm mb-1">Tên đơn vị cấp chứng chỉ <span className="text-danger">*</span></label>
+                                  <textarea rows={2} className="form-control form-control-sm" style={{ resize: 'vertical' }} placeholder="Trường / Tổ chức cấp" value={c.issued_by} onChange={(e) => updateServiceCertField(group.service.service_id, idx, 'issued_by', e.target.value)} />
+                                  <label className="form-label form-label-sm mb-1 mt-2">Tên trên chứng chỉ (Holder) <span className="text-danger">*</span></label>
+                                  <input type="text" className="form-control form-control-sm" placeholder="Tên người được cấp" value={c.holder_name || c.parsed_holder_name || ''} onChange={(e) => updateServiceCertField(group.service.service_id, idx, 'holder_name', e.target.value)} />
+                                </div>
+                                <div className="col-md-2">
+                                  <label className="form-label form-label-sm mb-1">Mã chứng chỉ <span className="text-danger">*</span></label>
+                                  <input type="text" className="form-control form-control-sm" placeholder="Mã" value={c.parsed_certificate_code || ''} onChange={(e) => updateServiceCertField(group.service.service_id, idx, 'parsed_certificate_code', e.target.value)} />
+                                </div>
+                                <div className="col-md-2">
+                                  <label className="form-label form-label-sm mb-1">Ngày cấp <span className="text-danger">*</span></label>
+                                  <input type="date" className="form-control form-control-sm" value={c.issued_date} onChange={(e) => updateServiceCertField(group.service.service_id, idx, 'issued_date', e.target.value)} />
+                                </div>
+                              </div>
+                              {/* Action buttons bottom-right */}
+                              <div className="d-flex justify-content-end gap-2 mb-2">
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-outline-secondary position-relative"
+                                  style={{ minWidth: '42px' }}
+                                  title="Chạy lại AI"
+                                  disabled={extracting && extracting.service_id === group.service.service_id && extracting.idx === idx}
+                                  onClick={() => runAIExtraction(group.service.service_id, idx)}
+                                >
+                                  <span
+                                    className="d-inline-block"
+                                    style={extracting && extracting.service_id === group.service.service_id && extracting.idx === idx ? { animation: 'spin 1s linear infinite' } : {}}
+                                  >⟳</span>
+                                </button>
+                                <button type="button" className="btn btn-sm btn-outline-danger" title="Xóa chứng chỉ" onClick={() => removeServiceCert(group.service.service_id, idx)}>&times;</button>
+                              </div>
+                              {/* {c.ai_confidence !== undefined && (
                             <div className="small text-muted d-flex flex-wrap gap-3">
                               <span>Trạng thái: <strong>{c.ai_status || 'N/A'}</strong></span>
                               <span>Độ tin cậy: {c.ai_confidence ?? '—'} {c.needs_review ? <span className="text-warning">(cần xem lại)</span> : null}</span>
                             </div>
                           )} */}
-                          {warnHolder && (
-                            <div className="alert alert-warning mt-2 py-1 mb-0 small">
-                              Tên trên chứng chỉ khác tên tài khoản. Vui lòng kiểm tra lại .
+                              {warnHolder && (
+                                <div className="alert alert-warning mt-2 py-1 mb-0 small">
+                                  Tên trên chứng chỉ khác tên tài khoản. Vui lòng kiểm tra lại .
+                                </div>
+                              )}
+                              {!warnHolder && holderMismatch && (
+                                <div className="alert alert-warning mt-2 py-1 mb-0 small">
+                                  Tên trên chứng chỉ khác tên tài khoản: <strong>{inferredHolder}</strong> ≠ <strong>{accountName}</strong>.
+                                </div>
+                              )}
+                              {holderMismatch && (
+                                <div className="form-check mt-2 small">
+                                  <input
+                                    type="checkbox"
+                                    className="form-check-input"
+                                    id={`auth-confirm-${group.service.service_id}-${idx}`}
+                                    checked={!!c.holder_authorization_confirmed}
+                                    onChange={(e) => updateServiceCertField(group.service.service_id, idx, 'holder_authorization_confirmed', e.target.checked)}
+                                  />
+                                  <label className="form-check-label" htmlFor={`auth-confirm-${group.service.service_id}-${idx}`}>
+                                    Tôi xác nhận tôi là chủ sở hữu hoặc được ủy quyền sử dụng chứng chỉ này.
+                                  </label>
+                                </div>
+                              )}
+                              {aiServiceMismatch && !c.error_type && (
+                                <div className="alert alert-danger mt-2 py-1 mb-0 small">
+                                  AI phát hiện dịch vụ khác với lựa chọn hiện tại. Hãy kiểm tra lại chứng chỉ hoặc đổi dịch vụ tương ứng.
+                                </div>
+                              )}
+                              {c.service_content_mismatch && (
+                                <div className="alert alert-danger mt-2 py-1 mb-0 small">
+                                  Nội dung chứng chỉ không khớp dịch vụ đã chọn.
+                                </div>
+                              )}
                             </div>
-                          )}
-                          {!warnHolder && holderMismatch && (
-                            <div className="alert alert-warning mt-2 py-1 mb-0 small">
-                              Tên trên chứng chỉ khác tên tài khoản: <strong>{inferredHolder}</strong> ≠ <strong>{accountName}</strong>.
-                            </div>
-                          )}
-                          {holderMismatch && (
-                            <div className="form-check mt-2 small">
-                              <input
-                                type="checkbox"
-                                className="form-check-input"
-                                id={`auth-confirm-${group.service.service_id}-${idx}`}
-                                checked={!!c.holder_authorization_confirmed}
-                                onChange={(e)=> updateServiceCertField(group.service.service_id, idx, 'holder_authorization_confirmed', e.target.checked)}
-                              />
-                              <label className="form-check-label" htmlFor={`auth-confirm-${group.service.service_id}-${idx}`}>
-                                Tôi xác nhận tôi là chủ sở hữu hoặc được ủy quyền sử dụng chứng chỉ này.
-                              </label>
-                            </div>
-                          )}
-                          {aiServiceMismatch && !c.error_type && (
-                            <div className="alert alert-danger mt-2 py-1 mb-0 small">
-                              AI phát hiện dịch vụ khác với lựa chọn hiện tại. Hãy kiểm tra lại chứng chỉ hoặc đổi dịch vụ tương ứng.
-                            </div>
-                          )}
-                          {c.service_content_mismatch && (
-                            <div className="alert alert-danger mt-2 py-1 mb-0 small">
-                              Nội dung chứng chỉ không khớp dịch vụ đã chọn.
-                            </div>
-                          )}
-                        </div>
-                      )})}
-                      {group.service.requires_certificate && (!serviceCerts[group.service.service_id] || serviceCerts[group.service.service_id].length === 0) && (
-                        <div className="text-danger small">Cần ít nhất 1 chứng chỉ cho dịch vụ này.</div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mb-4">
-                  <h5>Video giới thiệu <span className="text-danger">*</span></h5>
-                  {!introVideo && (
-                    <div className="border rounded p-3 text-center bg-light">
-                      <p className="small text-muted mb-2">Tải lên 1 video giới thiệu kỹ năng làm việc của bạn.</p>
-                      <label className="btn btn-sm btn-outline-primary mb-0">
-                        {videoUploading ? 'Đang tải...' : 'Chọn video'}
-                        <input type="file" hidden accept="video/*" onChange={async (e) => {
-                          if (!e.target.files || !e.target.files[0]) return; 
-                          const file = e.target.files[0];
-                          setVideoUploading(true);
-                          try {
-                            const form = new FormData();
-                            form.append('video', file);
-                            const resp = await authFetch(`${API_BASE_URL}/tasker/application/video-upload`, { method: 'POST', body: form });
-                            const data = await resp.json();
-                            if (!resp.ok || !data.success) throw new Error(data.message || 'Upload video thất bại');
-                            setIntroVideo({
-                              video_url: data.data.video_url,
-                              public_id: data.data.public_id,
-                              title: '',
-                              description: ''
-                            });
-                          } catch(err) {
-                            showToast.error(err.message);
-                          } finally {
-                            setVideoUploading(false);
-                            e.target.value='';
-                          }
-                        }} />
-                      </label>
-                    </div>
-                  )}
-                  {introVideo && (
-                    <div className="border rounded p-3 position-relative">
-                      <button type="button" className="btn-close position-absolute end-0 top-0 m-2" onClick={() => setIntroVideo(null)} />
-                      <div className="row g-3">
-                        <div className="col-md-6">
-                          <div className="ratio ratio-16x9 bg-dark rounded overflow-hidden">
-                            <video controls style={{width:'100%', height:'100%', objectFit:'cover'}} src={introVideo.video_url} />
-                          </div>
-                        </div>
-                        <div className="col-md-6">
-                          <div className="mb-2">
-                            <label className="form-label form-label-sm mb-1">Tiêu đề video <span className="text-danger">*</span></label>
-                            <input type="text" className={`form-control form-control-sm ${introVideo.title && introVideo.title.trim() ? '' : 'is-invalid'}`} placeholder="VD: Giới thiệu kỹ năng và kinh nghiệm" value={introVideo.title} onChange={(e)=> setIntroVideo(v => ({...v, title: e.target.value}))} />
-                            {(!introVideo.title || !introVideo.title.trim()) && (
-                              <div className="invalid-feedback">Vui lòng nhập tiêu đề video.</div>
-                            )}
-                          </div>
-                          <div className="mb-2">
-                            <label className="form-label form-label-sm mb-1">Mô tả <span className="text-danger">*</span></label>
-                            <textarea rows={3} className={`form-control form-control-sm ${introVideo.description && introVideo.description.trim() ? '' : 'is-invalid'}`} placeholder="Mô tả ngắn về kinh nghiệm, phong cách làm việc..." value={introVideo.description} onChange={(e)=> setIntroVideo(v => ({...v, description: e.target.value}))} />
-                            {(!introVideo.description || !introVideo.description.trim()) && (
-                              <div className="invalid-feedback">Vui lòng nhập mô tả video.</div>
-                            )}
-                          </div>
-                        </div>
+                          )
+                        })}
+                        {group.service.requires_certificate && (!serviceCerts[group.service.service_id] || serviceCerts[group.service.service_id].length === 0) && (
+                          <div className="text-danger small">Cần ít nhất 1 chứng chỉ cho dịch vụ này.</div>
+                        )}
                       </div>
-                      {videoInvalid && (
-                        <div className="alert alert-warning mt-2 py-1 mb-0 small">Vui lòng điền đầy đủ tiêu đề và mô tả cho video.</div>
-                      )}
-                    </div>
+                    ))}
+                  </div>
+
+                  <div className="mb-4">
+                    <h5>Video giới thiệu <span className="text-danger">*</span></h5>
+                    {!introVideo && (
+                      <div className="border rounded p-3 text-center bg-light">
+                        <p className="small text-muted mb-2">Tải lên 1 video giới thiệu kỹ năng làm việc của bạn.</p>
+                        <label className="btn btn-sm btn-outline-primary mb-0">
+                          {videoUploading ? 'Đang tải...' : 'Chọn video'}
+                          <input type="file" hidden accept="video/*" onChange={async (e) => {
+                            if (!e.target.files || !e.target.files[0]) return;
+                            const file = e.target.files[0];
+                            setVideoUploading(true);
+                            try {
+                              const form = new FormData();
+                              form.append('video', file);
+                              const resp = await authFetch(`${API_BASE_URL}/tasker/application/video-upload`, { method: 'POST', body: form });
+                              const data = await resp.json();
+                              if (!resp.ok || !data.success) throw new Error(data.message || 'Upload video thất bại');
+                              setIntroVideo({
+                                video_url: data.data.video_url,
+                                public_id: data.data.public_id,
+                                title: '',
+                                description: ''
+                              });
+                            } catch (err) {
+                              showToast.error(err.message);
+                            } finally {
+                              setVideoUploading(false);
+                              e.target.value = '';
+                            }
+                          }} />
+                        </label>
+                      </div>
+                    )}
+                    {introVideo && (
+                      <div className="border rounded p-3 position-relative">
+                        <button type="button" className="btn-close position-absolute end-0 top-0 m-2" onClick={() => setIntroVideo(null)} />
+                        <div className="row g-3">
+                          <div className="col-md-6">
+                            <div className="ratio ratio-16x9 bg-dark rounded overflow-hidden">
+                              <video controls style={{ width: '100%', height: '100%', objectFit: 'cover' }} src={introVideo.video_url} />
+                            </div>
+                          </div>
+                          <div className="col-md-6">
+                            <div className="mb-2">
+                              <label className="form-label form-label-sm mb-1">Tiêu đề video <span className="text-danger">*</span></label>
+                              <input type="text" className={`form-control form-control-sm ${introVideo.title && introVideo.title.trim() ? '' : 'is-invalid'}`} placeholder="VD: Giới thiệu kỹ năng và kinh nghiệm" value={introVideo.title} onChange={(e) => setIntroVideo(v => ({ ...v, title: e.target.value }))} />
+                              {(!introVideo.title || !introVideo.title.trim()) && (
+                                <div className="invalid-feedback">Vui lòng nhập tiêu đề video.</div>
+                              )}
+                            </div>
+                            <div className="mb-2">
+                              <label className="form-label form-label-sm mb-1">Mô tả <span className="text-danger">*</span></label>
+                              <textarea rows={3} className={`form-control form-control-sm ${introVideo.description && introVideo.description.trim() ? '' : 'is-invalid'}`} placeholder="Mô tả ngắn về kinh nghiệm, phong cách làm việc..." value={introVideo.description} onChange={(e) => setIntroVideo(v => ({ ...v, description: e.target.value }))} />
+                              {(!introVideo.description || !introVideo.description.trim()) && (
+                                <div className="invalid-feedback">Vui lòng nhập mô tả video.</div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        {videoInvalid && (
+                          <div className="alert alert-warning mt-2 py-1 mb-0 small">Vui lòng điền đầy đủ tiêu đề và mô tả cho video.</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {hasMissingRequired && (
+                    <div className="alert alert-warning py-2">Còn thiếu chứng chỉ ở một số dịch vụ bắt buộc.</div>
                   )}
-                </div>
 
-                {hasMissingRequired && (
-                  <div className="alert alert-warning py-2">Còn thiếu chứng chỉ ở một số dịch vụ bắt buộc.</div>
-                )}
-
-                <button disabled={loading || uploading || videoUploading || videoInvalid || (requiredServiceIds.length && hasMissingRequired)} type="submit" className="btn btn-primary">
-                  {loading ? 'Đang gửi...' : uploading ? 'Đang upload...' : 'Gửi đăng ký'}
-                </button>
-              </form>
+                  <button disabled={loading || uploading || videoUploading || videoInvalid || (requiredServiceIds.length && hasMissingRequired)} type="submit" className="btn btn-primary">
+                    {loading ? 'Đang gửi...' : uploading ? 'Đang upload...' : 'Gửi đăng ký'}
+                  </button>
+                </form>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-        )}
+      )}
       {zoomImage && (
-        <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-dark bg-opacity-75" style={{zIndex:1050}} onClick={() => setZoomImage(null)}>
-          <div className="position-relative p-2 bg-white rounded shadow" onClick={e => e.stopPropagation()} style={{maxWidth:'90%', maxHeight:'90%'}}>
+        <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-dark bg-opacity-75" style={{ zIndex: 1050 }} onClick={() => setZoomImage(null)}>
+          <div className="position-relative p-2 bg-white rounded shadow" onClick={e => e.stopPropagation()} style={{ maxWidth: '90%', maxHeight: '90%' }}>
             <button type="button" className="btn-close position-absolute end-0 top-0 m-2" onClick={() => setZoomImage(null)} />
-            <img src={zoomImage} alt="zoom" style={{maxWidth:'100%', maxHeight:'80vh', objectFit:'contain'}} />
+            <img src={zoomImage} alt="zoom" style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain' }} />
           </div>
         </div>
       )}

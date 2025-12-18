@@ -860,7 +860,7 @@ export default function CustomerBookingDetail() {
                                     className="px-5 fw-semibold"
                                     style={{ borderRadius: "10px", minWidth: "160px" }}
                                     onClick={() => {
-                                        window.location.href = `/chat?bookingId=${booking_id}&peer=${customer_id}`;
+                                        window.location.href = `/chat?bookingId=${booking_id}&peer=${booking.tasker_id}`;
                                     }}
                                 >
                                     💬 Chat với người giúp việc

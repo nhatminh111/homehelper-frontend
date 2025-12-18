@@ -47,7 +47,7 @@ export default function PaymentPage() {
     };
 
     load();
-  }, []);
+  }, [bookingId, API_BASE]);
 
   useEffect(() => {
     if (!booking?.booking_time) return;

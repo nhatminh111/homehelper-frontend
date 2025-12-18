@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { 
-  faEnvelope, 
-  faUser, 
-  faEye, 
-  faEyeSlash, 
+import {
+  faEnvelope,
+  faUser,
+  faEye,
+  faEyeSlash,
   faLock,
   faPlus,
   faStar
@@ -17,7 +17,7 @@ import './Auth.css';
 const Register = () => {
   const navigate = useNavigate();
   const { register, error, setError, isAuthenticated } = useAuth();
-  
+
   const [userType, setUserType] = useState('user'); // 'user' or 'tasker'
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword] = useState(false);
@@ -107,14 +107,14 @@ const Register = () => {
 
         {/* User Type Selector */}
         <div className="user-type-selector">
-          <button 
+          <button
             className={`type-option ${userType === 'user' ? 'active' : ''}`}
             onClick={() => setUserType('user')}
           >
             <FontAwesomeIcon icon={faUser} />
             <span>Customer</span>
           </button>
-          <button 
+          <button
             className={`type-option ${userType === 'tasker' ? 'active' : ''}`}
             onClick={() => setUserType('tasker')}
           >
@@ -164,8 +164,8 @@ const Register = () => {
                 onChange={handleInputChange}
                 required
               />
-              <FontAwesomeIcon 
-                icon={showPassword ? faEyeSlash : faEye} 
+              <FontAwesomeIcon
+                icon={showPassword ? faEyeSlash : faEye}
                 className="input-icon clickable"
                 onClick={() => setShowPassword(!showPassword)}
               />
@@ -180,8 +180,8 @@ const Register = () => {
                 onChange={handleInputChange}
                 required
               />
-              <FontAwesomeIcon 
-                icon={faLock} 
+              <FontAwesomeIcon
+                icon={faLock}
                 className="input-icon"
               />
             </div>
@@ -191,7 +191,7 @@ const Register = () => {
                 {error}
               </div>
             )}
-            
+
             <button type="submit" className="auth-button primary" disabled={loading}>
               {loading ? (
                 <>
@@ -239,7 +239,7 @@ const Register = () => {
             <Link to="/terms-of-service" className="link-text">Terms of Service</Link> and{' '}
             <a href="#" className="link-text">Privacy Policy</a>
           </p>
-          
+
           <div className="social-icons">
             <button className="social-icon btn btn-link">
               <FontAwesomeIcon icon={faFacebook} />

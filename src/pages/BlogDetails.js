@@ -31,9 +31,9 @@ const BlogDetails = () => {
       setLoading(true);
 
       const [postData, commentsData, servicesData] = await Promise.all([
-        blogService.getPostById(id),       
-        blogService.getPostComments(id),  
-        blogService.getPostServices(id)   
+        blogService.getPostById(id),
+        blogService.getPostComments(id),
+        blogService.getPostServices(id)
       ]);
 
       const post = postData.data;
@@ -152,8 +152,8 @@ const BlogDetails = () => {
 
   // Helper: get author avatar
   const getAuthorAvatar = () => {
-    if (post && post.author_avatar) {
-      return post.author_avatar;
+    if (post && post.author_avatar_url) {
+      return post.author_avatar_url;
     }
     return '/images/person_1.jpg';
   };
@@ -254,43 +254,43 @@ const BlogDetails = () => {
                 const galleryPhotos = photos.slice(1); // exclude hero thumbnail
                 if (hasInlineImages || galleryPhotos.length === 0) return null;
                 return (
-                <section className="image-carousel">
-                  <div className="carousel">
-                    <div className="carousel-viewport">
-                      {galleryPhotos.map((url, idx) => (
-                        <img
-                          key={idx}
-                          src={url}
-                          alt={`Slide ${idx + 1}`}
-                          className={`carousel-img ${idx === slideIndex ? 'active' : ''}`}
-                          loading="lazy"
-                          decoding="async"
-                        />
-                      ))}
+                  <section className="image-carousel">
+                    <div className="carousel">
+                      <div className="carousel-viewport">
+                        {galleryPhotos.map((url, idx) => (
+                          <img
+                            key={idx}
+                            src={url}
+                            alt={`Slide ${idx + 1}`}
+                            className={`carousel-img ${idx === slideIndex ? 'active' : ''}`}
+                            loading="lazy"
+                            decoding="async"
+                          />
+                        ))}
+                      </div>
+                      {galleryPhotos.length > 1 && (
+                        <>
+                          <button type="button" className="carousel-btn prev" onClick={() => goPrev(galleryPhotos.length)} aria-label="Ảnh trước">
+                            ‹
+                          </button>
+                          <button type="button" className="carousel-btn next" onClick={() => goNext(galleryPhotos.length)} aria-label="Ảnh sau">
+                            ›
+                          </button>
+                          <div className="carousel-dots">
+                            {galleryPhotos.map((_, idx) => (
+                              <button
+                                key={idx}
+                                type="button"
+                                className={`dot ${idx === slideIndex ? 'active' : ''}`}
+                                onClick={() => setSlideIndex(idx)}
+                                aria-label={`Chuyển đến ảnh ${idx + 1}`}
+                              />
+                            ))}
+                          </div>
+                        </>
+                      )}
                     </div>
-                    {galleryPhotos.length > 1 && (
-                      <>
-                        <button type="button" className="carousel-btn prev" onClick={() => goPrev(galleryPhotos.length)} aria-label="Ảnh trước">
-                          ‹
-                        </button>
-                        <button type="button" className="carousel-btn next" onClick={() => goNext(galleryPhotos.length)} aria-label="Ảnh sau">
-                          ›
-                        </button>
-                        <div className="carousel-dots">
-                          {galleryPhotos.map((_, idx) => (
-                            <button
-                              key={idx}
-                              type="button"
-                              className={`dot ${idx === slideIndex ? 'active' : ''}`}
-                              onClick={() => setSlideIndex(idx)}
-                              aria-label={`Chuyển đến ảnh ${idx + 1}`}
-                            />
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </section>
+                  </section>
                 );
               })()}
 
@@ -417,7 +417,7 @@ const BlogDetails = () => {
                     <div key={comment.comment_id} className="comment-item">
                       <div className="comment-avatar">
                         <img
-                          src="/images/person_1.jpg"
+                          src={comment.author_avatar_url || "/images/person_1.jpg"}
                           alt={comment.author_name}
                         />
                       </div>
@@ -445,7 +445,7 @@ const BlogDetails = () => {
                 <h4>Về tác giả</h4>
                 <div className="author-widget">
                   <img
-                    src="/images/person_1.jpg"
+                    src={getAuthorAvatar()}
                     alt={post.author_name}
                     className="author-widget-avatar"
                   />
