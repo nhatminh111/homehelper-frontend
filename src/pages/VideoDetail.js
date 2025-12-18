@@ -152,6 +152,26 @@ const VideoDetail = () => {
     if (diffWeeks < 4) return `${diffWeeks} tuần trước`;
     return `${diffMonths} tháng trước`;
   };
+
+  // Helpers for comment display
+  const getCommentAvatar = (c) => {
+    return (
+      c?.author_avatar_url ||
+      c?.avatar_url ||
+      c?.user_avatar_url ||
+      c?.user?.avatar_url ||
+      '/images/avatar-placeholder.jpg'
+    );
+  };
+
+  const getCommentName = (c) => {
+    return (
+      c?.author_name ||
+      c?.user_name ||
+      c?.user?.name ||
+      (c?.user_id ? `Người dùng ${c.user_id}` : 'Người dùng ẩn danh')
+    );
+  };
   const handlePlay = () => {
     if (videoRef.current) {
       videoRef.current.play();
@@ -399,10 +419,10 @@ const VideoDetail = () => {
       }
       return (
         <div key={comment.comment_id} className="comment-item" style={{ marginLeft: `${level * 20}px` }}>
-          <img src="/images/avatar-placeholder.jpg" alt="Avatar" className="avatar circle" />
+          <img src={getCommentAvatar(comment)} alt="Avatar" className="avatar circle" />
           <div className="cmt-body">
             <div className="cmt-head">
-              <span className="name">{comment.author_name || `Người dùng ${comment.user_id || 'ẩn danh'}`}</span>
+              <span className="name">{getCommentName(comment)}</span>
               <span className="time">{calculateTimeAgo(comment.created_at)}</span>
             </div>
             {editingCommentId === comment.comment_id ? (
@@ -482,7 +502,12 @@ const VideoDetail = () => {
                     >
                       Hủy
                     </button>
-                    <button type="submit" className="btn-comment">
+                    <button
+                      type="submit"
+                      className={replyContent.trim() ? 'btn-comment' : 'btn-comment-disabled'}
+                      disabled={!replyContent.trim()}
+                      aria-disabled={!replyContent.trim()}
+                    >
                       Gửi trả lời
                     </button>
                   </div>
@@ -527,7 +552,7 @@ const VideoDetail = () => {
   return (
     <div className="video-detail-page">
       <CustomToastContainer />
-      <section className="hero-wrap hero-wrap-2" style={{ backgroundImage: "url('/images/bg_2.jpg')" }} data-stellar-background-ratio="0.5">
+      <section className="hero-wrap hero-wrap-2" style={{ backgroundImage: "url('/images/home.jpg')" }} data-stellar-background-ratio="0.5">
         <div className="overlay"></div>
         <div className="container">
           <div className="row no-gutters slider-text align-items-end">
@@ -782,7 +807,12 @@ const VideoDetail = () => {
                     <div className="input-actions">
                       <span className="note">Bình luận sẽ được kiểm duyệt</span>
                       <div className="btns">
-                        <button type="submit" className={newComment.trim() ? 'btn-comment' : 'btn-comment-disabled'}>
+                        <button
+                          type="submit"
+                          className={newComment.trim() ? 'btn-comment' : 'btn-comment-disabled'}
+                          disabled={!newComment.trim()}
+                          aria-disabled={!newComment.trim()}
+                        >
                           Gửi
                         </button>
                       </div>

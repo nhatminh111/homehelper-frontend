@@ -113,9 +113,6 @@ const BlogCard = ({ post, onLikeToggle, user }) => {
           <span className="stat-item comment-section">
             <span className="comment-icon"><FontAwesomeIcon icon={faComment} /></span> <span className="stat-count">{post.comments_count || 0}</span>
           </span>
-          <span className="stat-item view-section">
-            <span className="view-icon"><FontAwesomeIcon icon={faEye} /></span> <span className="stat-count">{formatNumber(post.views || 0)}</span>
-          </span>
         </div>
       </div>
     </div>

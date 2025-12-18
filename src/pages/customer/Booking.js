@@ -582,7 +582,7 @@ export default function Booking() {
                         {tasker && (
                             <Card.Body className="d-flex align-items-center gap-3">
                                 <img
-                                    src={tasker.avatar_url || "https://i.pravatar.cc/80"}
+                                    src={tasker.avatar || "https://i.pravatar.cc/80"}
                                     alt="avatar"
                                     width={56}
                                     height={56}

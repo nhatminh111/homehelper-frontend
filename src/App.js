@@ -55,6 +55,8 @@ import TaskerJobDone from "./pages/tasker/TaskerJobDone";
 import TaskerSearch from "./pages/tasker/TaskerSearch";
 import TaskerProfile from "./pages/tasker/TaskerProfile";
 import TaskerManagement from "./pages/tasker/TaskerManagement";
+import TaskerDashboard from "./pages/tasker/TaskerDashboard";
+import TaskerOverview from "./pages/tasker/TaskerOverview";
 
 // Admin Pages
 import AdminHome from "./pages/admin/AdminHome";
@@ -246,9 +248,8 @@ function App() {
                 <Route path="/chat/:conversationId" element={
                   <ProtectedRoute> <ChatPage /> </ProtectedRoute>
                 } />
-                <Route path="/tasker" element={
-                  <ProtectedRoute requiredRole="Tasker"> <TaskerHome /> </ProtectedRoute>
-                } />
+                {/* Redirect legacy /tasker to new dashboard */}
+                <Route path="/tasker" element={<Navigate to="/tasker/dashboard" replace />} />
                 <Route path="/tasker/no-show-report/:bookingId" element={
                   <ProtectedRoute requiredRole="Tasker"> <NoShowReportPage /> </ProtectedRoute>
                 } />
@@ -267,6 +268,21 @@ function App() {
                 <Route path="/customer/booking/:bookingId/rating" element={
                   <ProtectedRoute requiredRole="Customer"><BookingRating /> </ProtectedRoute>
                 } />
+              </Route>
+
+              {/* Tasker dashboard with nested routes */}
+              <Route
+                path="/tasker/dashboard"
+                element={
+                  <ProtectedRoute requiredRole="Tasker">
+                    <TaskerDashboard />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<TaskerOverview />} />
+                <Route path="bookings" element={<TaskerBookings />} />
+                <Route path="profile" element={<TaskerProfile />} />
+                <Route path="videos" element={<VideoManager />} />
               </Route>
 
               <Route

@@ -474,35 +474,51 @@
 }
 
 .btn-cancel {
-  background: none;
-  border: none;
-  color: #6b7280;
-  font-size: 14px;
-  cursor: pointer;
-}
-
-.btn-cancel:hover {
-  color: #1d4ed8;
-}
-
-.btn-comment {
-  background: #1d4ed8;
-  color: #fff;
-  border: none;
-  padding: 8px 16px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  color: #374151;
+  padding: 8px 14px;
   border-radius: 10px;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
+  transition: all .2s ease;
+}
+
+.btn-cancel:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.btn-comment {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  color: #fff;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+  transition: transform .15s ease, box-shadow .2s ease;
 }
 
 .btn-comment:hover {
-  background: #1e40af;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.35);
 }
 
 .btn-comment-disabled {
-  background: #d1d5db;
+  background: #e5e7eb;
+  color: #9ca3af;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
   cursor: not-allowed;
+  box-shadow: none;
+  pointer-events: none;
 }
 
 /* Comment Item */
@@ -545,6 +561,63 @@
   align-items: center;
   gap: 12px;
 }
+
+/* Edit/Delete dropdown */
+.comment-actions-wrapper {
+  position: relative;
+}
+
+.comment-more-btn {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  color: #6b7280;
+  border-radius: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: all .2s ease;
+}
+
+.comment-more-btn:hover {
+  background: #f9fafb;
+  color: #111827;
+}
+
+.comment-actions-menu {
+  position: absolute;
+  right: 0;
+  top: 36px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+  padding: 8px;
+  min-width: 140px;
+  display: none;
+  z-index: 10;
+}
+
+.comment-actions-menu.active { display: block; }
+
+.comment-actions-menu .edit-btn,
+.comment-actions-menu .delete-btn {
+  width: 100%;
+  background: none;
+  border: none;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.comment-actions-menu .edit-btn { color: #111827; }
+.comment-actions-menu .delete-btn { color: #ef4444; }
+
+.comment-actions-menu .edit-btn:hover { background: #f3f4f6; }
+.comment-actions-menu .delete-btn:hover { background: #fee2e2; }
 
 .reply-btn,
 .view-replies-btn {
