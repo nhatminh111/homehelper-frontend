@@ -218,8 +218,12 @@ export const useNotifications = () => {
     const handleNewNotification = (event) => {
       const { notification } = event.detail;
       
-      // Add new notification to the beginning of the list
-      setNotifications(prev => [notification, ...prev]);
+      setNotifications(prev => {
+        if (prev.some(n => n.id === notification.id)) {
+          return prev;
+        }
+        return [notification, ...prev];
+      });
       
       // Update unread count
       updateUnreadCount(prev => prev + 1);
