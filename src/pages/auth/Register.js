@@ -2,22 +2,23 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { 
-  faEnvelope, 
-  faUser, 
-  faEye, 
-  faEyeSlash, 
+import {
+  faEnvelope,
+  faUser,
+  faEye,
+  faEyeSlash,
   faLock,
   faPlus,
   faStar
 } from '@fortawesome/free-solid-svg-icons';
 import { faGoogle, faFacebook, faTwitter, faInstagram, faLinkedin } from '@fortawesome/free-brands-svg-icons';
+import { showToast } from '../../components/common/CustomToast';
 import './Auth.css';
 
 const Register = () => {
   const navigate = useNavigate();
   const { register, error, setError, isAuthenticated } = useAuth();
-  
+
   const [userType, setUserType] = useState('user'); // 'user' or 'tasker'
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword] = useState(false);
@@ -52,13 +53,13 @@ const Register = () => {
 
     // Validation
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+      setError('Mật khẩu xác nhận không khớp');
       setLoading(false);
       return;
     }
 
     if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters');
+      setError('Mật khẩu phải có ít nhất 6 ký tự');
       setLoading(false);
       return;
     }
@@ -73,8 +74,8 @@ const Register = () => {
       };
 
       const res = await register(userData);
-      if (res?.message) {
-        alert('Registration successful! You have been automatically logged in.');
+      if (res) {
+        showToast.success('Đăng ký thành công! Chào mừng bạn đến với HomeHelper.');
       }
     } catch (error) {
       console.error('Register error:', error);
@@ -107,14 +108,14 @@ const Register = () => {
 
         {/* User Type Selector */}
         <div className="user-type-selector">
-          <button 
+          <button
             className={`type-option ${userType === 'user' ? 'active' : ''}`}
             onClick={() => setUserType('user')}
           >
             <FontAwesomeIcon icon={faUser} />
             <span>Customer</span>
           </button>
-          <button 
+          <button
             className={`type-option ${userType === 'tasker' ? 'active' : ''}`}
             onClick={() => setUserType('tasker')}
           >
@@ -164,8 +165,8 @@ const Register = () => {
                 onChange={handleInputChange}
                 required
               />
-              <FontAwesomeIcon 
-                icon={showPassword ? faEyeSlash : faEye} 
+              <FontAwesomeIcon
+                icon={showPassword ? faEyeSlash : faEye}
                 className="input-icon clickable"
                 onClick={() => setShowPassword(!showPassword)}
               />
@@ -180,8 +181,8 @@ const Register = () => {
                 onChange={handleInputChange}
                 required
               />
-              <FontAwesomeIcon 
-                icon={faLock} 
+              <FontAwesomeIcon
+                icon={faLock}
                 className="input-icon"
               />
             </div>
@@ -191,7 +192,7 @@ const Register = () => {
                 {error}
               </div>
             )}
-            
+
             <button type="submit" className="auth-button primary" disabled={loading}>
               {loading ? (
                 <>
@@ -239,7 +240,7 @@ const Register = () => {
             <Link to="/terms-of-service" className="link-text">Terms of Service</Link> and{' '}
             <a href="#" className="link-text">Privacy Policy</a>
           </p>
-          
+
           <div className="social-icons">
             <button className="social-icon btn btn-link">
               <FontAwesomeIcon icon={faFacebook} />

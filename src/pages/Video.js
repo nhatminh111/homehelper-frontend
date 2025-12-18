@@ -31,7 +31,7 @@ const Video = () => {
         views: 'N/A', // Cần bảng riêng để lưu views
         timeAgo: calculateTimeAgo(video.uploaded_at),
         price: 'Liên hệ',
-        expertAvatar: '/images/avatars/default.png',
+        expertAvatar: video.avatar_url || '/images/avatar-placeholder.jpg',
         verified: true,
       }));
       setVideos(mappedVideos);
@@ -56,7 +56,7 @@ const Video = () => {
   return (
     <>
       {/* Hero Section */}
-      <section className="hero-wrap hero-wrap-2" style={{ backgroundImage: "url('/images/bg_2.jpg')" }} data-stellar-background-ratio="0.5">
+      <section className="hero-wrap hero-wrap-2" style={{ backgroundImage: "url('/images/home.jpg')" }} data-stellar-background-ratio="0.5">
         <div className="overlay"></div>
         <div className="container">
           <div className="row no-gutters slider-text align-items-end">

@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Button, Badge, Spinner, Alert, Toast } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
+import { formatVND } from '../../utils/formatVND';
 import socketService from '../../services/socketService';
+
 
 export default function TaskerBookings() {
   const navigate = useNavigate();
@@ -232,13 +234,10 @@ export default function TaskerBookings() {
   const getTimeRemaining = (expiresAt) => {
     if (!expiresAt) return null;
 
-    // BƯỚC FIX: Luôn hiểu chuỗi là UTC (có Z hoặc không có Z đều ok)
-    let expiresAtStr = expiresAt.trim();
-    if (!expiresAtStr.endsWith('Z')) {
-      expiresAtStr += 'Z';  // Thêm Z để ép JavaScript hiểu là UTC
-    }
-
-    const expires = new Date(expiresAtStr);
+    // Parse timestamp directly. 
+    // Socket sends UTC (ending in Z), API sends Local (no Z).
+    // Browser handles both correctly if we don't force Z.
+    const expires = new Date(expiresAt);
     const now = new Date();
 
     const diffMs = expires.getTime() - now.getTime();
@@ -275,7 +274,7 @@ export default function TaskerBookings() {
 
   const formatPrice = (price) => {
     if (!price) return '—';
-    return new Intl.NumberFormat('vi-VN').format(price) + 'đ';
+    return formatVND(price);
   };
 
   if (loading) {
@@ -445,11 +444,6 @@ export default function TaskerBookings() {
                         {booking.type === 'SOS' ? (
                           <>
                             <Badge bg="danger">🔥 SOS</Badge>
-                            {booking.sos_expires_at && (
-                              <Badge bg="warning" text="dark" className="ms-1">
-                                ⏱️ {refreshTrigger && getTimeRemaining(booking.sos_expires_at)}
-                              </Badge>
-                            )}
                           </>
                         ) : null}
                         {getStatusBadge(booking.status)}
@@ -520,13 +514,17 @@ export default function TaskerBookings() {
                     <div className="mb-3">
                       <div className="bg-success bg-opacity-10 rounded-3 p-2 text-center">
                         <h5 className="fw-bold text-success mb-0">
-                          {formatPrice(
-                            booking.paid_amount > 0
-                              ? booking.paid_amount
-                              : booking.final_price > 0
-                                ? booking.final_price
-                                : booking.expected_price
-                          )}
+                          {(() => {
+                            const price = booking.final_price && Number(booking.final_price) > 0
+                              ? Number(booking.final_price)
+                              : Number(booking.expected_price || 0);
+
+                            const isFinalized = ["Đã chấp nhận", "Đã thanh toán", "Đang tiến hành", "Hoàn thành", "Chờ xác nhận", "Chờ duyệt báo cáo", "Báo cáo được duyệt", "Báo cáo bị từ chối"].includes(booking.status);
+                            const quantity = Number(booking.quantity || 1);
+                            const mult = (isFinalized && quantity > 1) ? quantity : 1;
+
+                            return formatPrice(price * mult);
+                          })()}
                         </h5>
                         <small className="text-muted">Giá</small>
                       </div>

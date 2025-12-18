@@ -15,10 +15,10 @@ import api from "../../services/api";
 import { showToast } from "../../components/common/CustomToast";
 import MediaUpload from "../../components/MediaUpload";
 
-const NO_PHOTO_SERVICES = [
-  "Chăm sóc người già và bệnh nhân",
-  "Chăm sóc trẻ em",
-];
+// const NO_PHOTO_SERVICES = [
+//   "Chăm sóc người già và bệnh nhân",
+//   "Chăm sóc trẻ em",
+// ];
 
 const DEFAULT_TASKS = [
   {
@@ -118,7 +118,7 @@ export default function TaskerJobCompletion() {
   const [beforePhotos, setBeforePhotos] = useState([]);
   const [afterPhotos, setAfterPhotos] = useState([]);
 
-  const [disablePhoto, setDisablePhoto] = useState(false);
+  // const [disablePhoto, setDisablePhoto] = useState(false);
   const bookingData = booking || location.state?.booking || {};
 
   useEffect(() => {
@@ -162,11 +162,27 @@ export default function TaskerJobCompletion() {
     }
   }, [booking, id]);
 
+  /*
   useEffect(() => {
     if (bookingData?.service_name) {
       setDisablePhoto(NO_PHOTO_SERVICES.includes(bookingData.service_name));
     }
   }, [bookingData?.service_name]);
+  */
+
+  // Sync session statuses if available (from multi-day navigation)
+  useEffect(() => {
+    const sessionData = location.state?.sessionData;
+    if (sessionData?.taskStatuses) {
+      console.log("🔄 Syncing tasks with session status:", sessionData.taskStatuses);
+      setTasks((prev) =>
+        prev.map((t) => {
+          const newStatus = sessionData.taskStatuses[t.id];
+          return newStatus ? { ...t, status: newStatus } : t;
+        })
+      );
+    }
+  }, [location.state?.sessionData]);
 
   const completionStats = useMemo(() => {
     const total = tasks.length;
@@ -264,6 +280,12 @@ export default function TaskerJobCompletion() {
   };
 
   const handleCompleteSubmission = async () => {
+    // 0. Validate (Always require photos now)
+    if (beforePhotos.length === 0 || afterPhotos.length === 0) {
+      showToast.warning("Vui lòng tải lên đủ ảnh trước và sau khi làm việc");
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -274,51 +296,48 @@ export default function TaskerJobCompletion() {
       let uploadedAfterPhotos = [];
 
       // Upload photos nếu có và lưu URLs
-      if (disablePhoto) {
-        uploadedBeforePhotos = [];
-        uploadedAfterPhotos = [];
-      } else {
-        console.log("STEP 1 — Before photos:", beforePhotos);
-        console.log("STEP 2 — After photos:", afterPhotos);
+      // uploadedBeforePhotos and uploadedAfterPhotos are already declared above
 
-        const extractUrl = (obj) => {
-          console.log("DEBUG — object từ backend:", obj);
-          return (
-            obj.secure_url ||
-            obj.url ||
-            obj.photo_url ||
-            obj.secureUrl ||
-            obj.photoUrl ||
-            obj.location ||
-            obj.path ||
-            ""
-          );
-        };
+      console.log("STEP 1 — Before photos:", beforePhotos);
+      console.log("STEP 2 — After photos:", afterPhotos);
 
-        // ✅ Dịch vụ cần ảnh → thực hiện upload
-        if (beforePhotos.length > 0) {
-          console.log("STEP 3 — Uploading BEFORE...");
-          const beforeResult = await uploadPhotos("before");
-          console.log("STEP 4 — Upload BEFORE result (RAW):", beforeResult);
-          console.log("STEP 4 — BEFORE data:", beforeResult?.data);
+      const extractUrl = (obj) => {
+        console.log("DEBUG — object từ backend:", obj);
+        return (
+          obj.secure_url ||
+          obj.url ||
+          obj.photo_url ||
+          obj.secureUrl ||
+          obj.photoUrl ||
+          obj.location ||
+          obj.path ||
+          ""
+        );
+      };
 
-          uploadedBeforePhotos = Array.isArray(beforeResult)
-            ? beforeResult.map(extractUrl)
-            : [];
-          console.log("STEP 4 — Parsed BEFORE photos:", uploadedBeforePhotos);
-        }
+      // ✅ Luôn thực hiện upload
+      if (beforePhotos.length > 0) {
+        console.log("STEP 3 — Uploading BEFORE...");
+        const beforeResult = await uploadPhotos("before");
+        console.log("STEP 4 — Upload BEFORE result (RAW):", beforeResult);
 
-        if (afterPhotos.length > 0) {
-          console.log("STEP 5 — Uploading AFTER...");
-          const afterResult = await uploadPhotos("after");
-          uploadedAfterPhotos = Array.isArray(afterResult)
-            ? afterResult.map(extractUrl)
-            : [];
-          console.log("STEP 6 — Upload AFTER result:", uploadedAfterPhotos);
-        }
+        uploadedBeforePhotos = Array.isArray(beforeResult)
+          ? beforeResult.map(extractUrl)
+          : [];
+        console.log("STEP 4 — Parsed BEFORE photos:", uploadedBeforePhotos);
       }
 
-      // Thêm gửi notes nếu muốn (best-effort)
+      if (afterPhotos.length > 0) {
+        console.log("STEP 5 — Uploading AFTER...");
+        const afterResult = await uploadPhotos("after");
+        uploadedAfterPhotos = Array.isArray(afterResult)
+          ? afterResult.map(extractUrl)
+          : [];
+        console.log("STEP 6 — Upload AFTER result:", uploadedAfterPhotos);
+      }
+
+      // Note: we send 'notes' in the complete payload below, so no need for separate patch.
+      /*
       try {
         if (notes.trim()) {
           console.log("STEP 7 — Saving notes:", notes);
@@ -326,81 +345,94 @@ export default function TaskerJobCompletion() {
         }
       } catch (e) {
         console.warn("Non-fatal: failed to save notes", e);
-        showToast?.warning(
-          "Ghi chú không lưu được — tiếp tục hoàn tất nhiệm vụ."
-        );
       }
+      */
 
-      const checklistTimers = loadTimersFromProgress(booking.booking_id);
-
-      console.log("STEP 7.5 — Collected checklist timers:", checklistTimers);
-
-      // Use the shared status endpoint so route exists on backend
-      try {
-        console.log("STEP 8 — Updating status...");
-        await api.patch(`/bookings/${booking.booking_id}/status`, {
-          status: "Chờ xác nhận",
-        });
-      } catch (e) {
-        // If the status update fails, surface error but still attempt to navigate
-        console.error("Failed to update booking status:", e);
-        const msg = e?.message || "Không thể cập nhật trạng thái";
-        showToast?.error(msg);
-        // continue — we'll still navigate to the completion screen so tasker can proceed
-      }
+      const checklistTimers = location.state?.checklistTimers || (location.state?.sessionData?.timers) || {};
+      const dayKey = location.state?.dayKey;
+      const isSessionCompletion = location.state?.isSessionCompletion;
+      const checkInTime = location.state?.sessionData?.checkIn;
 
       const submitPayload = {
         booking_id: booking.booking_id,
         notes,
         before_photos: uploadedBeforePhotos,
         after_photos: uploadedAfterPhotos,
-        checklist_timers: checklistTimers, // ⭐ NEW
+        checklist_timers: checklistTimers,
+        session_date: dayKey,
+        check_in_time: checkInTime, // Pass check-in time
+        check_out_time: new Date().toISOString() // Pass current checkout time
       };
 
-      console.log("📤 STEP 8.5 — SUBMITTING COMPLETION PAYLOAD:", submitPayload);
+      console.log("📤 SUBMITTING COMPLETION:", submitPayload);
+      const res = await api.patch(`/bookings/${booking.booking_id}/complete`, submitPayload);
+      const { allDone } = res.data || {};
 
-      await api.patch(`/bookings/${booking.booking_id}/complete`, submitPayload);
+      console.log("📤 API RESPONSE - ALL DONE?:", allDone);
 
-      console.log("📤 STEP 8.6 — API COMPLETE SENT SUCCESSFULLY");
+      if (isSessionCompletion && !allDone) {
+        // CASE: Single Session completed, multi-day job continues
+        // Update LocalStorage to mark session as done
+        try {
+          const sessionsKey = `tasker_daily_sessions_${booking.booking_id}`;
+          const raw = localStorage.getItem(sessionsKey);
+          let sessions = raw ? JSON.parse(raw) : {};
 
-      // Format tasks để truyền sang TaskerJobDone (expect array of strings)
-      // const taskLabels = tasks.map((task) =>
-      //   typeof task === "string" ? task : task.label || task.id
-      // );
-      // // Lưu checklist theo ngày
-      // localStorage.setItem(
-      //   `task-${booking.booking_id}`,
-      //   JSON.stringify({
-      //     date: new Date().toDateString(),
-      //     tasks,
-      //   })
-      // );
+          if (sessions[dayKey]) {
+            sessions[dayKey].status = 'completed';
+            sessions[dayKey].done = true;
+            sessions[dayKey].checkOut = new Date().toISOString();
+          } else {
+            sessions[dayKey] = { status: 'completed', done: true, checkOut: new Date().toISOString() };
+          }
 
-      // Navigate đến TaskerJobDone với state
-      console.log("STEP 9 — Preparing navigate data");
-      console.log(">>> GO JOB DONE WITH:", {
-        tasks: tasks.map((t) => t.label || t),
-        notes,
-        beforePhotos: uploadedBeforePhotos,
-        afterPhotos: uploadedAfterPhotos,
-      });
+          localStorage.setItem(sessionsKey, JSON.stringify(sessions));
+        } catch (e) { console.error("LS update error", e); }
 
-      navigate(`/tasker/bookings/${booking.booking_id}/jobdone`, {
-        state: {
-          booking,
-          tasks: tasks.map((t) => t.label || t),
-          notes,
-          beforePhotos: uploadedBeforePhotos,
-          afterPhotos: uploadedAfterPhotos,
-          checklistTimers,
-        },
-      });
+        showToast.success(`Đã hoàn thành ngày ${dayKey}`);
+
+        // Return to progress page
+        navigate(`/tasker/bookings/${booking.booking_id}/progress`, {
+          replace: true,
+          state: {
+            booking: booking,
+            refresh: Date.now()
+          }
+        });
+
+      } else {
+        // CASE: All Done (Regular or Last Session)
+        // Ensure even the last session checkout is recorded locally
+        try {
+          const sessionsKey = `tasker_daily_sessions_${booking.booking_id}`;
+          const raw = localStorage.getItem(sessionsKey);
+          let sessions = raw ? JSON.parse(raw) : {};
+          if (dayKey && sessions[dayKey]) {
+            sessions[dayKey].status = 'completed';
+            sessions[dayKey].done = true;
+            sessions[dayKey].checkOut = submitPayload.check_out_time;
+            localStorage.setItem(sessionsKey, JSON.stringify(sessions));
+          }
+        } catch (e) { }
+
+        navigate(`/tasker/bookings/${booking.booking_id}/jobdone`, {
+          state: {
+            booking,
+            tasks: tasks.map((t) => t.label || t),
+            notes,
+            beforePhotos: uploadedBeforePhotos,
+            afterPhotos: uploadedAfterPhotos,
+            checklistTimers,
+          },
+        });
+      }
+
     } catch (err) {
       console.error("Error completing submission:", err);
       const errorMessage =
-        err?.response?.data?.message || err?.message || "Upload photos failed";
+        err?.response?.data?.message || err?.message || "Submit failed";
       setError(errorMessage);
-      alert(`Lỗi: ${errorMessage}`);
+      showToast.error(`Lỗi: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
@@ -549,29 +581,28 @@ export default function TaskerJobCompletion() {
         </Card.Body>
       </Card>
 
-      {!disablePhoto && (
-        <Card className="border-0 shadow-sm mb-4">
-          <Card.Body className="p-4">
-            <h5 className="fw-semibold mb-3">Media Upload</h5>
-            <Row className="g-4">
-              <Col md={6}>
-                <MediaUpload
-                  label="Before Photos"
-                  photos={beforePhotos}
-                  setPhotos={setBeforePhotos}
-                />
-              </Col>
-              <Col md={6}>
-                <MediaUpload
-                  label="After Photos"
-                  photos={afterPhotos}
-                  setPhotos={setAfterPhotos}
-                />
-              </Col>
-            </Row>
-          </Card.Body>
-        </Card>
-      )}
+      {/* Always Show Media Upload */}
+      <Card className="border-0 shadow-sm mb-4">
+        <Card.Body className="p-4">
+          <h5 className="fw-semibold mb-3">Media Upload</h5>
+          <Row className="g-4">
+            <Col md={6}>
+              <MediaUpload
+                label="Before Photos"
+                photos={beforePhotos}
+                setPhotos={setBeforePhotos}
+              />
+            </Col>
+            <Col md={6}>
+              <MediaUpload
+                label="After Photos"
+                photos={afterPhotos}
+                setPhotos={setAfterPhotos}
+              />
+            </Col>
+          </Row>
+        </Card.Body>
+      </Card>
 
       <div className="d-flex justify-content-between align-items-center mt-4 flex-wrap gap-3">
         <Button
@@ -587,7 +618,7 @@ export default function TaskerJobCompletion() {
           onClick={handleCompleteSubmission}
         >
           <i className="bi bi-check-circle-fill me-2"></i>
-          Complete Task
+          Hoàn thành
         </Button>
       </div>
     </Container>

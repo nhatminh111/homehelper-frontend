@@ -76,7 +76,7 @@ export const showToast = {
       const finish = (val, closeToast) => {
         if (decided) return;
         decided = true;
-        try { closeToast && closeToast(); } catch {}
+        try { closeToast && closeToast(); } catch { }
         if (activeConfirmId) toast.dismiss(activeConfirmId);
         if (activeConfirmBackdrop && activeConfirmBackdrop.parentNode) {
           activeConfirmBackdrop.parentNode.removeChild(activeConfirmBackdrop);
@@ -129,7 +129,7 @@ export const CustomToastContainer = () => (
     containerId="custom-toast"
     position="top-right"
     autoClose={4500}
-    hideProgressBar={false}
+    hideProgressBar={true}
     newestOnTop
     closeOnClick={false}
     pauseOnFocusLoss

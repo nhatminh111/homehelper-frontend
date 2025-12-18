@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { addressAPI, servicesAPI } from '../../services/api';
+import { formatVND } from '../../utils/formatVND';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faSearch,
@@ -66,14 +67,14 @@ const TaskerSearch = () => {
     try {
       const token = localStorage.getItem('token');
       if (!token) return;
-      
+
       const response = await fetch('http://localhost:3001/api/bookings/customer/active-sos', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
-      
+
       const data = await response.json();
       if (data.success && data.data) {
         const booking = data.data;
@@ -148,15 +149,15 @@ const TaskerSearch = () => {
         const data = await response.json();
         if (data.data && data.data.status === 'Đã chấp nhận' && data.data.tasker_id && !acceptedTasker) {
           console.log('🎉 Poll detected: SOS has been accepted!', data.data);
-          
+
           // Use tasker_name from booking if available to show immediately
           const nameFromBooking = data.data.tasker_name || data.data.tasker_name;
           if (nameFromBooking) {
             setAcceptedTasker({ tasker_id: data.data.tasker_id, tasker_name: nameFromBooking });
             setSosStatus('accepted');
-            setToastMessage({ 
-              type: 'success', 
-              message: '✅ Công việc đã được nhận! ' + nameFromBooking 
+            setToastMessage({
+              type: 'success',
+              message: '✅ Công việc đã được nhận! ' + nameFromBooking
             });
             return;
           }
@@ -168,7 +169,7 @@ const TaskerSearch = () => {
               'Content-Type': 'application/json'
             }
           });
-          
+
           const taskerData = await taskerRes.json();
           if (taskerData.success && taskerData.data) {
             setAcceptedTasker({
@@ -176,9 +177,9 @@ const TaskerSearch = () => {
               tasker_name: taskerData.data.user_name || taskerData.data.name
             });
             setSosStatus('accepted');
-            setToastMessage({ 
-              type: 'success', 
-              message: '✅ Công việc đã được nhận! ' + (taskerData.data.user_name || taskerData.data.name) 
+            setToastMessage({
+              type: 'success',
+              message: '✅ Công việc đã được nhận! ' + (taskerData.data.user_name || taskerData.data.name)
             });
           }
         }
@@ -203,38 +204,38 @@ const TaskerSearch = () => {
       // ensure cooldown is set (in case socket event arrives after create)
       const until = Date.now() + 30 * 1000;
       setSosDisabledUntil(until);
-      try { localStorage.setItem('sos_disabled_until', String(until)); } catch (e) {}
+      try { localStorage.setItem('sos_disabled_until', String(until)); } catch (e) { }
       console.log('📍 [handleSosCreated] State updated - sosBookingId:', data.booking_id, 'sosStatus: waiting_accept');
     };
 
     const handleSosAccepted = async (e) => {
       const data = e.detail || e;
       console.log('🎉 [handleSosAccepted] Event triggered with data:', data);
-      
+
       // Immediately fetch the full tasker info for real-time display
       try {
         const token = localStorage.getItem('token');
         const taskerId = data.taken_by_tasker_id || data.tasker_id;
         console.log('🔍 [handleSosAccepted] Extracted taskerId:', taskerId);
-        
+
         if (!taskerId) {
           throw new Error('Missing tasker ID in event data');
         }
-        
+
         const taskerRes = await fetch(`http://localhost:3001/api/tasker/${taskerId}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           }
         });
-        
+
         const taskerData = await taskerRes.json();
         console.log('📦 [handleSosAccepted] Fetched tasker data:', taskerData);
-        
+
         if (taskerData.success && taskerData.data) {
           const taskerName = taskerData.data.user_name || taskerData.data.name;
           console.log('✅ [handleSosAccepted] Setting acceptedTasker:', { tasker_id: taskerId, tasker_name: taskerName });
-          
+
           setAcceptedTasker({
             tasker_id: taskerId,
             tasker_name: taskerName
@@ -248,26 +249,26 @@ const TaskerSearch = () => {
         const fallbackTaskerId = data.taken_by_tasker_id || data.tasker_id;
         const fallbackTaskerName = data.taken_by_name || data.tasker_name || 'Tasker';
         console.log('📌 [handleSosAccepted] Using fallback data:', { fallbackTaskerId, fallbackTaskerName });
-        
+
         setAcceptedTasker({
           tasker_id: fallbackTaskerId,
           tasker_name: fallbackTaskerName,
         });
       }
-      
+
       console.log('📍 [handleSosAccepted] Setting sosStatus to accepted');
       setSosStatus('accepted');
       setToastMessage({ type: 'success', message: 'Công việc đã được nhận. Vui lòng kiểm tra thông tin người nhận.' });
       // clear create cooldown when accepted
       setSosDisabledUntil(null);
-      try { localStorage.removeItem('sos_disabled_until'); } catch (e) {}
+      try { localStorage.removeItem('sos_disabled_until'); } catch (e) { }
     };
 
     window.addEventListener('socket_sos_job_created', handleSosCreated);
     // Listen to both events for compatibility
     window.addEventListener('socket_sos_job_taken', handleSosAccepted);
     window.addEventListener('socket_sos_job_accepted', handleSosAccepted);
-    
+
     // Also listen for socket disconnection
     window.addEventListener('socket_error', (e) => {
       console.error('🔌 [TaskerSearch] Socket error event:', e.detail);
@@ -738,10 +739,10 @@ const TaskerSearch = () => {
       setSosStatus('waiting_accept');
       setToastMessage({ type: 'info', message: 'Đang gửi SOS...' });
       // disable SOS button immediately for 10 minutes
-       const until = Date.now() + 30 * 1000;    // 30 giây
+      const until = Date.now() + 30 * 1000;    // 30 giây
       setSosDisabledUntil(until);
-      try { localStorage.setItem('sos_disabled_until', String(until)); } catch (e) {}
-      
+      try { localStorage.setItem('sos_disabled_until', String(until)); } catch (e) { }
+
       // Auto-search nearby taskers when SOS is sent to show them on map
       if (currentLocation) {
         try {
@@ -1086,7 +1087,7 @@ const TaskerSearch = () => {
                                     const multiplier = Number(durationHours || 1);
                                     preview = Math.round(priceMax * multiplier * 1.3);
                                   }
-                                  return `${preview.toLocaleString('vi-VN')}đ`;
+                                  return formatVND(preview);
                                 })() : '—'}
                               </h4>
                             </div>
@@ -1147,20 +1148,20 @@ const TaskerSearch = () => {
                       <div className="row g-3">
                         <div className="col-12">
                           <label className="form-label fw-semibold">Tiêu đề công việc</label>
-                          <input 
-                            className="form-control form-control-lg" 
-                            value={sosJobTitle} 
-                            onChange={(e) => setSosJobTitle(e.target.value)} 
+                          <input
+                            className="form-control form-control-lg"
+                            value={sosJobTitle}
+                            onChange={(e) => setSosJobTitle(e.target.value)}
                             placeholder="Tóm tắt ngắn gọn công việc của bạn"
                           />
                         </div>
 
                         <div className="col-12">
                           <label className="form-label fw-semibold">Mô tả chi tiết</label>
-                          <textarea 
-                            className="form-control" 
-                            rows={4} 
-                            value={sosJobDescription} 
+                          <textarea
+                            className="form-control"
+                            rows={4}
+                            value={sosJobDescription}
                             onChange={(e) => setSosJobDescription(e.target.value)}
                             placeholder="Mô tả chi tiết về công việc bạn cần làm, yêu cầu đặc biệt, v.v..."
                           />
@@ -1197,15 +1198,15 @@ const TaskerSearch = () => {
 
                     {/* Section 4: Action Button */}
                     <div className="d-flex justify-content-end gap-2">
-                      <button 
-                        className="btn btn-outline-secondary btn-lg" 
+                      <button
+                        className="btn btn-outline-secondary btn-lg"
                         onClick={toggleSOSMode}
                       >
                         Hủy
                       </button>
-                      <button 
-                        className="btn btn-danger btn-lg fw-bold" 
-                        onClick={handleCreateSOS} 
+                      <button
+                        className="btn btn-danger btn-lg fw-bold"
+                        onClick={handleCreateSOS}
                         disabled={!selectedVariantId || !sosJobDescription || uploadingPhotos || sosStatus === 'sending' || isCooldownActive}
                       >
                         <i className="bi bi-exclamation-circle me-2"></i>
@@ -1232,137 +1233,189 @@ const TaskerSearch = () => {
               />
             </div>
 
-            {/* Taskers List */}
-            <div className={`taskers-list-container bg-white rounded shadow-sm p-4 ${acceptedTasker && sosBookingId && isSOSMode ? 'hide-on-sos-accepted' : ''}`}>
-              <h5 className="mb-3">{isSOSMode ? 'Tìm thấy người giúp việc' : 'Tasker Gần Bạn'}</h5>
+            {/* Taskers List - Hide ONLY when SOS is active AND in SOS mode */}
+            {!(isSOSMode && sosBookingId) && (
+              <div className={`taskers-list-container bg-white rounded shadow-sm p-4`}>
+                <h5 className="mb-3">{isSOSMode ? 'Tìm thấy người giúp việc' : 'Tasker Gần Bạn'}</h5>
 
-              {/* SOS loader / accepted booking summary shown under title */}
-              {isSOSMode && sosBookingId && !acceptedTasker && sosStatus === 'waiting_accept' && (
-                <div className="bg-white rounded shadow-sm p-3 mb-3 d-flex align-items-center gap-3 sos-waiting-card">
-                  <div className="spinner-border text-primary" role="status" style={{width: '2rem', height: '2rem'}}>
-                    <span className="visually-hidden">Loading...</span>
-                  </div>
-                  <div>
-                    <div className="fw-semibold">Đang chờ tasker nhận...</div>
-                    <div className="small text-muted">Hệ thống đang thông báo các tasker gần bạn — vui lòng chờ hoặc hủy SOS để thử lại.</div>
-                  </div>
-                </div>
-              )}
-
-              {isSOSMode && sosBookingId && acceptedTasker && (
-                <div className="bg-white rounded shadow-sm p-3 mb-3 accepted-booking-summary">
-                  <div className="d-flex align-items-center justify-content-between flex-wrap">
-                    <div className="d-flex align-items-center gap-3">
-                      <div className="avatar-circle bg-success text-white d-flex align-items-center justify-content-center" style={{width:56,height:56,borderRadius:28,fontSize:20,fontWeight:700}}>
-                        {acceptedTasker.tasker_name?.slice(0,2).toUpperCase()}
-                      </div>
-                      <div>
-                        <div className="fw-semibold text-success">✓ {acceptedTasker.tasker_name} đã nhận đơn</div>
-                        <div className="small text-muted">Vui lòng thanh toán để bắt đầu dịch vụ.</div>
-                      </div>
+                {/* SOS loader / accepted booking summary shown under title */}
+                {isSOSMode && sosBookingId && !acceptedTasker && sosStatus === 'waiting_accept' && (
+                  <div className="bg-white rounded shadow-sm p-3 mb-3 d-flex align-items-center gap-3 sos-waiting-card">
+                    <div className="spinner-border text-primary" role="status" style={{ width: '2rem', height: '2rem' }}>
+                      <span className="visually-hidden">Loading...</span>
                     </div>
-                    <div className="d-flex gap-2 mt-3 mt-md-0">
-                      <button className="btn btn-outline-primary btn-sm" onClick={() => window.location.href = `/tasker-profile/${acceptedTasker.tasker_id}`}>
-                        Hồ sơ
-                      </button>
-                      <button className="btn btn-outline-secondary btn-sm" onClick={() => window.location.href = `/chat?bookingId=${sosBookingId}&peer=${acceptedTasker.tasker_id}`}>
-                        Chat
-                      </button>
-                      <button className="btn btn-success btn-sm fw-semibold" onClick={() => window.location.href = `/payment/${sosBookingId}`}>
-                        💳 Thanh toán
-                      </button>
+                    <div>
+                      <div className="fw-semibold">Đang chờ tasker nhận...</div>
+                      <div className="small text-muted">Hệ thống đang thông báo các tasker gần bạn — vui lòng chờ hoặc hủy SOS để thử lại.</div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              <div className="taskers-list">
-                {taskers.length > 0 ? (
-                  taskers.map((tasker) => (
-                    <div key={tasker.user_id} className="mb-3">
-                      <div className="tasker-card bg-white rounded shadow-sm p-4">
-                        <div className="row align-items-center">
-                          {/* Avatar, Name, and Rating (Left) */}
-                          <div className="col-md-3 col-12 col-md-auto mb-3 mb-md-0">
-                            <div className="tasker-avatar-wrapper">
-                              <div className="tasker-avatar">
-                                <span className="initials">{tasker.name?.slice(0, 2).toUpperCase()}</span>
-                              </div>
-                              <div className="tasker-basic-info mt-2">
-                                <h6 className="mb-1">{tasker.name}</h6>
-                                <div className="rating mb-1">
-                                  <FontAwesomeIcon icon={faStar} className="text-warning mr-1" />
-                                  <span>{tasker.rating ? `${tasker.rating.toFixed(1)}/5` : 'Chưa có đánh giá'}</span>
+                {isSOSMode && sosBookingId && acceptedTasker && (
+                  <div className="bg-white rounded shadow-sm p-3 mb-3 accepted-booking-summary">
+                    <div className="d-flex align-items-center justify-content-between flex-wrap">
+                      <div className="d-flex align-items-center gap-3">
+                        <div className="avatar-circle bg-success text-white d-flex align-items-center justify-content-center" style={{ width: 56, height: 56, borderRadius: 28, fontSize: 20, fontWeight: 700 }}>
+                          {acceptedTasker.tasker_name?.slice(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="fw-semibold text-success">✓ {acceptedTasker.tasker_name} đã nhận đơn</div>
+                          <div className="small text-muted">Vui lòng thanh toán để bắt đầu dịch vụ.</div>
+                        </div>
+                      </div>
+                      <div className="d-flex gap-2 mt-3 mt-md-0">
+                        <button className="btn btn-outline-primary btn-sm" onClick={() => window.location.href = `/tasker-profile/${acceptedTasker.tasker_id}`}>
+                          Hồ sơ
+                        </button>
+                        <button className="btn btn-outline-secondary btn-sm" onClick={() => window.location.href = `/chat?bookingId=${sosBookingId}&peer=${acceptedTasker.tasker_id}`}>
+                          Chat
+                        </button>
+                        <button className="btn btn-success btn-sm fw-semibold" onClick={() => window.location.href = `/payment/${sosBookingId}`}>
+                          💳 Thanh toán
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="taskers-list">
+                  {taskers.length > 0 ? (
+                    taskers.map((tasker) => (
+                      <div key={tasker.user_id} className="mb-3">
+                        <div className="tasker-card bg-white rounded shadow-sm p-4">
+                          <div className="row align-items-center">
+                            {/* Avatar, Name, and Rating (Left) */}
+                            <div className="col-md-3 col-12 col-md-auto mb-3 mb-md-0">
+                              <div className="tasker-avatar-wrapper">
+                                <div className="tasker-avatar">
+                                  <span className="initials">{tasker.name?.slice(0, 2).toUpperCase()}</span>
+                                </div>
+                                <div className="tasker-basic-info mt-2">
+                                  <h6 className="mb-1">{tasker.name}</h6>
+                                  <div className="rating mb-1">
+                                    <FontAwesomeIcon icon={faStar} className="text-warning mr-1" />
+                                    <span>{tasker.rating ? `${tasker.rating.toFixed(1)}/5` : 'Chưa có đánh giá'}</span>
+                                  </div>
                                 </div>
                               </div>
                             </div>
-                          </div>
 
-                          {/* Services (Middle) */}
-                          <div className="col-md-6 col-12 col-md-auto mb-3 mb-md-0 services-container">
-                            <div className="services-offered">
-                              {tasker.service_variants && tasker.service_variants.length > 0 ? (
-                                tasker.service_variants.map((variant, index) => (
-                                  <span key={index} className="badge badge-soft-primary mr-2 mb-1">
-                                    {variant.service_name}
-                                  </span>
-                                ))
-                              ) : (
-                                <small className="text-muted">Không có dịch vụ</small>
-                              )}
+                            {/* Services (Middle) */}
+                            <div className="col-md-6 col-12 col-md-auto mb-3 mb-md-0 services-container">
+                              <div className="services-offered">
+                                {tasker.service_variants && tasker.service_variants.length > 0 ? (
+                                  tasker.service_variants.map((variant, index) => (
+                                    <span key={index} className="badge badge-soft-primary mr-2 mb-1">
+                                      {variant.service_name}
+                                    </span>
+                                  ))
+                                ) : (
+                                  <small className="text-muted">Không có dịch vụ</small>
+                                )}
+                              </div>
                             </div>
-                          </div>
 
-                          {/* Actions (Right) */}
-                          <div className="col-md-3 col-12 col-md-auto text-md-right d-flex flex-column flex-md-row justify-content-md-end">
-                            <Link
-                              to={`/tasker-profile/${tasker.user_id}`}
-                              className="btn btn-outline-primary btn-sm mb-2 mb-md-0 mr-md-2 w-100 w-md-auto"
-                            >
-                              <FontAwesomeIcon icon={faEye} className="mr-1" />
-                              Xem hồ sơ
-                            </Link>
-                            <button className="btn btn-primary btn-sm w-100 w-md-auto">
-                              Đặt dịch vụ
-                            </button>
+                            {/* Actions (Right) */}
+                            <div className="col-md-3 col-12 col-md-auto text-md-right d-flex flex-column flex-md-row justify-content-md-end">
+                              <Link
+                                to={`/tasker-profile/${tasker.user_id}`}
+                                className="btn btn-outline-primary btn-sm mb-2 mb-md-0 mr-md-2 w-100 w-md-auto"
+                              >
+                                <FontAwesomeIcon icon={faEye} className="mr-1" />
+                                Xem hồ sơ
+                              </Link>
+                              <Link
+                                to={`/booking/${tasker.user_id}`}
+                                className="btn btn-primary btn-sm w-100 w-md-auto"
+                              >
+                                Đặt dịch vụ
+                              </Link>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-muted">Không tìm thấy tasker nào phù hợp với tiêu chí. Thử điều chỉnh bộ lọc!</p>
-                )}
-              </div>
-            </div>
-
-            {/* Inline toast for SOS actions */}
-            {toastMessage && (
-              <div style={{ position: 'fixed', right: 20, bottom: 20, zIndex: 20000 }}>
-                <div className={`toast show align-items-center text-white bg-${toastMessage.type}`} role="alert">
-                  <div className="d-flex">
-                    <div className="toast-body">{toastMessage.message}</div>
-                    <button type="button" className="btn-close btn-close-white me-2 m-auto" aria-label="Close" onClick={() => setToastMessage(null)}></button>
-                  </div>
+                    ))
+                  ) : (
+                    <p className="text-muted">Không tìm thấy tasker nào phù hợp với tiêu chí. Thử điều chỉnh bộ lọc!</p>
+                  )}
                 </div>
               </div>
             )}
 
-            {/* Top-right notification (e.g., SOS sent) */}
-            {topRightNotification && (
-              <div style={{ position: 'fixed', right: 20, top: 20, zIndex: 20000 }}>
-                <div className={`toast show align-items-center text-dark bg-white border`} role="alert">
-                  <div className="d-flex">
-                    <div className="toast-body">{topRightNotification.message}</div>
-                    <button type="button" className="btn-close ms-2 m-auto" aria-label="Close" onClick={() => setTopRightNotification(null)}></button>
+            {/* SOS Status Cards (Waiting / Accepted) */}
+            {isSOSMode && sosBookingId && (
+              <div className="sos-status-container mt-4">
+                {/* Waiting Card */}
+                {!acceptedTasker && sosStatus === 'waiting_accept' && (
+                  <div className="bg-white rounded shadow-sm p-4 mb-3 d-flex align-items-center gap-3 sos-waiting-card border border-primary border-opacity-25">
+                    <div className="spinner-border text-primary" role="status" style={{ width: '2.5rem', height: '2.5rem' }}>
+                      <span className="visually-hidden">Loading...</span>
+                    </div>
+                    <div>
+                      <h5 className="mb-1 fw-bold text-primary">Đang tìm kiếm Tasker...</h5>
+                      <div className="text-muted">Hệ thống đang gửi yêu cầu đến các Tasker gần bạn (15km). Vui lòng đợi trong giây lát.</div>
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {/* Accepted Card */}
+                {acceptedTasker && (
+                  <div className="bg-white rounded shadow-sm p-4 mb-3 accepted-booking-summary border border-success border-2">
+                    <div className="d-flex align-items-center justify-content-between flex-wrap">
+                      <div className="d-flex align-items-center gap-3">
+                        <div className="avatar-circle bg-success text-white d-flex align-items-center justify-content-center shadow-sm" style={{ width: 64, height: 64, borderRadius: 32, fontSize: 24, fontWeight: 700 }}>
+                          {acceptedTasker.tasker_name?.slice(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                          <h5 className="fw-bold text-success mb-1">✓ {acceptedTasker.tasker_name} đã nhận đơn!</h5>
+                          <div className="text-secondary">Vui lòng thanh toán để bắt đầu dịch vụ.</div>
+                        </div>
+                      </div>
+                      <div className="d-flex gap-2 mt-3 mt-md-0">
+                        <button className="btn btn-outline-primary" onClick={() => window.location.href = `/tasker-profile/${acceptedTasker.tasker_id}`}>
+                          <i className="bi bi-person-badge me-2"></i>Hồ sơ
+                        </button>
+                        <button className="btn btn-outline-success" onClick={() => window.location.href = `/chat?bookingId=${sosBookingId}&peer=${acceptedTasker.tasker_id}`}>
+                          <i className="bi bi-chat-dots me-2"></i>Chat
+                        </button>
+                        <button className="btn btn-success fw-bold px-4" onClick={() => window.location.href = `/payment/${sosBookingId}`}>
+                          <i className="bi bi-credit-card me-2"></i>Thanh toán
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
+
+          {/* Inline toast for SOS actions */}
+          {toastMessage && (
+            <div style={{ position: 'fixed', right: 20, bottom: 20, zIndex: 20000 }}>
+              <div className={`toast show align-items-center text-white bg-${toastMessage.type}`} role="alert">
+                <div className="d-flex">
+                  <div className="toast-body">{toastMessage.message}</div>
+                  <button type="button" className="btn-close btn-close-white me-2 m-auto" aria-label="Close" onClick={() => setToastMessage(null)}></button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Top-right notification (e.g., SOS sent) */}
+          {topRightNotification && (
+            <div style={{ position: 'fixed', right: 20, top: 20, zIndex: 20000 }}>
+              <div className={`toast show align-items-center text-dark bg-white border`} role="alert">
+                <div className="d-flex">
+                  <div className="toast-body">{topRightNotification.message}</div>
+                  <button type="button" className="btn-close ms-2 m-auto" aria-label="Close" onClick={() => setTopRightNotification(null)}></button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
+
   );
 };
 

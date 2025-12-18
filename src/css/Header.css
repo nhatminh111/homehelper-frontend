@@ -1,59 +1,85 @@
-
 .navbar-nav {
- 
-  margin-left: auto !important;
   display: flex;
-  align-items: center; 
+  align-items: center;
+  justify-content: center;
+  /* Căn giữa các items */
+  flex-grow: 1;
+  /* Chiếm hết không gian còn lại */
+  margin-left: 0 !important;
+}
+
+/* Desktop: Chia đều khoảng cách */
+@media (min-width: 992px) {
+  .navbar-nav {
+    gap: 1.5rem;
+    /* Khoảng cách đều giữa các items */
+  }
+}
+
+/* Responsive: Chỉ thêm margin-left auto trên desktop */
+@media (min-width: 992px) {
+  .navbar-nav.ml-auto {
+    margin-left: 2rem !important;
+    /* Khoảng cách vừa phải */
+  }
 }
 
 /* 2. Khoảng cách giữa các mục (Nav Links) */
 .navbar-nav .nav-item {
 
-  margin-right: 10px; /* Thêm khoảng cách phải */
+  margin-right: 10px;
+  /* Thêm khoảng cách phải */
 }
 
 .navbar-nav .nav-link {
   color: #fff !important;
   font-size: 1rem;
   /* Tăng padding ngang để các nút trông lớn hơn và cân đối hơn */
-  padding: 10px 18px; 
+  padding: 10px 18px;
   /* Đảm bảo transition vẫn hoạt động */
-  transition: all 0.2s ease-in-out; 
-  border-radius: 4px; /* Thêm bo góc nhẹ cho hiệu ứng hover đẹp hơn */
+  transition: all 0.2s ease-in-out;
+  border-radius: 4px;
+  /* Thêm bo góc nhẹ cho hiệu ứng hover đẹp hơn */
+  white-space: nowrap;
+  /* Không cho chữ xuống dòng */
 }
 
 .navbar-nav .nav-link:hover {
   transform: translateY(-2px);
-  background-color: #495057; /* Thêm màu nền tối nhẹ khi hover */
+  background-color: #495057;
+  /* Thêm màu nền tối nhẹ khi hover */
 }
 
 .navbar-nav .nav-item.active .nav-link {
   color: #f0ad4e !important;
-  border-bottom: 2px solid #f0ad4e; /* Gạch chân nổi bật */
-  padding-bottom: 8px; /* Giữ cân bằng sau khi thêm border */
+  border-bottom: 2px solid #f0ad4e;
+  /* Gạch chân nổi bật */
+  padding-bottom: 8px;
+  /* Giữ cân bằng sau khi thêm border */
 }
 
 /* 3. Cân bằng Dropdown Tài khoản (Desktop) */
 .navbar-nav .dropdown {
-  margin-left: 15px; /* Tách biệt rõ ràng với các mục menu chính */
+  margin-left: 15px;
+  /* Tách biệt rõ ràng với các mục menu chính */
 }
 
 .navbar-nav .dropdown-menu {
   /* Tinh chỉnh lại vị trí và kích thước */
   right: 0;
-  left: auto; 
-  width: 280px; 
-  padding: 15px 15px 10px 15px;  
+  left: auto;
+  width: 280px;
+  padding: 15px 15px 10px 15px;
 }
 
 /* 4. Căn chỉnh mục Đăng nhập/Đăng ký */
 .navbar-nav .nav-item:last-of-type {
-    margin-right: 0; 
+  margin-right: 0;
 }
 
 /* Đảm bảo Notification Bell căn giữa với các link */
 .nav-item.d-flex.align-items-center {
-    margin-left: 15px;
+  margin-left: 15px;
 }
 
 
@@ -233,9 +259,11 @@
   font-size: 1.5rem;
   font-weight: bold;
 }
+
 @media (max-width: 991.98px) {
   .navbar-brand .home-text {
-    color: #fff !important; /* Màu trắng cho Home trên mobile */
+    color: #fff !important;
+    /* Màu trắng cho Home trên mobile */
   }
 }
 
@@ -290,6 +318,7 @@
     opacity: 0;
     transform: scale(0.95);
   }
+
   to {
     opacity: 1;
     transform: scale(1);
@@ -341,8 +370,9 @@
   .navbar-nav .dropdown-menu {
     display: none !important;
   }
+
   /* Đảm bảo các link login/register không có margin quá lớn */
   .navbar-nav .nav-item {
-    margin-right: 0; 
+    margin-right: 0;
   }
 }

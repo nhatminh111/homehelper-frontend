@@ -1,4 +1,4 @@
-import React, { useEffect, useState} from "react";
+import React, { useEffect, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowRight } from '@fortawesome/free-solid-svg-icons';
@@ -12,23 +12,25 @@ import {
   faSearch,
   faUsers,
   faBriefcase,
-  faClock,faFilter,
+  faClock, faFilter,
 } from "@fortawesome/free-solid-svg-icons";
 import { faHeart as faHeartRegular } from "@fortawesome/free-regular-svg-icons";
-import { Link, useNavigate} from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { toast, ToastContainer } from "react-toastify";
+import { showToast, CustomToastContainer } from "../components/common/CustomToast";
 import TaskerService from "../services/taskerService";
+import blogService from "../services/blogService";
+import VideoService from "../services/VideoService";
 import '../css/Home.css';
-import 'react-toastify/dist/ReactToastify.css';
 
 
 const Home = () => {
   const [services, setServices] = useState([]);
   const [searchName, setSearchName] = useState("");
   const [selectedService, setSelectedService] = useState("");
+  const [selectedCity, setSelectedCity] = useState("");
   const [taskers, setTaskers] = useState([]);
-  
+
   // Debug: Log taskers state changes
   useEffect(() => {
     console.log('🔄 Taskers state updated:', taskers);
@@ -64,10 +66,7 @@ const Home = () => {
 
   const handleAddWishlist = async (taskerId) => {
     if (!user) {
-      toast.error("Vui lòng đăng nhập để thêm vào wishlist!", {
-        position: "top-right",
-        autoClose: 3000,
-      });
+      showToast.error("Vui lòng đăng nhập để thêm vào wishlist!");
       return;
     }
     try {
@@ -82,21 +81,12 @@ const Home = () => {
       const data = await res.json();
       if (res.ok) {
         setWishlistTaskers((prev) => [...prev, Number(taskerId)]);
-        toast.success("Đã thêm vào wishlist!", {
-          position: "top-right",
-          autoClose: 3000,
-        });
+        showToast.success("Đã thêm vào wishlist!");
       } else {
-        toast.error(data.error || "Có lỗi xảy ra", {
-          position: "top-right",
-          autoClose: 3000,
-        });
+        showToast.error(data.error || "Có lỗi xảy ra");
       }
     } catch (err) {
-      toast.error("Có lỗi xảy ra khi thêm vào wishlist!", {
-        position: "top-right",
-        autoClose: 3000,
-      });
+      showToast.error("Có lỗi xảy ra khi thêm vào wishlist!");
       console.error(err);
     }
   };
@@ -112,24 +102,12 @@ const Home = () => {
         setWishlistTaskers((prev) =>
           prev.filter((id) => id !== Number(taskerId))
         );
-        toast.error("Đã xóa khỏi wishlist!", {
-          position: "top-right",
-          autoClose: 3000,
-          style: { background: '#ef4444', color: '#ffffff' },
-        });
+        showToast.error("Đã xóa khỏi wishlist!");
       } else {
-        toast.error("Có lỗi xảy ra khi xóa khỏi wishlist!", {
-          position: "top-right",
-          autoClose: 3000,
-          style: { background: '#ef4444', color: '#ffffff' },
-        });
+        showToast.error("Có lỗi xảy ra khi xóa khỏi wishlist!");
       }
     } catch (err) {
-      toast.error("Có lỗi xảy ra khi xóa khỏi wishlist!", {
-        position: "top-right",
-        autoClose: 3000,
-        style: { background: '#ef4444', color: '#ffffff' },
-      });
+      showToast.error("Có lỗi xảy ra khi xóa khỏi wishlist!");
       console.error(err);
     }
   };
@@ -144,23 +122,20 @@ const Home = () => {
   }, []);
 
   const handleSearch = async () => {
-    if (!searchName && !selectedService) {
-      toast.warn("Vui lòng nhập tên hoặc chọn dịch vụ để tìm kiếm!", {
-        position: "top-right",
-        autoClose: 3000,
-      });
+    if (!searchName && !selectedService && !selectedCity) {
+      showToast.warning("Vui lòng nhập tên, chọn dịch vụ hoặc chọn thành phố để tìm kiếm!");
       return;
     }
-    
+
     setLoading(true);
     setError(null);
     setShowResults(true);
-    
+
     try {
-      const searchUrl = `http://localhost:3001/api/tasker?search=${encodeURIComponent(searchName)}&serviceId=${selectedService}`;
+      const searchUrl = `http://localhost:3001/api/tasker?search=${encodeURIComponent(searchName)}&serviceId=${selectedService}&city=${encodeURIComponent(selectedCity)}`;
       console.log('🔍 Search URL:', searchUrl);
-      console.log('🔍 Search params:', { searchName, selectedService });
-      
+      console.log('🔍 Search params:', { searchName, selectedService, selectedCity });
+
       const res = await fetch(searchUrl);
       if (!res.ok) {
         const errorText = await res.text();
@@ -171,7 +146,7 @@ const Home = () => {
       console.log('📦 API Response:', result);
       console.log('📦 Response type:', typeof result);
       console.log('📦 Is array?', Array.isArray(result));
-      
+
       // Handle multiple response structures
       let taskersData = [];
       if (Array.isArray(result)) {
@@ -190,7 +165,7 @@ const Home = () => {
         console.warn('⚠️ Unexpected response structure:', result);
         taskersData = [];
       }
-      
+
       console.log('📋 Taskers Data:', taskersData);
       console.log('📊 Taskers Count:', taskersData.length);
       if (taskersData.length > 0) {
@@ -243,126 +218,112 @@ const Home = () => {
     }
   };
 
-  // Static data
-  const cleaners = [
-    {
-      id: 1,
-      name: "Professional Cleaner 1",
-      img: "/images/image_4.jpg",
-      rating: 5.0,
-      reviews: 120,
-    },
-    {
-      id: 2,
-      name: "Professional Cleaner 2",
-      img: "/images/image_2.jpg",
-      rating: 5.0,
-      reviews: 120,
-    },
-    {
-      id: 3,
-      name: "Professional Cleaner 3",
-      img: "/images/image_3.jpg",
-      rating: 5.0,
-      reviews: 120,
-    },
-  ];
+  // Latest Blog Posts
+  const [newsPosts, setNewsPosts] = useState([]);
+  const [newsLoading, setNewsLoading] = useState(true);
+  const [newsError, setNewsError] = useState(null);
 
-  const testimonials = [
-    {
-      id: 1,
-      name: "Sarah Johnson",
-      quote:
-        "Excellent service! My house has never been cleaner. The team was professional and thorough.",
-    },
-    {
-      id: 2,
-      name: "Mike Chen",
-      quote:
-        "Reliable and trustworthy. I've been using their services for over a year and couldn't be happier.",
-    },
-    {
-      id: 3,
-      name: "Lisa Brown",
-      quote:
-        "Amazing attention to detail. They clean areas I never even thought about. Highly recommended!",
-    },
-  ];
+  // Top-liked Videos for Cleaners Section replacement
+  const [popularVideos, setPopularVideos] = useState([]);
+  const [popularLoading, setPopularLoading] = useState(true);
+  const [popularError, setPopularError] = useState(null);
 
-  const news = [
-    {
-      id: 1,
-      tag: "Tips",
-      title: "10 Tips to keep your kitchen spotless",
-      date: "March 15, 2024",
-      img: "/images/work-1.jpg",
-    },
-    {
-      id: 2,
-      tag: "Guide",
-      title: "Eco-friendly cleaning products guide",
-      date: "March 12, 2024",
-      img: "/images/work-2.jpg",
-    },
-    {
-      id: 3,
-      tag: "Seasonal",
-      title: "Spring cleaning checklist for 2024",
-      date: "March 10, 2024",
-      img: "/images/work-3.jpg",
-    },
-  ];
+  useEffect(() => {
+    const fetchNews = async () => {
+      try {
+        setNewsLoading(true);
+        const res = await blogService.getRecentPosts(3);
+        const posts = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+        setNewsPosts(posts);
+      } catch (e) {
+        console.error("Error loading recent blogs:", e);
+        setNewsError("Không thể tải tin mới nhất");
+        setNewsPosts([]);
+      } finally {
+        setNewsLoading(false);
+      }
+    };
+    fetchNews();
+  }, []);
 
-  const tiers = [
-    {
-      name: "Bronze",
-      points: "100 Points",
-      features: [
-        "5% service discount",
-        "Priority booking",
-        "Monthly cleaning tips",
-        "24/7 support",
-      ],
-    },
-    {
-      name: "Silver",
-      points: "500 Points",
-      features: [
-        "10% service discount",
-        "Free deep cleaning",
-        "Premium supplies upgrade",
-        "24/7 support",
-      ],
-      popular: true,
-    },
-    {
-      name: "Gold",
-      points: "1,000 Points",
-      features: [
-        "15% service discount",
-        "Free monthly service",
-        "All premium supplies",
-        "Emergency cleaning",
-      ],
-    },
-    {
-      name: "Platinum",
-      points: "2,000 Points",
-      features: [
-        "20% service discount",
-        "VIP treatment",
-        "Custom service packages",
-        "Personal cleaner assigned",
-      ],
-    },
-  ];
+  // Fetch top-liked videos (3-4 items)
+  useEffect(() => {
+    const fetchPopular = async () => {
+      setPopularLoading(true);
+      setPopularError(null);
+      try {
+        // Try backend popular endpoint first
+        let data = await VideoService.getPopularVideos(4);
+        let vids = Array.isArray(data?.videos)
+          ? data.videos
+          : Array.isArray(data)
+          ? data
+          : [];
+
+        // Fallback: compute from all videos if popular endpoint not available
+        if (!vids.length) {
+          const allRes = await VideoService.getAllVideos();
+          const all = Array.isArray(allRes?.videos) ? allRes.videos : Array.isArray(allRes) ? allRes : [];
+          vids = all
+            .filter(v => v && (v.status ? String(v.status).toLowerCase() === 'approved' : true))
+            .sort((a, b) => (b.likes || 0) - (a.likes || 0))
+            .slice(0, 4);
+        }
+
+        setPopularVideos(vids);
+      } catch (e) {
+        console.error('Error loading popular videos:', e);
+        // As a last resort, attempt all videos and sort
+        try {
+          const allRes = await VideoService.getAllVideos();
+          const all = Array.isArray(allRes?.videos) ? allRes.videos : Array.isArray(allRes) ? allRes : [];
+          const top = all
+            .filter(v => v && (v.status ? String(v.status).toLowerCase() === 'approved' : true))
+            .sort((a, b) => (b.likes || 0) - (a.likes || 0))
+            .slice(0, 4);
+          setPopularVideos(top);
+        } catch (e2) {
+          setPopularError('Không thể tải video phổ biến');
+          setPopularVideos([]);
+        }
+      } finally {
+        setPopularLoading(false);
+      }
+    };
+    fetchPopular();
+  }, []);
+
+  const formatDate = (d) => {
+    try {
+      return new Date(d).toLocaleDateString("vi-VN", { year: "numeric", month: "long", day: "numeric" });
+    } catch {
+      return "";
+    }
+  };
+
+  // Derive Cloudinary video thumbnail from video_url
+  const getVideoThumbUrl = (v) => {
+    const url = v?.video_url || '';
+    if (!url) return '/images/work-1.jpg';
+    try {
+      // Insert transformation for first-second frame and jpeg format
+      // Example: /video/upload/ -> /video/upload/so_1,q_auto,f_jpg/
+      const withTransform = url.replace(/\/upload\//, '/upload/so_1,q_auto,f_jpg/');
+      // Ensure jpg extension when URL ends with video extension
+      const jpgUrl = withTransform.replace(/\.(mp4|mov|avi|mkv)(\?.*)?$/i, '.jpg$2');
+      return jpgUrl;
+    } catch {
+      return '/images/work-1.jpg';
+    }
+  };
+
 
   // Function to sort and display all service variants
   const getDisplayedVariants = (taskerServices) => {
     if (!taskerServices || taskerServices.length === 0) return [];
-    
+
     // Flatten variants and associate with service_id
-    let allVariants = taskerServices.flatMap(service => 
+    let allVariants = taskerServices.flatMap(service =>
       (service.variants || []).map(variant => ({
         ...variant,
         service_id: service.service_id
@@ -385,12 +346,12 @@ const Home = () => {
   // Animation variants for the card
   const cardVariants = {
     hidden: { opacity: 0, scale: 0.95, y: 20 },
-    visible: { 
-      opacity: 1, 
-      scale: 1, 
-      y: 0, 
-      transition: { 
-        duration: 0.5, 
+    visible: {
+      opacity: 1,
+      scale: 1,
+      y: 0,
+      transition: {
+        duration: 0.5,
         ease: "easeOut",
         staggerChildren: 0.1
       }
@@ -404,8 +365,8 @@ const Home = () => {
 
   return (
     <>
-      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} closeOnClick pauseOnHover />
-      
+      <CustomToastContainer />
+
       {/* Hero Section */}
       <section style={{ padding: '40px 0' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
@@ -425,7 +386,7 @@ const Home = () => {
             </div>
             <div style={{ flex: '1 1 50%', padding: '20px' }}>
               <img
-                src="/images/bg_3.jpg"
+                src="https://nld.mediacdn.vn/2016/img20160416011157172.jpg"
                 alt="cleaners"
                 style={{ width: '100%', borderRadius: '8px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
               />
@@ -453,9 +414,9 @@ const Home = () => {
             <div style={{ background: '#f8d7da', color: '#721c24', padding: '16px', borderRadius: '8px', boxShadow: '0 2px 10px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center' }}>
               <FontAwesomeIcon icon={faClock} style={{ marginRight: '8px' }} />
               {error}
-              <button 
-                type="button" 
-                style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: '1.25rem', cursor: 'pointer' }} 
+              <button
+                type="button"
+                style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: '1.25rem', cursor: 'pointer' }}
                 onClick={() => setError(null)}
               >
                 ×
@@ -485,14 +446,14 @@ const Home = () => {
                     <FontAwesomeIcon icon={faUsers} style={{ marginRight: '8px' }} />
                     Tìm kiếm người giúp việc
                   </h3>
-                  <small style={{ opacity: '0.75' }}>Nhập tên, chọn dịch vụ hoặc tìm kiếm nâng cao</small>
+                  <small style={{ opacity: '0.75' }}>Nhập tên, chọn dịch vụ, chọn thành phố hoặc tìm kiếm nâng cao</small>
                 </div>
 
                 {/* Search Form */}
                 <div style={{ padding: '24px' }}>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'flex-end' }}>
                     {/* Tìm theo tên */}
-                    <div style={{ flex: '1 1 40%' }}>
+                    <div style={{ flex: '1 1 100%' }}>
                       <div style={{ position: 'relative' }}>
                         <FontAwesomeIcon
                           icon={faSearch}
@@ -517,7 +478,7 @@ const Home = () => {
                     </div>
 
                     {/* Chọn dịch vụ */}
-                    <div style={{ flex: '1 1 30%' }}>
+                    <div style={{ flex: '1 1 calc(33.33% - 11px)' }}>
                       <select
                         style={{
                           width: '100%',
@@ -541,8 +502,38 @@ const Home = () => {
                       </select>
                     </div>
 
+                    {/* Chọn thành phố */}
+                    <div style={{ flex: '1 1 calc(33.33% - 11px)' }}>
+                      <select
+                        style={{
+                          width: '100%',
+                          padding: '12px',
+                          fontSize: '1.125rem',
+                          borderRadius: '8px',
+                          border: '1px solid rgba(255, 255, 255, 0.3)',
+                          background: 'rgba(255, 255, 255, 0.8)',
+                          backdropFilter: 'blur(20px)',
+                          transition: 'all 0.3s ease'
+                        }}
+                        value={selectedCity}
+                        onChange={(e) => setSelectedCity(e.target.value)}
+                      >
+                        <option value="">Chọn thành phố</option>
+                        <option value="Hà Nội">Hà Nội</option>
+                        <option value="Hồ Chí Minh">TP Hồ Chí Minh</option>
+                        <option value="Đà Nẵng">Đà Nẵng</option>
+                        <option value="Hải Phòng">Hải Phòng</option>
+                        <option value="Cần Thơ">Cần Thơ</option>
+                        <option value="Huế">Huế</option>
+                        <option value="Nha Trang">Nha Trang</option>
+                        <option value="Vũng Tàu">Vũng Tàu</option>
+                        <option value="Đà Lạt">Đà Lạt</option>
+                        <option value="Quy Nhơn">Quy Nhơn</option>
+                      </select>
+                    </div>
+
                     {/* Nút Tìm kiếm (chính) */}
-                    <div style={{ flex: '1 1 25%' }}>
+                    <div style={{ flex: '1 1 calc(33.33% - 11px)' }}>
                       <button
                         style={{
                           width: '100%',
@@ -558,7 +549,8 @@ const Home = () => {
                           alignItems: 'center',
                           justifyContent: 'center',
                           boxShadow: '0 4px 20px rgba(16, 185, 129, 0.3)',
-                          transition: 'all 0.3s ease'
+                          transition: 'all 0.3s ease',
+                          cursor: loading ? 'not-allowed' : 'pointer'
                         }}
                         onClick={handleSearch}
                         disabled={loading}
@@ -588,14 +580,14 @@ const Home = () => {
                   </div>
 
                   {/* NÚT TÌM KIẾM NÂNG CAO */}
-                  <div style={{ 
-                    marginTop: '20px', 
+                  <div style={{
+                    marginTop: '20px',
                     textAlign: 'center',
                     padding: '16px 0',
                     borderTop: '1px dashed rgba(0,0,0,0.1)'
                   }}>
                     <button
-                    onClick={() => navigate('/tasker-search')}
+                      onClick={() => navigate('/tasker-search')}
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
@@ -653,7 +645,7 @@ const Home = () => {
                         Kết quả phù hợp
                       </h2>
                       <small style={{ color: '#6b7280' }}>
-                        "{searchName}" {selectedService && `• ${services.find(s => s.service_id === selectedService)?.name}`}
+                        {searchName && `"${searchName}"`} {selectedService && `• ${services.find(s => s.service_id === selectedService)?.name}`} {selectedCity && `• ${selectedCity}`}
                       </small>
                     </div>
                   </div>
@@ -700,7 +692,7 @@ const Home = () => {
                           <motion.div className="avatar-section" variants={childVariants}>
                             <div className="avatar-wrapper">
                               <img
-                                src={t.profileImage || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop&crop=face"}
+                                src={t.avatar || "https://nld.mediacdn.vn/2016/img20160416011157172.jpg"}
                                 alt={t.name}
                                 className="avatar-image"
                               />
@@ -740,11 +732,10 @@ const Home = () => {
                                     ? faHeartSolid
                                     : faHeartRegular
                                 }
-                                className={`favorite-icon ${
-                                  wishlistTaskers.includes(Number(t.tasker_id))
-                                    ? 'text-danger'
-                                    : 'text-gray'
-                                }`}
+                                className={`favorite-icon ${wishlistTaskers.includes(Number(t.tasker_id))
+                                  ? 'text-danger'
+                                  : 'text-gray'
+                                  }`}
                               />
                             </button>
 
@@ -796,9 +787,6 @@ const Home = () => {
                                   {displayedVariants.map((variant, idx) => (
                                     <div key={idx} className="service-chip">
                                       <div className="service-name">{variant.variant_name}</div>
-                                      <div className="service-price">
-                                        {variant.price_min}-{variant.price_max}{variant.unit}
-                                      </div>
                                     </div>
                                   ))}
                                 </div>
@@ -827,17 +815,11 @@ const Home = () => {
                                   whileTap={{ scale: 0.95 }}
                                   onClick={() => {
                                     if (!user || !token) {
-                                      toast.error("Vui lòng đăng nhập để đặt dịch vụ!", {
-                                        position: "top-right",
-                                        autoClose: 3000,
-                                      });
+                                      showToast.error("Vui lòng đăng nhập để đặt dịch vụ!");
                                       return;
                                     }
                                     if (user.role !== "Customer") {
-                                      toast.error("Chỉ khách hàng mới có thể đặt lịch!", {
-                                        position: "top-right",
-                                        autoClose: 3000,
-                                      });
+                                      showToast.error("Chỉ khách hàng mới có thể đặt lịch!");
                                       return;
                                     }
                                     window.location.href = `/booking/${t.tasker_id}`;
@@ -860,11 +842,12 @@ const Home = () => {
                       </div>
                       <h3 style={{ fontWeight: 'bold', marginBottom: '12px', color: '#1e293b' }}>Không tìm thấy kết quả</h3>
                       <p style={{ color: '#6b7280', marginBottom: '24px', fontSize: '1.25rem' }}>Thử thay đổi từ khóa hoặc chọn dịch vụ khác</p>
-                      <button 
+                      <button
                         style={{ padding: '12px 24px', background: '#3b82f6', color: 'white', borderRadius: '8px', border: 'none', fontSize: '1.125rem', boxShadow: '0 4px 20px rgba(0,0,0,0.2)' }}
                         onClick={() => {
                           setSearchName("");
                           setSelectedService("");
+                          setSelectedCity("");
                           setShowResults(false);
                         }}
                       >
@@ -877,10 +860,11 @@ const Home = () => {
             </div>
           )}
         </div>
-      </section>
+      </section >
 
       {/* About Section */}
-      <section style={{ padding: '40px 0' }}>
+      < section style={{ padding: '40px 0' }
+      }>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
             <div style={{ flex: '1 1 50%', padding: '20px' }}>
@@ -892,7 +876,7 @@ const Home = () => {
                 Đội ngũ vệ sinh chuyên nghiệp sử dụng sản phẩm thân thiện môi trường
                 và kỹ thuật hiện đại để đảm bảo không gian của bạn luôn sạch bóng.
               </p>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              {/* <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <div>
                   <h3 style={{ color: '#3b82f6', margin: '0' }}>45</h3>
                   <small style={{ color: '#6b7280' }}>Năm kinh nghiệm</small>
@@ -905,51 +889,74 @@ const Home = () => {
                   <h3 style={{ color: '#3b82f6', margin: '0' }}>30+</h3>
                   <small style={{ color: '#6b7280' }}>Khu vực dịch vụ</small>
                 </div>
-              </div>
+              </div> */}
             </div>
           </div>
         </div>
-      </section>
+      </section >
 
       {/* News Section */}
-      <section style={{ padding: '40px 0' }}>
+      < section style={{ padding: '40px 0' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           <h2 style={{ fontSize: '2.5rem', textAlign: 'center', marginBottom: '8px' }}>Tin mới nhất</h2>
-          <p style={{ textAlign: 'center', color: '#6b7280', marginBottom: '40px' }}>
-            Cập nhật các mẹo và tin tức mới nhất từ chúng tôi
-          </p>
+          {newsError && (
+            <p style={{ textAlign: 'center', color: '#ef4444', marginBottom: '16px' }}>{newsError}</p>
+          )}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px' }}>
-            {news.map((n) => (
-              <div key={n.id} style={{ flex: '1 1 33.33%', padding: '12px' }}>
-                <div style={{ height: '100%', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', borderRadius: '8px', overflow: 'hidden' }}>
-                  <img src={n.img} style={{ width: '100%', height: 'auto' }} alt={n.title} />
-                  <div style={{ padding: '16px' }}>
-                    <span
-                      style={{
-                        background: '#eef2ff',
-                        color: '#1b2a4b',
-                        borderRadius: '20px',
-                        padding: '6px 12px',
-                        fontSize: '0.875rem',
-                        marginBottom: '8px',
-                        display: 'inline-block'
-                      }}
-                    >
-                      {n.tag}
-                    </span>
-                    <h5 style={{ marginBottom: '8px', fontSize: '1.25rem' }}>{n.title}</h5>
-                    <p style={{ color: '#6b7280', marginBottom: '16px' }}>{n.date}</p>
-                    <button style={{ padding: '8px 16px', border: '2px solid #3b82f6', color: '#3b82f6', background: 'none', borderRadius: '8px' }}>Đọc thêm</button>
+            {newsLoading ? (
+              [1,2,3].map((i) => (
+                <div key={i} style={{ flex: '1 1 33.33%', padding: '12px' }}>
+                  <div style={{ height: '100%', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
+                    <div style={{ width: '100%', height: '180px', background: '#e5e7eb' }} />
+                    <div style={{ padding: '16px' }}>
+                      <div style={{ width: '80px', height: '24px', background: '#e5e7eb', borderRadius: '12px', marginBottom: '8px' }} />
+                      <div style={{ width: '100%', height: '20px', background: '#e5e7eb', borderRadius: '6px', marginBottom: '8px' }} />
+                      <div style={{ width: '60%', height: '16px', background: '#e5e7eb', borderRadius: '6px', marginBottom: '12px' }} />
+                      <div style={{ width: '120px', height: '36px', background: '#e5e7eb', borderRadius: '8px' }} />
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            ) : newsPosts.length > 0 ? (
+              newsPosts.map((p) => {
+                const imgSrc = Array.isArray(p.photo_urls) && p.photo_urls.length > 0 ? p.photo_urls[0] : '/images/work-1.jpg';
+                return (
+                  <div key={p.post_id} style={{ flex: '1 1 33.33%', padding: '12px' }}>
+                    <div style={{ height: '100%', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', borderRadius: '8px', overflow: 'hidden' }}>
+                      <img src={imgSrc} className="news-card-image" alt={p.title} />
+                      <div style={{ padding: '16px' }}>
+                        <span
+                          style={{
+                            background: '#eef2ff',
+                            color: '#1b2a4b',
+                            borderRadius: '20px',
+                            padding: '6px 12px',
+                            fontSize: '0.875rem',
+                            marginBottom: '8px',
+                            display: 'inline-block'
+                          }}
+                        >
+                          Bài viết
+                        </span>
+                        <h5 style={{ marginBottom: '8px', fontSize: '1.25rem' }}>{p.title}</h5>
+                        <p style={{ color: '#6b7280', marginBottom: '16px' }}>{formatDate(p.post_date)}</p>
+                        <Link to={`/blog/${p.post_id}`} style={{ padding: '8px 16px', border: '2px solid #3b82f6', color: '#3b82f6', background: 'none', borderRadius: '8px', textDecoration: 'none', display: 'inline-block' }}>
+                          Đọc thêm
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <p style={{ textAlign: 'center', width: '100%', color: '#6b7280' }}>Chưa có bài viết nào</p>
+            )}
           </div>
         </div>
-      </section>
+      </section >
 
       {/* CTA Section */}
-      <section style={{ background: '#2b5cff', padding: '40px 0' }}>
+      < section style={{ background: '#2b5cff', padding: '40px 0' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto', textAlign: 'center', color: 'white' }}>
           <h2 style={{ marginBottom: '12px', fontSize: '2.5rem' }}>Cùng nhau khám phá những điều mới</h2>
           <p style={{ marginBottom: '24px', fontSize: '1.25rem' }}>
@@ -957,154 +964,79 @@ const Home = () => {
           </p>
           <button style={{ padding: '12px 24px', background: '#ffd84d', color: '#1b1c24', borderRadius: '8px', border: 'none', fontSize: '1.125rem' }}>Bắt đầu ngay</button>
         </div>
-      </section>
+      </section >
 
-      {/* Tiers Section */}
-      <section style={{ padding: '40px 0' }}>
+      {/* Popular Videos Section (replacing Cleaners) */}
+      < section style={{ background: '#f6f8ff', padding: '40px 0' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-          <h2 style={{ fontSize: '2.5rem', textAlign: 'center', marginBottom: '8px' }}>Chương trình tích điểm thành viên</h2>
+          <h2 style={{ fontSize: '2.5rem', textAlign: 'center', marginBottom: '8px' }}>Video được yêu thích</h2>
           <p style={{ textAlign: 'center', color: '#6b7280', marginBottom: '40px' }}>
-            Tích điểm cho mỗi dịch vụ và mở khóa những quyền lợi dành riêng cho thành viên
+            Top video có lượt thích cao nhất
           </p>
+          {popularError && (
+            <p style={{ textAlign: 'center', color: '#ef4444', marginBottom: '16px' }}>{popularError}</p>
+          )}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px' }}>
-            {tiers.map((t) => (
-              <div key={t.name} style={{ flex: '1 1 25%', padding: '12px' }}>
-                <div
-                  style={{
-                    height: '100%',
-                    boxShadow: t.popular ? '0 0 0 3px #ffe58f inset' : '0 4px 20px rgba(0,0,0,0.1)',
-                    borderRadius: '8px',
-                    position: 'relative'
-                  }}
-                >
-                  {t.popular && (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: '-12px',
-                        left: '50%',
-                        transform: 'translateX(-50%)'
-                      }}
-                    >
+            {popularLoading ? (
+              [1,2,3,4].map((i) => (
+                <div key={i} style={{ flex: '1 1 25%', minWidth: '260px', padding: '12px' }}>
+                  <div style={{ height: '100%', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
+                    <div style={{ width: '100%', height: '260px', background: '#e5e7eb' }} />
+                    <div style={{ padding: '16px' }}>
+                      <div style={{ width: '60%', height: '20px', background: '#e5e7eb', borderRadius: '6px', marginBottom: '8px' }} />
+                      <div style={{ width: '40%', height: '16px', background: '#e5e7eb', borderRadius: '6px', marginBottom: '12px' }} />
+                      <div style={{ width: '120px', height: '36px', background: '#e5e7eb', borderRadius: '8px' }} />
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : popularVideos.length > 0 ? (
+              popularVideos.slice(0, 4).map((v) => (
+                <div key={v.video_id} style={{ flex: '1 1 25%', minWidth: '260px', padding: '12px' }}>
+                  <div style={{ height: '100%', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', borderRadius: '8px', overflow: 'hidden' }}>
+                    <div style={{ position: 'relative' }}>
+                      <img
+                        src={getVideoThumbUrl(v)}
+                        alt={v.title}
+                        style={{ width: '100%', height: '360px', objectFit: 'cover', display: 'block', background: '#000' }}
+                        onError={(e) => { e.currentTarget.src = '/images/work-1.jpg'; }}
+                      />
                       <span
                         style={{
+                          position: 'absolute',
+                          top: '12px',
+                          left: '12px',
                           background: '#ffd84d',
                           color: '#1b1c24',
-                          padding: '6px 12px',
+                          padding: '6px 10px',
                           borderRadius: '20px',
-                          fontWeight: '700'
+                          fontWeight: '600'
                         }}
                       >
-                        Most Popular
+                        Popular
                       </span>
                     </div>
-                  )}
-                  <div style={{ padding: '24px', textAlign: 'center' }}>
-                    <h5 style={{ marginBottom: '8px', fontSize: '1.5rem' }}>{t.name}</h5>
-                    <h3 style={{ color: '#3b82f6', marginBottom: '24px', fontWeight: '700' }}>
-                      {t.points}
-                    </h3>
-                    <ul style={{ listStyle: 'none', padding: '0', marginBottom: '24px', textAlign: 'left' }}>
-                      {t.features.map((f, idx) => (
-                        <li key={idx} style={{ marginBottom: '8px', display: 'flex', alignItems: 'center' }}>
-                          <FontAwesomeIcon icon={faCheckCircle} style={{ color: '#10b981', marginRight: '8px' }} />
-                          <span>{f}</span>
-                        </li>
-                      ))}
-                    </ul>
-                    <button style={{ padding: '12px 24px', background: t.popular ? '#ffd84d' : '#3b82f6', color: t.popular ? '#1b1c24' : 'white', border: 'none', borderRadius: '8px' }}>
-                      Unlock Rewards
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Cleaners Section */}
-      <section style={{ background: '#f6f8ff', padding: '40px 0' }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-          <h2 style={{ fontSize: '2.5rem', textAlign: 'center', marginBottom: '8px' }}>Top 3 Professional Cleaners</h2>
-          <p style={{ textAlign: 'center', color: '#6b7280', marginBottom: '40px' }}>
-            Meet our highest-rated cleaning professionals
-          </p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px' }}>
-            {cleaners.map((c) => (
-              <div key={c.id} style={{ flex: '1 1 33.33%', padding: '12px' }}>
-                <div style={{ height: '100%', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', borderRadius: '8px', overflow: 'hidden' }}>
-                  <div style={{ position: 'relative' }}>
-                    <img src={c.img} style={{ width: '100%', height: 'auto' }} alt={c.name} />
-                    <span
-                      style={{
-                        position: 'absolute',
-                        top: '12px',
-                        left: '12px',
-                        background: '#ffd84d',
-                        color: '#1b1c24',
-                        padding: '6px 10px',
-                        borderRadius: '20px',
-                        fontWeight: '600'
-                      }}
-                    >
-                      Top Rated
-                    </span>
-                  </div>
-                  <div style={{ padding: '16px' }}>
-                    <h5 style={{ marginBottom: '8px', fontSize: '1.25rem' }}>{c.name}</h5>
-                    <div style={{ color: '#f5b100', marginBottom: '8px' }}>
-                      {[...Array(5)].map((_, i) => (
-                        <FontAwesomeIcon key={i} icon={faStar} style={{ marginRight: '4px' }} />
-                      ))}
-                      <span style={{ color: '#6b7280', marginLeft: '8px' }}>
-                        {c.rating.toFixed(1)} ({c.reviews} reviews)
-                      </span>
-                    </div>
-                    <p style={{ color: '#6b7280', marginBottom: '16px' }}>
-                      Experienced in residential and commercial cleaning with
-                      eco-friendly products.
-                    </p>
-                    <button style={{ width: '100%', padding: '12px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '8px' }}>Book Now</button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials Section */}
-      <section style={{ background: '#0c1730', padding: '40px 0' }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-          <h2 style={{ color: 'white', textAlign: 'center', marginBottom: '8px', fontSize: '2.5rem' }}>Happy Customers</h2>
-          <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.8)', marginBottom: '24px' }}>
-            See what our customers say about our services
-          </p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px' }}>
-            {testimonials.map((t) => (
-              <div key={t.id} style={{ flex: '1 1 33.33%', padding: '12px' }}>
-                <div style={{ background: '#2b5cff', color: 'white', padding: '24px', borderRadius: '8px', boxShadow: '0 4px 20px rgba(0,0,0,0.2)' }}>
-                  <div style={{ color: '#ffea75', marginBottom: '12px' }}>
-                    {[...Array(5)].map((_, i) => (
-                      <FontAwesomeIcon key={i} icon={faStar} style={{ marginRight: '4px' }} />
-                    ))}
-                  </div>
-                  <p style={{ marginBottom: '24px' }}>"{t.quote}"</p>
-                  <div style={{ display: 'flex', alignItems: 'center' }}>
-                    <div>
-                      <strong>{t.name}</strong>
-                      <div style={{ fontSize: '0.875rem', opacity: '0.9' }}>
-                        Verified Customer
+                    <div style={{ padding: '16px' }}>
+                      <h5 style={{ marginBottom: '8px', fontSize: '1.1rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.title}</h5>
+                      <div style={{ color: '#6b7280', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <FontAwesomeIcon icon={faHeartSolid} style={{ color: '#ef4444' }} />
+                        <span>{v.likes || 0} lượt thích</span>
                       </div>
+                      <Link to={`/video/${v.video_id}`} style={{ padding: '8px 16px', border: '2px solid #3b82f6', color: '#3b82f6', background: 'none', borderRadius: '8px', textDecoration: 'none', display: 'inline-block' }}>
+                        Xem video
+                      </Link>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p style={{ textAlign: 'center', width: '100%', color: '#6b7280' }}>Chưa có video nào</p>
+            )}
           </div>
         </div>
-      </section>
+      </section >
+
+
     </>
   );
 };

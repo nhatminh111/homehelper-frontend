@@ -132,7 +132,7 @@ const Blog = () => {
   return (
     <>
       {/* Khu vực tiêu đề */}
-      <section className="hero-wrap hero-wrap-2" style={{ backgroundImage: "url('/images/bg_2.jpg')" }} data-stellar-background-ratio="0.5">
+      <section className="hero-wrap hero-wrap-2" style={{ backgroundImage: "url('/images/home.jpg')" }} data-stellar-background-ratio="0.5">
         <div className="overlay"></div>
         <div className="container">
           <div className="row no-gutters slider-text align-items-end">

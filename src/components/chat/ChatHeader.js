@@ -6,7 +6,8 @@ const ChatHeader = ({
   conversation,
   onBack,
   onMenuClick,
-  isUserOnline
+  isUserOnline,
+  onAudioCall
 }) => {
   const [showMembersModal, setShowMembersModal] = useState(false);
   const { user } = useAuth();
@@ -141,24 +142,24 @@ const ChatHeader = ({
           </div>
 
           {/* Actions */}
-          {/* <div className="chat-actions">
-            <div className="chat-call-actions">
-              <button
-                className="btn btn-link chat-action-btn"
-                onClick={() => handleCall('voice')}
-                title="Gọi thoại"
-              >
-                <i className="fas fa-phone"></i>
-              </button>
-              <button
-                className="btn btn-link chat-action-btn"
-                onClick={() => handleCall('video')}
-                title="Gọi video"
-              >
-                <i className="fas fa-video"></i>
-              </button>
-            </div>
-          </div> */}
+          <div className="chat-actions">
+            <button
+              className="btn btn-link chat-action-btn"
+              onClick={onAudioCall}
+              title="Bắt đầu cuộc gọi âm thanh"
+            >
+              <i className="fas fa-phone"></i>
+            </button>
+            {/* 
+            <button
+              className="btn btn-link chat-action-btn"
+              onClick={() => handleCall('video')}
+              title="Gọi video"
+            >
+              <i className="fas fa-video"></i>
+            </button>
+            */}
+          </div>
         </div>
       </div>
 

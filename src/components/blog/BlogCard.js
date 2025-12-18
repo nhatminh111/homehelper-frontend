@@ -4,6 +4,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faThumbsUp, faComment, faHeart, faEye, faTag } from '@fortawesome/free-solid-svg-icons';
 import './BlogCard.css';
 
+
 const BlogCard = ({ post, onLikeToggle, user }) => {
   const [isLiked, setIsLiked] = useState(post.isLiked || false);
   const [likesCount, setLikesCount] = useState(post.likes || 0);
@@ -22,7 +23,7 @@ const BlogCard = ({ post, onLikeToggle, user }) => {
   const handleLikeClick = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     if (!user) {
       alert('Please login to like posts');
       return;
@@ -30,11 +31,11 @@ const BlogCard = ({ post, onLikeToggle, user }) => {
 
     const newLikedState = !isLiked;
     const newLikesCount = newLikedState ? likesCount + 1 : likesCount - 1;
-    
+
     // Optimistic update
     setIsLiked(newLikedState);
     setLikesCount(newLikesCount);
-    
+
     // Call API
     if (onLikeToggle) {
       onLikeToggle(post.post_id);
@@ -72,21 +73,21 @@ const BlogCard = ({ post, onLikeToggle, user }) => {
         <div className="blog-image" style={{ backgroundImage: `url(${getFeaturedImage()})` }}></div>
         <div className="blog-meta">
           <div className="author-avatar">
-            <img src={post.author_avatar || "/images/person_1.jpg"} alt={post.author_name} />
+            <img src={post.author_avatar_url || "/images/person_1.jpg"} alt={post.author_name} /> 
           </div>
           <div className="meta-text">
             <div className="author">Posted by {post.author_name}</div>
             <div className="date">{formatDate(post.post_date)}</div>
           </div>
         </div>
-        
+
       </div>
       <div className="blog-content">
         <h3 className="blog-title">
           <Link to={`/blog/${post.post_id}`}>{post.title}</Link>
         </h3>
         <p className="blog-description">{getExcerpt(post.content)}</p>
-        
+
         {/* Services Tags */}
         {post.services && post.services.length > 0 && (
           <div className="services-tags">
@@ -111,9 +112,6 @@ const BlogCard = ({ post, onLikeToggle, user }) => {
           </button>
           <span className="stat-item comment-section">
             <span className="comment-icon"><FontAwesomeIcon icon={faComment} /></span> <span className="stat-count">{post.comments_count || 0}</span>
-          </span>
-          <span className="stat-item view-section">
-            <span className="view-icon"><FontAwesomeIcon icon={faEye} /></span> <span className="stat-count">{formatNumber(post.views || 0)}</span>
           </span>
         </div>
       </div>

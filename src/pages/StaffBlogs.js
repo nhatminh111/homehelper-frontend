@@ -253,12 +253,12 @@ export default function StaffBlogs() {
                         </button>
                       </>
                     )}
-                    <button
+                    {/* <button
                       className="btn btn-outline-danger btn-sm"
                       onClick={() => deletePost(blog.post_id)}
                     >
-                      Xoá
-                    </button>
+                      Xoá 
+                    </button> */}
                   </div>
                 </div>
               </div>

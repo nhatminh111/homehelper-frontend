@@ -1,0 +1,148 @@
+/* ================= Sidebar layout ================= */
+.tasker-dashboard-row {
+  min-height: 100vh;
+}
+
+.tasker-sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  background-color: #2b2b2b; /* xám trầm */
+  border-right: 1px solid #444;
+  padding-top: 1rem;
+}
+
+.tasker-sidebar-content {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 0 1rem;
+}
+
+/* ================= Sidebar nav ================= */
+.tasker-sidebar .nav-link {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  margin-bottom: 4px;
+  transition: all 0.2s ease;
+  color: #585858; /* chữ màu xám sáng */
+  font-weight: 500;
+}
+
+.tasker-sidebar .nav-link:hover {
+  background-color: #3a3a3a; /* hover xám đậm hơn */
+  color: #fff;
+  border-left: 4px solid #999;
+}
+
+.tasker-sidebar .nav-link.active {
+  background-color: #444; /* active xám đậm */
+  color: #fff;
+  border-left: 4px solid #bbb;
+}
+
+/* ================= User info ================= */
+.tasker-bottom {
+  display: flex;
+  flex-direction: column;
+  margin-top: auto;
+  padding-bottom: 1rem;
+}
+
+.tasker-user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s, box-shadow 0.2s;
+  border: 1px solid transparent;
+}
+
+.tasker-user-info:hover {
+  background-color: #c9c8c8;
+  border: 1px solid hsl(0, 0%, 61%);
+  box-shadow: 0 2px 6px rgba(208, 208, 208, 0.2);
+}
+
+.tasker-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid #555;
+}
+
+.tasker-user-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.tasker-user-name {
+  font-weight: 600;
+  color: #0c0c0c;
+}
+
+.tasker-user-email {
+  font-size: 0.85rem;
+  color: #000000;
+}
+
+/* ================= Main content ================= */
+.tasker-main {
+  height: 100vh;
+  overflow-y: auto;
+  position: relative;
+  padding: 2rem;
+}
+
+.tasker-bell-floating {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 1050; /* above content */
+}
+
+/* ================= Responsive ================= */
+@media (max-width: 767.98px) {
+  .tasker-sidebar {
+    position: static;
+    height: auto;
+    overflow: visible;
+  }
+  .tasker-main {
+    height: auto;
+    overflow: visible;
+  }
+}
+
+/* ================= Card hover ================= */
+.tasker-main .card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s;
+  border: 1px solid #444;
+}
+
+
+/* ================= Table ================= */
+.tasker-main .table {
+  color: #ffffff;
+}
+
+.tasker-main .table th{
+  color: #ffffff;
+}
+.tasker-main .table td {
+  border-color: #fffcfc;
+}
+
+.tasker-main .table thead th {
+  background-color: #333;
+}
+
+.tasker-main .table tbody tr:hover {
+  background-color: #3a3a3a;
+}
