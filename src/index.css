@@ -83,6 +83,6 @@ code {
 }
 
 /* Slight spacing for dropdown trigger */
-#ftco-navbar .nav-item.dropdown > .nav-link {
+#ftco-navbar .nav-item.dropdown>.nav-link {
   padding-right: 22px !important;
 }

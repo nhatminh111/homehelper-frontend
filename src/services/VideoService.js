@@ -37,7 +37,7 @@ class VideoService {
       });
       return response.data;
     } catch (error) {
-      console.error( error);
+      console.error(error);
       throw new Error(error.response?.data?.error || error.message);
     }
   }
@@ -116,22 +116,33 @@ class VideoService {
     }
   }
 
-  async toggleLikeVideo(id, userId) {
+  async toggleLikeVideo(videoId) {
     try {
-      const response = await api.post(`/videos/${id}/like`, { user_id: userId });
+      const response = await api.post(`/videos/${videoId}/like`, {}, {
+        headers: {
+          Authorization: api.getStoredToken() ? `Bearer ${api.getStoredToken()}` : undefined,
+        },
+      });
       return response.data;
     } catch (error) {
       console.error('Lỗi khi like/unlike video:', error);
-      throw error;
+      throw new Error(
+        error.response?.data?.error ||
+        (error.response?.status === 401 || error.response?.status === 403
+          ? 'Vui lòng đăng nhập để thích video'
+          : `Lỗi khi like/unlike video: ${error.message}`)
+      );
     }
   }
 
-  async isVideoLikedByUser(videoId, userId) {
+  async checkLikeStatus(videoId) {
     try {
-      const response = await api.get(`/videos/${videoId}/likes`, {
-        params: { user_id: userId },
+      const response = await api.get(`/videos/${videoId}/like-status`, {
+        headers: {
+          Authorization: api.getStoredToken() ? `Bearer ${api.getStoredToken()}` : undefined,
+        },
       });
-      return response.data.isLiked || false;
+      return response.data.liked || false;
     } catch (error) {
       console.error('Lỗi khi kiểm tra trạng thái like video:', error);
       return false;
@@ -277,15 +288,15 @@ class VideoService {
       throw error;
     }
   }
-// Xóa video bởi Staff
-async deleteVideoByStaff(videoId) {
-  try {
-    const response = await api.delete(`/videos/staff/${videoId}`);
-    return response.data;
-  } catch (error) {
-    throw new Error(error.response?.data?.error || 'Lỗi khi xóa video');
+  // Xóa video bởi Staff
+  async deleteVideoByStaff(videoId) {
+    try {
+      const response = await api.delete(`/videos/staff/${videoId}`);
+      return response.data;
+    } catch (error) {
+      throw new Error(error.response?.data?.error || 'Lỗi khi xóa video');
+    }
   }
-}
 }
 
 export default new VideoService();

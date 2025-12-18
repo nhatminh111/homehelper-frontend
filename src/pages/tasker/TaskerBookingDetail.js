@@ -82,9 +82,9 @@ export default function TaskerBookingDetail() {
     end_time,
     service_name,
     variant_name,
-  } = booking;
+  } = booking || {};
 
-  const photos = booking.task_photos ? JSON.parse(booking.task_photos) : [];
+  const photos = booking?.task_photos ? JSON.parse(booking.task_photos) : [];
 
   const [previewImages, setPreviewImages] = useState([]);
 

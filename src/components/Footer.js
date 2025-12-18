@@ -12,7 +12,7 @@ const Footer = () => {
           <div className="col-md-6 col-lg-3 mb-4 mb-md-0">
             <h2 className="footer-heading">Cleaning Company ddđ</h2>
             <p>
-              A small river named Duden flows by their place and supplies it with the necessary regelialia. 
+              A small river named Duden flows by their place and supplies it with the necessary regelialia.
               It is a paradisematic country, in which roasted parts of sentences fly into your mouth.
             </p>
             <ul className="ftco-footer-social list-unstyled float-md-left float-lft mt-4">
@@ -74,12 +74,12 @@ const Footer = () => {
               <ul>
                 <li>
                   <FontAwesomeIcon icon={faMapMarkerAlt} />
-                  <span className="text">203 Fake St. Mountain View, San Francisco, California, USA</span>
+                  <span className="text">Khu đô thị FPT City, Ngũ Hành Sơn, Đà Nẵng 550000, Việt Nam</span>
                 </li>
                 <li>
                   <a href="tel:+23923929210">
                     <FontAwesomeIcon icon={faPhone} />
-                    <span className="text">+2 392 3929 210</span>
+                    <span className="text">+0906070605</span>
                   </a>
                 </li>
                 <li>

@@ -8,9 +8,12 @@ import {
     Spinner,
     Button,
     Alert,
+    Form
 } from "react-bootstrap";
 import api from "../../services/api";
 import { showToast } from "../../components/common/CustomToast";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faStar, faCheckCircle } from "@fortawesome/free-solid-svg-icons";
 
 export default function RatingPage() {
     const { bookingId } = useParams();
@@ -24,6 +27,7 @@ export default function RatingPage() {
     const [existingRating, setExistingRating] = useState(null);
     const [stars, setStars] = useState(0);
     const [comment, setComment] = useState("");
+    const [errorMessage, setErrorMessage] = useState("");
 
     // ============================
     // 1) Fetch Booking
@@ -75,6 +79,8 @@ export default function RatingPage() {
         if (!stars) return showToast.error("Vui lòng chọn số sao!");
         if (!comment.trim()) return showToast.error("Vui lòng nhập bình luận!");
 
+        setErrorMessage(""); // clear previous error
+
         try {
             const res = await api.post(`/ratings/booking`, {
                 booking_id: booking.booking_id,
@@ -91,7 +97,17 @@ export default function RatingPage() {
                 }
             );
         } catch (err) {
-            showToast.error(err.response?.data?.message || "Gửi đánh giá thất bại");
+            const msg = err.message || "Gửi đánh giá thất bại";
+            // Check for profanity keywords
+            if (msg.includes("không phù hợp") || msg.includes("vi phạm")) {
+                // User request: "hiển thị rating của bạn đã vi phạm" in toast
+                showToast.error("Đánh giá của bạn đã vi phạm tiêu chuẩn cộng đồng!");
+
+                // User request: inline red text
+                setErrorMessage("Bình luận chứa từ ngữ không phù hợp. Không thể đăng đánh giá. Vui lòng chỉnh sửa lại.");
+            } else {
+                showToast.error(msg);
+            }
         }
     };
 
@@ -100,110 +116,155 @@ export default function RatingPage() {
     // ============================
     if (loading)
         return (
-            <div className="d-flex justify-content-center mt-5">
-                <Spinner animation="border" />
+            <div className="d-flex justify-content-center align-items-center vh-100">
+                <Spinner animation="border" variant="primary" />
             </div>
         );
 
     if (!booking)
         return (
-            <Container className="mt-4">
-                <Alert variant="danger">Không tìm thấy booking!</Alert>
+            <Container className="mt-5">
+                <Alert variant="danger">Không tìm thấy thông tin booking!</Alert>
             </Container>
         );
 
     return (
-        <Container className="mt-4">
-            <Row className="justify-content-center">
-                <Col md={8}>
-                    <Card className="shadow-sm border-0">
-                        <Card.Body>
-                            <h4 className="fw-bold mb-3">Đánh giá Tasker</h4>
-
-                            {/* Booking info */}
-                            <div className="mb-4 bg-light p-3 rounded">
-                                <div className="fw-semibold">
-                                    Mã Booking: #{booking.booking_id}
-                                </div>
-                                <div>Dịch vụ: {booking.service_name}</div>
-                                <div>Trạng thái: {booking.status}</div>
+        <div className="bg-light min-vh-100 py-5">
+            <Container>
+                <Row className="justify-content-center">
+                    <Col md={8} lg={6}>
+                        <Card className="shadow-lg border-0 rounded-4 overflow-hidden">
+                            <div className="bg-primary p-4 text-center text-white">
+                                <h3 className="fw-bold mb-0">Đánh giá dịch vụ</h3>
+                                <p className="mb-0 opacity-75">Chia sẻ trải nghiệm của bạn</p>
                             </div>
 
-                            {/* Nếu chưa hoàn thành */}
-                            {booking.status !== "Hoàn thành" && (
-                                <Alert variant="info">
-                                    Bạn chỉ có thể đánh giá sau khi booking hoàn thành.
-                                </Alert>
-                            )}
-
-                            {/* Đang tải rating */}
-                            {ratingLoading ? (
-                                <div className="d-flex gap-2 align-items-center text-muted">
-                                    <Spinner size="sm" animation="border" />
-                                    Đang tải đánh giá...
+                            <Card.Body className="p-4 p-md-5">
+                                {/* Booking info */}
+                                <div className="text-center mb-4 pb-4 border-bottom">
+                                    <h5 className="fw-bold text-dark mb-1">{booking.service_name}</h5>
+                                    <div className="text-muted small mb-2">Mã đơn: #{booking.booking_id}</div>
+                                    <span className={`badge ${booking.status === 'Hoàn thành' ? 'bg-success' : 'bg-secondary'} rounded-pill px-3 py-2`}>
+                                        {booking.status}
+                                    </span>
                                 </div>
-                            ) : existingRating ? (
-                                // ============================
-                                // HIỂN THỊ RATING ĐÃ TỒN TẠI
-                                // ============================
-                                <>
-                                    <div className="fs-3 text-warning mb-2">
-                                        {"★".repeat(existingRating.rating)}
-                                        {"☆".repeat(5 - existingRating.rating)}
-                                    </div>
 
-                                    <div className="p-3 bg-light rounded border">
-                                        {existingRating.comment}
-                                    </div>
+                                {/* Nếu chưa hoàn thành */}
+                                {booking.status !== "Hoàn thành" && (
+                                    <Alert variant="warning" className="text-center border-0 bg-warning bg-opacity-10 text-warning-emphasis">
+                                        <i className="bi bi-exclamation-circle me-2"></i>
+                                        Bạn chỉ có thể đánh giá sau khi booking hoàn thành.
+                                    </Alert>
+                                )}
 
-                                    <div className="mt-3 text-success fw-semibold">
-                                        Bạn đã đánh giá booking này.
+                                {/* Đang tải rating */}
+                                {ratingLoading ? (
+                                    <div className="text-center py-5">
+                                        <Spinner animation="border" variant="secondary" />
+                                        <p className="text-muted mt-2">Đang tải dữ liệu...</p>
                                     </div>
-                                </>
-                            ) : booking.status === "Hoàn thành" ? (
-                                // ============================
-                                // FORM GỬI RATING
-                                // ============================
-                                <>
-                                    {/* Stars */}
-                                    <div className="mb-3">
-                                        {[1, 2, 3, 4, 5].map((n) => (
-                                            <span
-                                                key={n}
-                                                style={{
-                                                    cursor: "pointer",
-                                                    fontSize: "32px",
-                                                    color:
-                                                        n <= stars ? "#FFD700" : "#ccc",
+                                ) : existingRating ? (
+                                    // ============================
+                                    // HIỂN THỊ RATING ĐÃ TỒN TẠI
+                                    // ============================
+                                    <div className="text-center">
+                                        <div className="mb-3">
+                                            <FontAwesomeIcon icon={faCheckCircle} className="text-success display-1 mb-3" />
+                                            <h4 className="fw-bold text-success">Cảm ơn đánh giá của bạn!</h4>
+                                        </div>
+
+                                        <div className="bg-light rounded-3 p-4 mb-3">
+                                            <div className="mb-3 text-warning fs-3">
+                                                {[...Array(5)].map((_, i) => (
+                                                    <FontAwesomeIcon
+                                                        key={i}
+                                                        icon={faStar}
+                                                        className={i < existingRating.rating ? "text-warning" : "text-muted opacity-25"}
+                                                    />
+                                                ))}
+                                            </div>
+                                            <p className="fst-italic text-secondary mb-0">"{existingRating.comment}"</p>
+                                        </div>
+                                        <p className="text-muted small">Đánh giá của bạn giúp chúng tôi cải thiện dịch vụ tốt hơn.</p>
+
+                                        <div className="d-grid mt-4">
+                                            <Button variant="outline-secondary" onClick={() => navigate('/customer/bookings')}>
+                                                Quay lại lịch sử
+                                            </Button>
+                                        </div>
+                                    </div>
+                                ) : booking.status === "Hoàn thành" ? (
+                                    // ============================
+                                    // FORM GỬI RATING
+                                    // ============================
+                                    <div className="text-center">
+                                        <p className="text-muted mb-4">Bạn cảm thấy dịch vụ thế nào?</p>
+
+                                        {/* Stars */}
+                                        <div className="mb-4 d-flex justify-content-center gap-3">
+                                            {[1, 2, 3, 4, 5].map((n) => (
+                                                <FontAwesomeIcon
+                                                    key={n}
+                                                    icon={faStar}
+                                                    className={`transition-all ${n <= stars ? "text-warning" : "text-muted opacity-25"}`}
+                                                    style={{
+                                                        cursor: "pointer",
+                                                        fontSize: "2.5rem",
+                                                        transform: n <= stars ? "scale(1.1)" : "scale(1)",
+                                                        transition: "all 0.2s"
+                                                    }}
+                                                    onClick={() => setStars(n)}
+                                                    onMouseEnter={() => { /* Optional: add hover effect logic here */ }}
+                                                />
+                                            ))}
+                                        </div>
+
+                                        {/* Comment */}
+                                        <Form.Group className="mb-4 text-start">
+                                            <Form.Label className="fw-semibold text-secondary small text-uppercase">Nội dung đánh giá</Form.Label>
+                                            <Form.Control
+                                                as="textarea"
+                                                placeholder="Tasker làm việc có tốt không? Hãy chia sẻ chi tiết nhé..."
+                                                rows={4}
+                                                className={`bg-light border-0 p-3 ${errorMessage ? 'is-invalid' : ''}`}
+                                                value={comment}
+                                                onChange={(e) => {
+                                                    setComment(e.target.value);
+                                                    if (errorMessage) setErrorMessage("");
                                                 }}
-                                                onClick={() => setStars(n)}
+                                                style={{ resize: "none" }}
+                                            />
+
+                                            {/* Error Message Display */}
+                                            {errorMessage && (
+                                                <div className="text-danger mt-2 small fw-bold d-flex align-items-center animate__animated animate__shakeX">
+                                                    <i className="bi bi-exclamation-triangle-fill me-2"></i>
+                                                    {errorMessage}
+                                                </div>
+                                            )}
+                                        </Form.Group>
+
+                                        <div className="d-grid gap-2">
+                                            <Button
+                                                variant="primary"
+                                                size="lg"
+                                                onClick={submitRating}
+                                                className="fw-bold shadow-sm"
+                                                disabled={!stars || !comment.trim()}
                                             >
-                                                ★
-                                            </span>
-                                        ))}
+                                                Gửi đánh giá
+                                            </Button>
+                                            <Button variant="link" className="text-decoration-none text-muted" onClick={() => navigate(-1)}>
+                                                Bỏ qua
+                                            </Button>
+                                        </div>
                                     </div>
-
-                                    {/* Comment */}
-                                    <textarea
-                                        className="form-control"
-                                        placeholder="Chia sẻ trải nghiệm..."
-                                        rows={4}
-                                        value={comment}
-                                        onChange={(e) => setComment(e.target.value)}
-                                    />
-
-                                    <Button
-                                        className="mt-3 px-4"
-                                        onClick={submitRating}
-                                    >
-                                        Gửi đánh giá
-                                    </Button>
-                                </>
-                            ) : null}
-                        </Card.Body>
-                    </Card>
-                </Col>
-            </Row>
-        </Container>
+                                ) : null}
+                            </Card.Body>
+                        </Card>
+                    </Col>
+                </Row>
+            </Container>
+        </div>
     );
 }

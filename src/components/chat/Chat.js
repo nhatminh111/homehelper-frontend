@@ -1120,7 +1120,9 @@ const Chat = () => {
           console.warn('[Chat] Failed to update booking final price:', e?.message || e);
         }
       } else {
-        const resp = await QuoteService.updateProposedPrice(quoteDetails?.quote_id, price);
+        const qId = quoteDetails?.quote_id || activePendingQuoteId;
+        if (!qId) throw new Error('Không tìm thấy mã báo giá');
+        const resp = await QuoteService.updateProposedPrice(qId, price);
         if (!resp?.success) throw new Error(resp?.message || 'Không thể cập nhật báo giá');
         // Inform both sides and hide bar
         await sendTextMessage(`[NEG_ACK]${JSON.stringify({ quoteId: quoteDetails?.quote_id, price })}`);
