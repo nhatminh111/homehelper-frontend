@@ -70,7 +70,7 @@ const Home = () => {
       return;
     }
     try {
-      const res = await fetch(`http://localhost:3001/api/wishlists/`, {
+      const res = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/api/wishlists/`, {
         method: "POST",
         headers: createHeaders(token),
         body: JSON.stringify({
@@ -93,7 +93,7 @@ const Home = () => {
 
   const removeTasker = async (taskerId) => {
     try {
-      const res = await fetch(`http://localhost:3001/api/wishlists/remove`, {
+      const res = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/api/wishlists/remove`, {
         method: "POST",
         headers: createHeaders(token),
         body: JSON.stringify({ customer_id: user.user_id, taskerId }),
@@ -113,7 +113,7 @@ const Home = () => {
   };
 
   useEffect(() => {
-    fetch("http://localhost:3001/api/services/servicebasic")
+    fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/api/services/servicebasic`)
       .then((res) => res.json())
       .then((resData) => {
         setServices(resData.data || []);
@@ -132,7 +132,7 @@ const Home = () => {
     setShowResults(true);
 
     try {
-      const searchUrl = `http://localhost:3001/api/tasker?search=${encodeURIComponent(searchName)}&serviceId=${selectedService}&city=${encodeURIComponent(selectedCity)}`;
+      const searchUrl = `${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/tasker?search=${encodeURIComponent(searchName)}&serviceId=${selectedService}&city=${encodeURIComponent(selectedCity)}`;
       console.log('🔍 Search URL:', searchUrl);
       console.log('🔍 Search params:', { searchName, selectedService, selectedCity });
 
@@ -257,8 +257,8 @@ const Home = () => {
         let vids = Array.isArray(data?.videos)
           ? data.videos
           : Array.isArray(data)
-          ? data
-          : [];
+            ? data
+            : [];
 
         // Fallback: compute from all videos if popular endpoint not available
         if (!vids.length) {
@@ -904,7 +904,7 @@ const Home = () => {
           )}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px' }}>
             {newsLoading ? (
-              [1,2,3].map((i) => (
+              [1, 2, 3].map((i) => (
                 <div key={i} style={{ flex: '1 1 33.33%', padding: '12px' }}>
                   <div style={{ height: '100%', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
                     <div style={{ width: '100%', height: '180px', background: '#e5e7eb' }} />
@@ -978,7 +978,7 @@ const Home = () => {
           )}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px' }}>
             {popularLoading ? (
-              [1,2,3,4].map((i) => (
+              [1, 2, 3, 4].map((i) => (
                 <div key={i} style={{ flex: '1 1 25%', minWidth: '260px', padding: '12px' }}>
                   <div style={{ height: '100%', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
                     <div style={{ width: '100%', height: '260px', background: '#e5e7eb' }} />

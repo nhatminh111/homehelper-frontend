@@ -123,13 +123,13 @@ export default function TaskerBookings() {
 
       // Fetch both regular bookings and active SOS jobs
       const [regularResponse, sosResponse] = await Promise.all([
-        fetch(`http://localhost:3001/api/bookings/tasker/my`, {
+        fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/bookings/tasker/my`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           }
         }),
-        fetch(`http://localhost:3001/api/bookings/tasker/active-sos`, {
+        fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/bookings/tasker/active-sos`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -164,7 +164,7 @@ export default function TaskerBookings() {
   const handleStatusUpdate = async (bookingId, newStatus) => {
     try {
       const token = api.getStoredToken();
-      const response = await fetch(`http://localhost:3001/api/bookings/${bookingId}/status`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/bookings/${bookingId}/status`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
