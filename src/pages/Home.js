@@ -51,7 +51,7 @@ const Home = () => {
   // Load wishlist for current user
   useEffect(() => {
     if (user && token) {
-      fetch(`http://localhost:3001/api/wishlists/${user.user_id}`, {
+      fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/wishlists/${user.user_id}`, {
         headers: createHeaders(token),
       })
         .then((res) => res.json())
