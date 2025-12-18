@@ -124,11 +124,11 @@ const Login = () => {
 
       // Redirect theo role
       const role = response.user.role;
-  if (role === "Customer") navigate("/customer", { replace: true });
-  else if (role === "Tasker") navigate("/tasker", { replace: true });
-  else if (role === "Admin") navigate("/admin", { replace: true });
-  else if (role === "Staff") navigate("/staff/dashboard", { replace: true });
-  else navigate("/", { replace: true });
+      if (role === "Customer") navigate("/customer", { replace: true });
+      else if (role === "Tasker") navigate("/tasker", { replace: true });
+      else if (role === "Admin") navigate("/admin", { replace: true });
+      else if (role === "Staff") navigate("/staff/dashboard", { replace: true });
+      else navigate("/", { replace: true });
     } catch (error) {
       console.error("Login error:", error);
       if (error?.response?.status === 403 || error?.banned) {

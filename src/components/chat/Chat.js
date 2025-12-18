@@ -1,21 +1,24 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useNavigate, useSearchParams, Link} from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../contexts/SocketContext';
 import { useChat } from '../../hooks/useChat';
 import ConversationList from './ConversationList';
 import ChatWindow from './ChatWindow';
 import ChatHeader from './ChatHeader';
+import AudioCallModal from './AudioCallModal';
+import IncomingCallNotification from './IncomingCallNotification';
+import useAudioCall from '../../hooks/useAudioCall';
 import './Chat.css';
 import QuoteService from '../../services/quoteService';
 
 
 
 const PHONE_REGEX = /\b(?:\+?84|0)(?:[\s.\-]?\d){9,10}\b/g;
-const EMAIL_REGEX = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi; 
+const EMAIL_REGEX = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
 const URL_REGEX = /(https?:\/\/|www\.)[\w\-]+(\.[\w\-]+)+[\w\-._~:/?#[\]@!$&'()*+,;=.]*\/??/gi;
 const BROKEN_SCHEME_URL_REGEX = /\bhttps?www\.[\w\-]+(\.[\w\-]+)+[\w\-._~:/?#[\]@!$&'()*+,;=.]*\/??/gi;
-const OBFUSCATED_DOT_FRAGMENT ='(?:\\(\\.\\)|\\(dot\\)|\\[\\.\\]|\\{\\.\\}|\\[dot\\]|\\{dot\\})';
+const OBFUSCATED_DOT_FRAGMENT = '(?:\\(\\.\\)|\\(dot\\)|\\[\\.\\]|\\{\\.\\}|\\[dot\\]|\\{dot\\})';
 const OBFUSCATED_URL_REGEX = new RegExp(`(https?:\\/\\/|www\\.)[\\w-]+${OBFUSCATED_DOT_FRAGMENT}[\\w-]+[\\w-._~:/?#\\[\\]@!$&'()*+,;=.]*`, 'gi');
 const OBFUSCATED_DOMAIN_REGEX = new RegExp(`\\b[\\w-]{2,}${OBFUSCATED_DOT_FRAGMENT}(com|vn|net|org|info|biz|gov|edu)\\b`, 'gi');
 const SOCIAL_KEYWORDS = [
@@ -25,17 +28,17 @@ const PAYMENT_KEYWORDS = [
   'chuyển khoản', 'chuyen khoan', 'ck', 'momo', 'zalopay', 'stk', 'số tài khoản', 'so tai khoan', 'bank'
 ];
 const VIET_NUMBER_WORDS = [
-  'không','mot','một','hai','ba','bon','bốn','nam','năm','sau','bảy','bay','tám','tam','chin','chín'
+  'không', 'mot', 'một', 'hai', 'ba', 'bon', 'bốn', 'nam', 'năm', 'sau', 'bảy', 'bay', 'tám', 'tam', 'chin', 'chín'
 ];
 
 const BANK_TOKENS = [
-  'stk','tk','vcb','tcb','acb','bidv','mb','mbbank','vpbank','tpbank','agribank','sacombank','eximbank','shb','hdbank','msb','ocb','vib','vietcombank','vietinbank','techcombank','shinhan','uob','hsbc','citibank'
+  'stk', 'tk', 'vcb', 'tcb', 'acb', 'bidv', 'mb', 'mbbank', 'vpbank', 'tpbank', 'agribank', 'sacombank', 'eximbank', 'shb', 'hdbank', 'msb', 'ocb', 'vib', 'vietcombank', 'vietinbank', 'techcombank', 'shinhan', 'uob', 'hsbc', 'citibank'
 ];
 const BANK_PHRASES = [
-  'so tai khoan','số tài khoản','tai khoan','ngan hang','mb bank','standard chartered'
+  'so tai khoan', 'số tài khoản', 'tai khoan', 'ngan hang', 'mb bank', 'standard chartered'
 ];
 const TRANSFER_PHRASES = [
-  'chuyen khoan','chuyển khoản', 'bank','chuyen vao','chuyển vào','chuyen tien','chuyển tiền','nhan tien','nhận tiền','transfer','send money','ck'
+  'chuyen khoan', 'chuyển khoản', 'bank', 'chuyen vao', 'chuyển vào', 'chuyen tien', 'chuyển tiền', 'nhan tien', 'nhận tiền', 'transfer', 'send money', 'ck'
 ];
 
 const BANK_ACCOUNT_REGEX = /\b\d(?:[\s\.]?\d){7,19}\b/g;
@@ -80,20 +83,20 @@ export function sanitizeOutgoingMessage(original, opts = {}) {
   const reasons = [];
   let anyChange = false;
   // Pattern to detect existing placeholders to avoid re-processing inside them
-  const PLACEHOLDER_PATTERN = /\*{4}/; 
+  const PLACEHOLDER_PATTERN = /\*{4}/;
 
   // 1. Handle direct & obfuscated URLs and domains FIRST (before introducing placeholders that might confuse domain regex)
   if (!PLACEHOLDER_PATTERN.test(working)) {
     // First catch broken scheme forms so they don't leave a leading 'https'
     if (BROKEN_SCHEME_URL_REGEX.test(working)) {
       BROKEN_SCHEME_URL_REGEX.lastIndex = 0;
-  const resBroken = redactMatches(working, BROKEN_SCHEME_URL_REGEX, REDACTED_TOKEN);
+      const resBroken = redactMatches(working, BROKEN_SCHEME_URL_REGEX, REDACTED_TOKEN);
       working = resBroken.redacted; anyChange = anyChange || resBroken.changed;
       if (resBroken.changed) reasons.push('Phát hiện đường dẫn/link (dạng thiếu ://).');
     }
     if (URL_REGEX.test(working)) {
       URL_REGEX.lastIndex = 0;
-  const res = redactMatches(working, URL_REGEX, REDACTED_TOKEN);
+      const res = redactMatches(working, URL_REGEX, REDACTED_TOKEN);
       working = res.redacted; anyChange = anyChange || res.changed;
       if (res.changed) reasons.push('Phát hiện đường dẫn/link.');
     }
@@ -109,7 +112,7 @@ export function sanitizeOutgoingMessage(original, opts = {}) {
     if (opts.forceBankContext || hasBankToken || hasBankPhrase || hasTransfer) {
       if (BANK_ACCOUNT_REGEX.test(working)) {
         BANK_ACCOUNT_REGEX.lastIndex = 0;
-  const res = redactMatches(working, BANK_ACCOUNT_REGEX, REDACTED_TOKEN);
+        const res = redactMatches(working, BANK_ACCOUNT_REGEX, REDACTED_TOKEN);
         working = res.redacted; anyChange = anyChange || res.changed;
         if (res.changed) reasons.push('Phát hiện số tài khoản ngân hàng.');
       }
@@ -117,13 +120,13 @@ export function sanitizeOutgoingMessage(original, opts = {}) {
   }
   if (!PLACEHOLDER_PATTERN.test(working) && OBFUSCATED_URL_REGEX.test(working)) {
     OBFUSCATED_URL_REGEX.lastIndex = 0;
-  const res = redactMatches(working, OBFUSCATED_URL_REGEX, REDACTED_TOKEN);
+    const res = redactMatches(working, OBFUSCATED_URL_REGEX, REDACTED_TOKEN);
     working = res.redacted; anyChange = anyChange || res.changed;
     if (res.changed) reasons.push('Phát hiện link được làm mờ (ví dụ youtu(.)be).');
   }
   if (!PLACEHOLDER_PATTERN.test(working) && OBFUSCATED_DOMAIN_REGEX.test(working)) {
     OBFUSCATED_DOMAIN_REGEX.lastIndex = 0;
-  const res = redactMatches(working, OBFUSCATED_DOMAIN_REGEX, REDACTED_TOKEN);
+    const res = redactMatches(working, OBFUSCATED_DOMAIN_REGEX, REDACTED_TOKEN);
     working = res.redacted; anyChange = anyChange || res.changed;
     if (res.changed) reasons.push('Phát hiện tên miền được làm mờ.');
   }
@@ -131,14 +134,14 @@ export function sanitizeOutgoingMessage(original, opts = {}) {
   // 2. Phone numbers (after URL handling)
   if (PHONE_REGEX.test(working)) {
     PHONE_REGEX.lastIndex = 0; // reset
-  const res = redactMatches(working, PHONE_REGEX, REDACTED_TOKEN);
+    const res = redactMatches(working, PHONE_REGEX, REDACTED_TOKEN);
     working = res.redacted; anyChange = anyChange || res.changed;
     if (res.changed) reasons.push('Phát hiện số điện thoại.');
   }
   // 3. Emails
   if (EMAIL_REGEX.test(working)) {
     EMAIL_REGEX.lastIndex = 0;
-  const res = redactMatches(working, EMAIL_REGEX, REDACTED_TOKEN);
+    const res = redactMatches(working, EMAIL_REGEX, REDACTED_TOKEN);
     working = res.redacted; anyChange = anyChange || res.changed;
     if (res.changed) reasons.push('Phát hiện email.');
   }
@@ -218,6 +221,8 @@ const Chat = () => {
   const [policyReasons, setPolicyReasons] = useState([]);
   const [pendingMessage, setPendingMessage] = useState(null);
   const [pendingRedacted, setPendingRedacted] = useState(null);
+  // Audio call state
+  const [isCallModalOpen, setIsCallModalOpen] = useState(false);
   // Removed chat-triggered renegotiation; negotiation opens only via Quotes or backend state
   const {
     conversations,
@@ -238,10 +243,12 @@ const Chat = () => {
     handleTyping,
     switchConversation,
     createConversation,
-    
+
     getTypingUsers,
     isUserOnline
   } = useChat(initialConversationId);
+  // Initialize audio call hook after useChat to access currentConversation
+  const audioCall = useAudioCall(currentConversation?.conversation_id);
   const navigate = useNavigate();
   const { isAuthenticated, loading: authLoading, user } = useAuth();
   const { isConnected: socketConnected } = useSocket();
@@ -327,7 +334,7 @@ const Chat = () => {
               bookingIdFromPending = payload.bookingId;
               break;
             }
-          } catch(_) {}
+          } catch (_) { }
         }
       }
     }
@@ -373,7 +380,7 @@ const Chat = () => {
               sessionIdFromPending = payload.sessionId ?? payload.session;
               break;
             }
-          } catch(_) {}
+          } catch (_) { }
         }
       }
     }
@@ -383,10 +390,10 @@ const Chat = () => {
     // Fetch booking details
     (async () => {
       try {
-  const { default: bookingService } = await import('../../services/bookingService');
-  const res = await bookingService.getBookingDetails(Number(bookingIdFromPending));
-  // bookingService returns booking object directly; fallback to nested just in case
-  const bookingObj = (res && res.booking_id) ? res : (res?.booking || res?.data?.booking || res?.data || null);
+        const { default: bookingService } = await import('../../services/bookingService');
+        const res = await bookingService.getBookingDetails(Number(bookingIdFromPending));
+        // bookingService returns booking object directly; fallback to nested just in case
+        const bookingObj = (res && res.booking_id) ? res : (res?.booking || res?.data?.booking || res?.data || null);
         // Accept booking object regardless of res.success flag
         if (bookingObj && bookingObj.booking_id) {
           setBookingDetails(bookingObj);
@@ -519,15 +526,15 @@ const Chat = () => {
   // Load booking details if bookingId present
   useEffect(() => {
     const loadBooking = async () => {
-      if (!bookingIdParam) { 
-        setBookingDetails(null); 
-        return; 
+      if (!bookingIdParam) {
+        setBookingDetails(null);
+        return;
       }
       try {
-  const { default: bookingService } = await import('../../services/bookingService');
-  const res = await bookingService.getBookingDetails(Number(bookingIdParam));
-  // bookingService returns booking object directly; fallback to nested just in case
-  const bookingObj = (res && res.booking_id) ? res : (res?.booking || res?.data?.booking || res?.data || null);
+        const { default: bookingService } = await import('../../services/bookingService');
+        const res = await bookingService.getBookingDetails(Number(bookingIdParam));
+        // bookingService returns booking object directly; fallback to nested just in case
+        const bookingObj = (res && res.booking_id) ? res : (res?.booking || res?.data?.booking || res?.data || null);
         // Accept booking object regardless of res.success flag
         if (bookingObj && bookingObj.booking_id) {
           setBookingDetails(prev => {
@@ -555,7 +562,7 @@ const Chat = () => {
     loadBooking();
   }, [bookingIdParam, searchParams, currentConversation?.conversation_id, navigate]);
 
-  
+
   // Detect if there is any pending SESSION negotiation in messages (latest REQ without a later ACK/REJ)
   const pendingSessionIdFromMessages = useMemo(() => {
     if (!Array.isArray(messages) || messages.length === 0) return null;
@@ -569,7 +576,7 @@ const Chat = () => {
           const payload = JSON.parse(c.substring(9));
           const sid = payload.sessionId ?? payload.session;
           if (sid != null) { lastReq = { id: sid, idx: i }; break; }
-        } catch(_) {}
+        } catch (_) { }
       }
     }
     if (lastReq.id == null) return null;
@@ -583,13 +590,13 @@ const Chat = () => {
           const payload = JSON.parse(c.substring(9));
           const sid = payload.sessionId ?? payload.session;
           if (sid != null && String(sid) === String(lastReq.id)) return null;
-        } catch(_) {}
+        } catch (_) { }
       }
     }
     return String(lastReq.id);
   }, [messages]);
 
-  
+
 
   // Booking-aware: do not auto-create or reflect session in URL; session is created lazily on first REQ if needed.
 
@@ -674,7 +681,7 @@ const Chat = () => {
             const payload = JSON.parse(c.substring(9));
             const sid = payload.sessionId ?? payload.session;
             if (sid != null) { lastReqSession = { id: sid, idx: i }; lastReqSessionPayload = payload; break; }
-          } catch(_) {}
+          } catch (_) { }
         }
       }
       if (lastReqSession.id != null) {
@@ -689,7 +696,7 @@ const Chat = () => {
               const payload = JSON.parse(c.substring(9));
               const sid = payload.sessionId ?? payload.session;
               if (sid != null && String(sid) === String(lastReqSession.id)) { closed = true; break; }
-            } catch(_) {}
+            } catch (_) { }
           }
         }
         if (!closed) {
@@ -741,7 +748,7 @@ const Chat = () => {
           try {
             const payload = JSON.parse(m.content.substring(9));
             if (payload.quoteId != null) { derivedQuoteId = payload.quoteId; break; }
-          } catch(_) {}
+          } catch (_) { }
         }
       }
       if (!derivedQuoteId) {
@@ -752,7 +759,7 @@ const Chat = () => {
             try {
               const payload = JSON.parse(m.content.substring(9));
               if (payload.quoteId != null) { derivedQuoteId = payload.quoteId; break; }
-            } catch(_) {}
+            } catch (_) { }
           }
         }
       }
@@ -769,7 +776,7 @@ const Chat = () => {
           // Do not auto-open on ACK to prevent toggle loops with the auto-hide-after-ACK effect.
           // A separate effect will auto-open for Tasker when a pending REQ exists.
         }
-      } catch (_) {}
+      } catch (_) { }
     };
     tryDeriveQuoteFromMessages();
   }, [sessionId, quoteIdParam, messages, currentConversation, quoteDetails?.quote_id, quoteDetails?.status, searchParams, navigate]);
@@ -814,18 +821,18 @@ const Chat = () => {
         try {
           const payload = JSON.parse(c.substring(9));
           if (payload?.quoteId != null) closed.add(String(payload.quoteId));
-        } catch(_) {}
+        } catch (_) { }
       } else if (c.startsWith('[NEG_REJ]')) {
         try {
           const payload = JSON.parse(c.substring(9));
           if (payload?.quoteId != null) closed.add(String(payload.quoteId));
-        } catch(_) {}
+        } catch (_) { }
       } else if (c.startsWith('[NEG_REQ]')) {
         try {
           const payload = JSON.parse(c.substring(9));
           const qid = payload?.quoteId != null ? String(payload.quoteId) : null;
           if (qid && !closed.has(qid)) return payload.quoteId; // Found latest REQ that hasn't been closed later
-        } catch(_) {}
+        } catch (_) { }
       }
     }
     return null;
@@ -859,7 +866,7 @@ const Chat = () => {
             navigate(`/chat?${params.toString()}`, { replace: true });
           }
         }
-      } catch (_) {}
+      } catch (_) { }
     };
     alignToActivePending();
   }, [pendingSessionIdFromMessages, activePendingQuoteId, quoteDetails?.quote_id, quoteDetails?.status, quoteIdParam, isTasker, currentConversation?.conversation_id, searchParams, navigate]);
@@ -882,7 +889,7 @@ const Chat = () => {
             ? String(sid) === String(sessionId)
             : (bookingIdParam ? String(payload.bookingId) === String(bookingIdParam) : String(payload.quoteId) === String(quoteDetails?.quote_id));
           if (match) { lastReq = payload; lastReqIdx = i; lastReqMsg = m; }
-        } catch(_) {}
+        } catch (_) { }
       } else if (c.startsWith('[NEG_ACK]')) {
         try {
           const payload = JSON.parse(c.substring(9));
@@ -891,7 +898,7 @@ const Chat = () => {
             ? String(sid) === String(sessionId)
             : (bookingIdParam ? String(payload.bookingId) === String(bookingIdParam) : String(payload.quoteId) === String(quoteDetails?.quote_id));
           if (match) { lastAck = payload; lastAckIdx = i; lastAckMsg = m; }
-        } catch(_) {}
+        } catch (_) { }
       } else if (c.startsWith('[NEG_REJ]')) {
         try {
           const payload = JSON.parse(c.substring(9));
@@ -900,7 +907,7 @@ const Chat = () => {
             ? String(sid) === String(sessionId)
             : (bookingIdParam ? String(payload.bookingId) === String(bookingIdParam) : String(payload.quoteId) === String(quoteDetails?.quote_id));
           if (match) { lastRej = payload; lastRejIdx = i; lastRejMsg = m; }
-        } catch(_) {}
+        } catch (_) { }
       }
     }
     // Determine state by order: if there's a REQ after ACK/REJ, it's pending; if ACK after REQ, it's accepted; if REJ after REQ, it's rejected (no pending)
@@ -985,8 +992,8 @@ const Chat = () => {
     const ackKey = negotiationState.ack.sessionId ? `session:${negotiationState.ack.sessionId}` : (negotiationState.ack.quoteId ? `quote:${negotiationState.ack.quoteId}` : null);
     if (lastClosedAckRef.current === ackKey) return; // already closed for this ACK
     const openedFromQuotesByCustomer = negotiationParam === '1' && isCustomer && !negotiationState.pending;
-  // In booking-driven flow, keep bar available for Customer or Tasker to renegotiate if negotiation=1 is present
-  if (bookingIdParam && (isCustomer || (isTasker && negotiationParam === '1'))) return;
+    // In booking-driven flow, keep bar available for Customer or Tasker to renegotiate if negotiation=1 is present
+    if (bookingIdParam && (isCustomer || (isTasker && negotiationParam === '1'))) return;
     if (openedFromQuotesByCustomer) return; // allow composing a new proposal despite previous ACK existing
     if (negotiationOpen) setNegotiationOpen(false);
     lastClosedAckRef.current = ackKey;
@@ -1036,7 +1043,7 @@ const Chat = () => {
       setNegSubmitting(true);
       const price = Number(negPrice);
       const isBooking = !!bookingIdParam;
-  if (isBooking) {
+      if (isBooking) {
         // Always send session-based negotiation for booking flows
         let sid = sessionId;
         if (!sid) {
@@ -1046,7 +1053,7 @@ const Chat = () => {
           setSessionId(sid);
           // Do not set quoteDetails in booking flow to avoid quote context overriding UI
         }
-  const payload = { sessionId: sid, price, bookingId: Number(bookingIdParam), senderId: myUserId };
+        const payload = { sessionId: sid, price, bookingId: Number(bookingIdParam), senderId: myUserId };
         await sendTextMessage(`[NEG_REQ]${JSON.stringify(payload)}`);
         setNegError(null);
         setNegotiationOpen(true);
@@ -1113,7 +1120,9 @@ const Chat = () => {
           console.warn('[Chat] Failed to update booking final price:', e?.message || e);
         }
       } else {
-        const resp = await QuoteService.updateProposedPrice(quoteDetails?.quote_id, price);
+        const qId = quoteDetails?.quote_id || activePendingQuoteId;
+        if (!qId) throw new Error('Không tìm thấy mã báo giá');
+        const resp = await QuoteService.updateProposedPrice(qId, price);
         if (!resp?.success) throw new Error(resp?.message || 'Không thể cập nhật báo giá');
         // Inform both sides and hide bar
         await sendTextMessage(`[NEG_ACK]${JSON.stringify({ quoteId: quoteDetails?.quote_id, price })}`);
@@ -1145,7 +1154,26 @@ const Chat = () => {
       } else {
         await sendTextMessage(`[NEG_REJ]${JSON.stringify({ quoteId: quoteDetails?.quote_id, price: negotiationState.pending.price })}`);
       }
-    } catch (_) {}
+    } catch (_) { }
+  };
+
+  // Handle audio call button click
+  const handleAudioCall = async () => {
+    if (!currentConversation) return;
+    setIsCallModalOpen(true);
+    try {
+      await audioCall.initiateCall();
+    } catch (error) {
+      console.error('Failed to initiate call:', error);
+    }
+  };
+
+  // Get recipient info for call
+  const getRecipientInfo = () => {
+    if (currentConversation?.type === 'direct' && currentConversation?.participants?.length > 0) {
+      return currentConversation.participants[0];
+    }
+    return null;
   };
 
   const [showConversationList, setShowConversationList] = useState(true);
@@ -1234,11 +1262,11 @@ const Chat = () => {
   // Filter conversations based on search
   const filteredConversations = conversations.filter(conv => {
     if (!searchQuery) return true;
-    
+
     const query = searchQuery.toLowerCase();
     return (
       conv.title?.toLowerCase().includes(query) ||
-      conv.participants?.some(p => 
+      conv.participants?.some(p =>
         p.name?.toLowerCase().includes(query) ||
         p.email?.toLowerCase().includes(query)
       )
@@ -1303,20 +1331,20 @@ const Chat = () => {
   };
 
   const handleSendFile = async (file, content = '') => {
-  try {
-    // file giờ có thể là 1 file hoặc mảng file
-    let caption = content;
-    if (typeof caption === 'string' && caption.trim()) {
-      extendBankContextFromText(caption);
-      const forceBankContext = getBankContextActive();
-      const { redacted } = sanitizeOutgoingMessage(caption, { forceBankContext });
-      caption = redacted;
+    try {
+      // file giờ có thể là 1 file hoặc mảng file
+      let caption = content;
+      if (typeof caption === 'string' && caption.trim()) {
+        extendBankContextFromText(caption);
+        const forceBankContext = getBankContextActive();
+        const { redacted } = sanitizeOutgoingMessage(caption, { forceBankContext });
+        caption = redacted;
+      }
+      await sendFileMessage(file, caption); // ← Đã sửa ở chatService
+    } catch (error) {
+      console.error('Failed to send file:', error);
     }
-    await sendFileMessage(file, caption); // ← Đã sửa ở chatService
-  } catch (error) {
-    console.error('Failed to send file:', error);
-  }
-};
+  };
 
   const handleConversationSelect = async (conversationId, options = {}) => {
     if (!conversationId || Number.isNaN(parseInt(conversationId, 10))) return;
@@ -1332,10 +1360,10 @@ const Chat = () => {
       }
       await switchConversation(conversationId);
       // Sync URL while preserving existing params (quoteId, negotiation, etc.)
-    const params = new URLSearchParams(searchParams);
-    // Only preserve negotiation params when explicitly requested by caller (e.g., URL-driven init),
-    // never because the current URL has negotiation=1. Manual switch should clear them.
-    const preserve = !!options.preserveNegotiationParams;
+      const params = new URLSearchParams(searchParams);
+      // Only preserve negotiation params when explicitly requested by caller (e.g., URL-driven init),
+      // never because the current URL has negotiation=1. Manual switch should clear them.
+      const preserve = !!options.preserveNegotiationParams;
       const navReplace = !!options.replace;
       // When user manually switches conversations, drop negotiation-related params to avoid leaking bar
       if (!preserve) {
@@ -1384,8 +1412,8 @@ const Chat = () => {
       const params = new URLSearchParams(searchParams);
       // New conversation via modal is not a negotiation entry by default
       params.delete('negotiation');
-  params.delete('quoteId');
-  params.delete('session');
+      params.delete('quoteId');
+      params.delete('session');
       params.delete('bookingId');
       params.delete('openFinalize');
       params.set('conversationId', String(conversation.conversation_id));
@@ -1482,187 +1510,218 @@ const Chat = () => {
                   onBack={handleBackToConversations}
                   onMenuClick={() => setShowConversationList(!showConversationList)}
                   isUserOnline={isUserOnline}
+                  onAudioCall={handleAudioCall}
                 />
               </div>
               {/* Inline system message handled via ChatWindow.afterMessagesInline */}
               {/* Negotiation Bar */}
               {(((negotiationOpen && (quoteDetails || bookingDetails)) || ((quoteDetails || bookingDetails) && negotiationState.rej && !negotiationState.pending && !negotiationState.ack))
                 || ((quoteDetails || bookingDetails) && !sessionId && negotiationParam === '1' && (isCustomer || isTasker))) && (
-                <div className="p-2 border-bottom bg-light d-flex flex-wrap align-items-center gap-2">
-                  <div className="me-2">
-                    <div className="small text-muted">
-                      {bookingDetails ? (
-                        <div>
-                          <div className="d-flex align-items-center">
-                            <span>Bạn đang thương lượng giá cả cho booking: </span>
-                            <strong className="ms-1">
-                              {bookingDetails.variant_name ||
-                                bookingDetails.service_name ||
-                                `#${bookingDetails.booking_id}`}
-                            </strong>
-                            {bookingDetails?.booking_id && (
-                              <>
-                                {isTasker && (
-                                  <Link
-                                    to={`/tasker/bookings/${bookingDetails.booking_id}`}
-                                    className="ms-2 btn btn-link btn-sm p-0 align-baseline"
-                                  >
-                                    Xem chi tiết
-                                  </Link>
-                                )}
+                  <div className="p-2 border-bottom bg-light d-flex flex-wrap align-items-center gap-2">
+                    <div className="me-2">
+                      <div className="small text-muted">
+                        {bookingDetails ? (
+                          <div>
+                            <div className="d-flex align-items-center">
+                              <span>Bạn đang thương lượng giá cả cho booking: </span>
+                              <strong className="ms-1">
+                                {bookingDetails.variant_name ||
+                                  bookingDetails.service_name ||
+                                  `#${bookingDetails.booking_id}`}
+                              </strong>
+                              {bookingDetails?.booking_id && (
+                                <>
+                                  {isTasker && (
+                                    <Link
+                                      to={`/tasker/bookings/${bookingDetails.booking_id}`}
+                                      className="ms-2 btn btn-link btn-sm p-0 align-baseline"
+                                    >
+                                      Xem chi tiết
+                                    </Link>
+                                  )}
 
-                                {isCustomer && (
-                                  <Link
-                                    to={`/customer/bookings`}
-                                    className="ms-2 btn btn-link btn-sm p-0 align-baseline"
-                                  >
-                                    Xem chi tiết
-                                  </Link>
-                                )}
-                              </>
+                                  {isCustomer && (
+                                    <Link
+                                      to={`/customer/bookings`}
+                                      className="ms-2 btn btn-link btn-sm p-0 align-baseline"
+                                    >
+                                      Xem chi tiết
+                                    </Link>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                            {bookingDetails.tasker_name && (
+                              <div>
+                                Tasker: <strong>{bookingDetails.tasker_name}</strong>
+                              </div>
+                            )}
+                            {(bookingDetails.start_time || bookingDetails.end_time) && (
+                              <div>
+                                Thời gian: {" "}
+                                <strong>
+                                  {bookingDetails.start_time
+                                    ? new Date(bookingDetails.start_time).toLocaleString("vi-VN")
+                                    : "N/A"} {" "}
+                                  - {" "}
+                                  {bookingDetails.end_time
+                                    ? new Date(bookingDetails.end_time).toLocaleString("vi-VN")
+                                    : "N/A"}
+                                </strong>
+                              </div>
                             )}
                           </div>
-                          {bookingDetails.tasker_name && (
-                            <div>
-                              Tasker: <strong>{bookingDetails.tasker_name}</strong>
-                            </div>
-                          )}
-                          {(bookingDetails.start_time || bookingDetails.end_time) && (
-                            <div>
-                              Thời gian: {" "}
-                              <strong>
-                                {bookingDetails.start_time
-                                  ? new Date(bookingDetails.start_time).toLocaleString("vi-VN")
-                                  : "N/A"} {" "}
-                                - {" "}
-                                {bookingDetails.end_time
-                                  ? new Date(bookingDetails.end_time).toLocaleString("vi-VN")
-                                  : "N/A"}
-                              </strong>
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div>
-                          Bạn đang thương lượng giá cả cho dịch vụ: {" "}
-                          <strong>{quoteDetails.variant_name}</strong>
-                        </div>
-                      )}
+                        ) : (
+                          <div>
+                            Bạn đang thương lượng giá cả cho dịch vụ: {" "}
+                            <strong>{quoteDetails.variant_name}</strong>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="fw-semibold mt-1">
+                        {bookingDetails ? (
+                          <>
+                            Giá khách đề xuất:{" "}
+                            <strong className="text-muted">
+                              {currencyVND(bookingDetails?.expected_price)}
+                            </strong>
+                            <br />
+                            Giá sau thương lượng:{" "}
+                            <strong className="text-success">
+                              {bookingDetails?.base_price
+                                ? currencyVND(bookingDetails.base_price)
+                                : "Chưa có"}
+                            </strong>
+                            {(bookingDetails?.unit || quoteDetails?.unit) && (
+                              <span> / {(bookingDetails?.unit || quoteDetails?.unit)}</span>
+                            )}
+                          </>
+                        ) : quoteDetails ? (
+                          <>
+                            Giá hiện tại: <strong className="text-success">
+                              {currencyVND(quoteDetails?.proposed_price)}
+                            </strong>
+                            {quoteDetails?.unit && (
+                              <span> / {quoteDetails?.unit}</span>
+
+                            )}
+                          </>
+                        ) : null}
+                      </div>
+
+                      <div className="small text-muted mt-1">
+                        {(() => {
+                          const price_min =
+                            bookingDetails?.price_min ?? quoteDetails?.price_min ?? null;
+                          const price_max =
+                            bookingDetails?.price_max ?? quoteDetails?.price_max ?? null;
+                          const specific_price =
+                            bookingDetails?.specific_price ?? quoteDetails?.specific_price ?? null;
+                          const unit = bookingDetails?.unit || quoteDetails?.unit;
+                          const min =
+                            price_min != null
+                              ? Number(price_min)
+                              : specific_price != null
+                                ? Number(specific_price)
+                                : null;
+                          const max =
+                            price_max != null
+                              ? Number(price_max)
+                              : specific_price != null
+                                ? Number(specific_price)
+                                : null;
+                          if (min != null && max != null) {
+                            return (
+                              <>
+                                Khoảng giá: <strong>{currencyVND(min)} - {currencyVND(max)}</strong>
+                                {unit ? <span> / {unit}</span> : null}
+                              </>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </div>
                     </div>
 
-                    <div className="fw-semibold mt-1">
-                      {bookingDetails ? (
+                    <div className="d-flex align-items-center gap-2 ms-auto">
+                      {/* Input for customer or tasker when not pending */}
+                      {canProposePrice ? (
                         <>
-                          Giá khách đề xuất:{" "}
-                          <strong className="text-muted">
-                            {currencyVND(bookingDetails?.expected_price)}
-                          </strong>
-                          <br />
-                          Giá sau thương lượng:{" "}
-                          <strong className="text-success">
-                            {bookingDetails?.base_price
-                              ? currencyVND(bookingDetails.base_price)
-                              : "Chưa có"}
-                          </strong>
-                          {(bookingDetails?.unit || quoteDetails?.unit) && (
-                            <span> / {(bookingDetails?.unit || quoteDetails?.unit)}</span>
-                          )}
-                        </>
-                      ) : quoteDetails ? (
-                        <>
-                          Giá hiện tại: <strong className="text-success">
-                            {currencyVND(quoteDetails?.proposed_price)}
-                          </strong>
-                          {quoteDetails?.unit && (
-                            <span> / {quoteDetails?.unit}</span>
-
-                          )}
+                          <input
+                            type="number"
+                            className={`form-control form-control-sm ${negError ? 'is-invalid' : ''}`}
+                            style={{ width: 160 }}
+                            placeholder="Giá đề xuất..."
+                            onChange={(e) => setNegPrice(e.target.value)}
+                            onWheel={(e) => e.currentTarget.blur()}
+                            disabled={negSubmitting}
+                          />
+                          <button className="btn btn-sm btn-primary" disabled={negSubmitting} onClick={handleFinalizePrice}>
+                            {negSubmitting ? 'Đang gửi...' : 'Chốt giá'}
+                          </button>
                         </>
                       ) : null}
+                      {/* Receiver approves/rejects when pending (sender waits) */}
+                      {negotiationState.pending && !pendingFromMe && !negotiationState.ack && (
+                        <div className="d-flex align-items-center gap-2">
+                          <span className="small text-muted">Yêu cầu chốt: <strong>{currencyVND(negotiationState.pending.price)}</strong></span>
+                          <button className="btn btn-sm btn-success" disabled={negSubmitting} onClick={handleApproveNegotiation}>Đồng ý</button>
+                          <button className="btn btn-sm btn-outline-secondary" onClick={handleRejectNegotiation}>Từ chối</button>
+                        </div>
+                      )}
+                      {/* Sender waits while pending */}
+                      {negotiationState.pending && pendingFromMe && !negotiationState.ack && (
+                        <span className="badge bg-warning text-dark">Đang chờ đối tác xác nhận...</span>
+                      )}
+                      {/* Rejected state hints */}
+                      {!negotiationState.pending && negotiationState.rej && isTasker && (
+                        <span className="small text-muted">Đã từ chối đề xuất. Chờ khách hàng đề xuất lại...</span>
+                      )}
+                      {!negotiationState.pending && negotiationState.rej && isCustomer && (
+                        <span className="badge bg-secondary">Bạn có thể nhập giá mới.</span>
+                      )}
+                      {/* Optional hint for Tasker when no pending */}
+                      {!canProposePrice && isTasker && !negotiationState.pending && !negotiationState.ack && !negotiationState.rej && (
+                        <span className="small text-muted">Chờ khách hàng đề xuất...</span>
+                      )}
+                      {/* Tasker open from Quotes but not pending: keep a neutral hint so bar is visible */}
+                      {negotiationParam === '1' && isTasker && !sessionId && !negotiationState.pending && !canProposePrice && (
+                        <span className="small text-muted">Đã mở từ báo giá. Chờ khách hàng đề xuất.</span>
+                      )}
                     </div>
-
-                    <div className="small text-muted mt-1">
-                      {(() => {
-                        const price_min =
-                          bookingDetails?.price_min ?? quoteDetails?.price_min ?? null;
-                        const price_max =
-                          bookingDetails?.price_max ?? quoteDetails?.price_max ?? null;
-                        const specific_price =
-                          bookingDetails?.specific_price ?? quoteDetails?.specific_price ?? null;
-                        const unit = bookingDetails?.unit || quoteDetails?.unit;
-                        const min =
-                          price_min != null
-                            ? Number(price_min)
-                            : specific_price != null
-                            ? Number(specific_price)
-                            : null;
-                        const max =
-                          price_max != null
-                            ? Number(price_max)
-                            : specific_price != null
-                            ? Number(specific_price)
-                            : null;
-                        if (min != null && max != null) {
-                          return (
-                            <>
-                              Khoảng giá: <strong>{currencyVND(min)} - {currencyVND(max)}</strong>
-                              {unit ? <span> / {unit}</span> : null}
-                            </>
-                          );
-                        }
-                        return null;
-                      })()}
-                    </div>
+                    {negError && <div className="invalid-feedback d-block">{negError}</div>}
                   </div>
+                )}
+              {/* Incoming Call Notification */}
+              {audioCall.incomingCall && (
+                <IncomingCallNotification
+                  incomingCall={audioCall.incomingCall}
+                  onAccept={audioCall.acceptCall}
+                  onReject={audioCall.rejectCall}
+                />
+              )}
 
-                  <div className="d-flex align-items-center gap-2 ms-auto">
-                    {/* Input for customer or tasker when not pending */}
-                    {canProposePrice ? (
-                      <>
-                        <input
-                          type="number"
-                          className={`form-control form-control-sm ${negError ? 'is-invalid' : ''}`}
-                          style={{ width: 160 }}
-                          placeholder="Giá đề xuất..."
-                          onChange={(e) => setNegPrice(e.target.value)}
-                          onWheel={(e) => e.currentTarget.blur()}
-                          disabled={negSubmitting}
-                        />
-                        <button className="btn btn-sm btn-primary" disabled={negSubmitting} onClick={handleFinalizePrice}>
-                          {negSubmitting ? 'Đang gửi...' : 'Chốt giá'}
-                        </button>
-                      </>
-                    ) : null}
-                    {/* Receiver approves/rejects when pending (sender waits) */}
-                    {negotiationState.pending && !pendingFromMe && !negotiationState.ack && (
-                      <div className="d-flex align-items-center gap-2">
-                        <span className="small text-muted">Yêu cầu chốt: <strong>{currencyVND(negotiationState.pending.price)}</strong></span>
-                        <button className="btn btn-sm btn-success" disabled={negSubmitting} onClick={handleApproveNegotiation}>Đồng ý</button>
-                        <button className="btn btn-sm btn-outline-secondary" onClick={handleRejectNegotiation}>Từ chối</button>
-                      </div>
-                    )}
-                    {/* Sender waits while pending */}
-                    {negotiationState.pending && pendingFromMe && !negotiationState.ack && (
-                      <span className="badge bg-warning text-dark">Đang chờ đối tác xác nhận...</span>
-                    )}
-                    {/* Rejected state hints */}
-                    {!negotiationState.pending && negotiationState.rej && isTasker && (
-                      <span className="small text-muted">Đã từ chối đề xuất. Chờ khách hàng đề xuất lại...</span>
-                    )}
-                    {!negotiationState.pending && negotiationState.rej && isCustomer && (
-                      <span className="badge bg-secondary">Bạn có thể nhập giá mới.</span>
-                    )}
-                    {/* Optional hint for Tasker when no pending */}
-                    {!canProposePrice && isTasker && !negotiationState.pending && !negotiationState.ack && !negotiationState.rej && (
-                      <span className="small text-muted">Chờ khách hàng đề xuất...</span>
-                    )}
-                    {/* Tasker open from Quotes but not pending: keep a neutral hint so bar is visible */}
-                    {negotiationParam === '1' && isTasker && !sessionId && !negotiationState.pending && !canProposePrice && (
-                      <span className="small text-muted">Đã mở từ báo giá. Chờ khách hàng đề xuất.</span>
-                    )}
-                  </div>
-                  {negError && <div className="invalid-feedback d-block">{negError}</div>}
-                </div>
+              {/* Audio Call Modal */}
+              {currentConversation && (
+                <AudioCallModal
+                  isOpen={isCallModalOpen || !!audioCall.callState}
+                  callState={audioCall.callState}
+                  callDuration={audioCall.callDuration}
+                  incomingCall={null}
+                  recipientInfo={
+                    audioCall.remoteUserInfo || currentConversation.participants?.find(
+                      p => p.user_id !== user?.user_id
+                    )
+                  }
+                  conversationName={currentConversation.title || (currentConversation?.participants?.length > 0 ? currentConversation.participants[0].name || currentConversation.participants[0].email : 'Cuộc trò chuyện')}
+                  error={audioCall.error}
+                  loading={audioCall.loading}
+                  onAccept={audioCall.acceptCall}
+                  onReject={audioCall.rejectCall}
+                  onEnd={audioCall.endCall}
+                  onClose={() => setIsCallModalOpen(false)}
+                />
               )}
               <ChatWindow
                 conversation={currentConversation}
@@ -1896,7 +1955,7 @@ const NewConversationModal = ({ onClose, onCreate }) => {
                   }}
                   placeholder="Tìm kiếm người dùng..."
                 />
-                
+
                 {/* Search Results */}
                 {searchResults.length > 0 && (
                   <div className="search-results">

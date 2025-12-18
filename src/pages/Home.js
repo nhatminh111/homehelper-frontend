@@ -1,4 +1,4 @@
-import React, { useEffect, useState} from "react";
+import React, { useEffect, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowRight } from '@fortawesome/free-solid-svg-icons';
@@ -12,23 +12,23 @@ import {
   faSearch,
   faUsers,
   faBriefcase,
-  faClock,faFilter,
+  faClock, faFilter,
 } from "@fortawesome/free-solid-svg-icons";
 import { faHeart as faHeartRegular } from "@fortawesome/free-regular-svg-icons";
-import { Link, useNavigate} from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { toast, ToastContainer } from "react-toastify";
+import { showToast, CustomToastContainer } from "../components/common/CustomToast";
 import TaskerService from "../services/taskerService";
 import '../css/Home.css';
-import 'react-toastify/dist/ReactToastify.css';
 
 
 const Home = () => {
   const [services, setServices] = useState([]);
   const [searchName, setSearchName] = useState("");
   const [selectedService, setSelectedService] = useState("");
+  const [selectedCity, setSelectedCity] = useState("");
   const [taskers, setTaskers] = useState([]);
-  
+
   // Debug: Log taskers state changes
   useEffect(() => {
     console.log('🔄 Taskers state updated:', taskers);
@@ -64,10 +64,7 @@ const Home = () => {
 
   const handleAddWishlist = async (taskerId) => {
     if (!user) {
-      toast.error("Vui lòng đăng nhập để thêm vào wishlist!", {
-        position: "top-right",
-        autoClose: 3000,
-      });
+      showToast.error("Vui lòng đăng nhập để thêm vào wishlist!");
       return;
     }
     try {
@@ -82,21 +79,12 @@ const Home = () => {
       const data = await res.json();
       if (res.ok) {
         setWishlistTaskers((prev) => [...prev, Number(taskerId)]);
-        toast.success("Đã thêm vào wishlist!", {
-          position: "top-right",
-          autoClose: 3000,
-        });
+        showToast.success("Đã thêm vào wishlist!");
       } else {
-        toast.error(data.error || "Có lỗi xảy ra", {
-          position: "top-right",
-          autoClose: 3000,
-        });
+        showToast.error(data.error || "Có lỗi xảy ra");
       }
     } catch (err) {
-      toast.error("Có lỗi xảy ra khi thêm vào wishlist!", {
-        position: "top-right",
-        autoClose: 3000,
-      });
+      showToast.error("Có lỗi xảy ra khi thêm vào wishlist!");
       console.error(err);
     }
   };
@@ -112,24 +100,12 @@ const Home = () => {
         setWishlistTaskers((prev) =>
           prev.filter((id) => id !== Number(taskerId))
         );
-        toast.error("Đã xóa khỏi wishlist!", {
-          position: "top-right",
-          autoClose: 3000,
-          style: { background: '#ef4444', color: '#ffffff' },
-        });
+        showToast.error("Đã xóa khỏi wishlist!");
       } else {
-        toast.error("Có lỗi xảy ra khi xóa khỏi wishlist!", {
-          position: "top-right",
-          autoClose: 3000,
-          style: { background: '#ef4444', color: '#ffffff' },
-        });
+        showToast.error("Có lỗi xảy ra khi xóa khỏi wishlist!");
       }
     } catch (err) {
-      toast.error("Có lỗi xảy ra khi xóa khỏi wishlist!", {
-        position: "top-right",
-        autoClose: 3000,
-        style: { background: '#ef4444', color: '#ffffff' },
-      });
+      showToast.error("Có lỗi xảy ra khi xóa khỏi wishlist!");
       console.error(err);
     }
   };
@@ -144,23 +120,20 @@ const Home = () => {
   }, []);
 
   const handleSearch = async () => {
-    if (!searchName && !selectedService) {
-      toast.warn("Vui lòng nhập tên hoặc chọn dịch vụ để tìm kiếm!", {
-        position: "top-right",
-        autoClose: 3000,
-      });
+    if (!searchName && !selectedService && !selectedCity) {
+      showToast.warning("Vui lòng nhập tên, chọn dịch vụ hoặc chọn thành phố để tìm kiếm!");
       return;
     }
-    
+
     setLoading(true);
     setError(null);
     setShowResults(true);
-    
+
     try {
-      const searchUrl = `http://localhost:3001/api/tasker?search=${encodeURIComponent(searchName)}&serviceId=${selectedService}`;
+      const searchUrl = `http://localhost:3001/api/tasker?search=${encodeURIComponent(searchName)}&serviceId=${selectedService}&city=${encodeURIComponent(selectedCity)}`;
       console.log('🔍 Search URL:', searchUrl);
-      console.log('🔍 Search params:', { searchName, selectedService });
-      
+      console.log('🔍 Search params:', { searchName, selectedService, selectedCity });
+
       const res = await fetch(searchUrl);
       if (!res.ok) {
         const errorText = await res.text();
@@ -171,7 +144,7 @@ const Home = () => {
       console.log('📦 API Response:', result);
       console.log('📦 Response type:', typeof result);
       console.log('📦 Is array?', Array.isArray(result));
-      
+
       // Handle multiple response structures
       let taskersData = [];
       if (Array.isArray(result)) {
@@ -190,7 +163,7 @@ const Home = () => {
         console.warn('⚠️ Unexpected response structure:', result);
         taskersData = [];
       }
-      
+
       console.log('📋 Taskers Data:', taskersData);
       console.log('📊 Taskers Count:', taskersData.length);
       if (taskersData.length > 0) {
@@ -360,9 +333,9 @@ const Home = () => {
   // Function to sort and display all service variants
   const getDisplayedVariants = (taskerServices) => {
     if (!taskerServices || taskerServices.length === 0) return [];
-    
+
     // Flatten variants and associate with service_id
-    let allVariants = taskerServices.flatMap(service => 
+    let allVariants = taskerServices.flatMap(service =>
       (service.variants || []).map(variant => ({
         ...variant,
         service_id: service.service_id
@@ -385,12 +358,12 @@ const Home = () => {
   // Animation variants for the card
   const cardVariants = {
     hidden: { opacity: 0, scale: 0.95, y: 20 },
-    visible: { 
-      opacity: 1, 
-      scale: 1, 
-      y: 0, 
-      transition: { 
-        duration: 0.5, 
+    visible: {
+      opacity: 1,
+      scale: 1,
+      y: 0,
+      transition: {
+        duration: 0.5,
         ease: "easeOut",
         staggerChildren: 0.1
       }
@@ -404,8 +377,8 @@ const Home = () => {
 
   return (
     <>
-      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} closeOnClick pauseOnHover />
-      
+      <CustomToastContainer />
+
       {/* Hero Section */}
       <section style={{ padding: '40px 0' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
@@ -425,7 +398,7 @@ const Home = () => {
             </div>
             <div style={{ flex: '1 1 50%', padding: '20px' }}>
               <img
-                src="/images/bg_3.jpg"
+                src="https://nld.mediacdn.vn/2016/img20160416011157172.jpg"
                 alt="cleaners"
                 style={{ width: '100%', borderRadius: '8px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
               />
@@ -453,9 +426,9 @@ const Home = () => {
             <div style={{ background: '#f8d7da', color: '#721c24', padding: '16px', borderRadius: '8px', boxShadow: '0 2px 10px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center' }}>
               <FontAwesomeIcon icon={faClock} style={{ marginRight: '8px' }} />
               {error}
-              <button 
-                type="button" 
-                style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: '1.25rem', cursor: 'pointer' }} 
+              <button
+                type="button"
+                style={{ marginLeft: 'auto', background: 'none', border: 'none', fontSize: '1.25rem', cursor: 'pointer' }}
                 onClick={() => setError(null)}
               >
                 ×
@@ -485,14 +458,14 @@ const Home = () => {
                     <FontAwesomeIcon icon={faUsers} style={{ marginRight: '8px' }} />
                     Tìm kiếm người giúp việc
                   </h3>
-                  <small style={{ opacity: '0.75' }}>Nhập tên, chọn dịch vụ hoặc tìm kiếm nâng cao</small>
+                  <small style={{ opacity: '0.75' }}>Nhập tên, chọn dịch vụ, chọn thành phố hoặc tìm kiếm nâng cao</small>
                 </div>
 
                 {/* Search Form */}
                 <div style={{ padding: '24px' }}>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'flex-end' }}>
                     {/* Tìm theo tên */}
-                    <div style={{ flex: '1 1 40%' }}>
+                    <div style={{ flex: '1 1 100%' }}>
                       <div style={{ position: 'relative' }}>
                         <FontAwesomeIcon
                           icon={faSearch}
@@ -517,7 +490,7 @@ const Home = () => {
                     </div>
 
                     {/* Chọn dịch vụ */}
-                    <div style={{ flex: '1 1 30%' }}>
+                    <div style={{ flex: '1 1 calc(33.33% - 11px)' }}>
                       <select
                         style={{
                           width: '100%',
@@ -541,8 +514,38 @@ const Home = () => {
                       </select>
                     </div>
 
+                    {/* Chọn thành phố */}
+                    <div style={{ flex: '1 1 calc(33.33% - 11px)' }}>
+                      <select
+                        style={{
+                          width: '100%',
+                          padding: '12px',
+                          fontSize: '1.125rem',
+                          borderRadius: '8px',
+                          border: '1px solid rgba(255, 255, 255, 0.3)',
+                          background: 'rgba(255, 255, 255, 0.8)',
+                          backdropFilter: 'blur(20px)',
+                          transition: 'all 0.3s ease'
+                        }}
+                        value={selectedCity}
+                        onChange={(e) => setSelectedCity(e.target.value)}
+                      >
+                        <option value="">Chọn thành phố</option>
+                        <option value="Hà Nội">Hà Nội</option>
+                        <option value="Hồ Chí Minh">TP Hồ Chí Minh</option>
+                        <option value="Đà Nẵng">Đà Nẵng</option>
+                        <option value="Hải Phòng">Hải Phòng</option>
+                        <option value="Cần Thơ">Cần Thơ</option>
+                        <option value="Huế">Huế</option>
+                        <option value="Nha Trang">Nha Trang</option>
+                        <option value="Vũng Tàu">Vũng Tàu</option>
+                        <option value="Đà Lạt">Đà Lạt</option>
+                        <option value="Quy Nhơn">Quy Nhơn</option>
+                      </select>
+                    </div>
+
                     {/* Nút Tìm kiếm (chính) */}
-                    <div style={{ flex: '1 1 25%' }}>
+                    <div style={{ flex: '1 1 calc(33.33% - 11px)' }}>
                       <button
                         style={{
                           width: '100%',
@@ -558,7 +561,8 @@ const Home = () => {
                           alignItems: 'center',
                           justifyContent: 'center',
                           boxShadow: '0 4px 20px rgba(16, 185, 129, 0.3)',
-                          transition: 'all 0.3s ease'
+                          transition: 'all 0.3s ease',
+                          cursor: loading ? 'not-allowed' : 'pointer'
                         }}
                         onClick={handleSearch}
                         disabled={loading}
@@ -588,14 +592,14 @@ const Home = () => {
                   </div>
 
                   {/* NÚT TÌM KIẾM NÂNG CAO */}
-                  <div style={{ 
-                    marginTop: '20px', 
+                  <div style={{
+                    marginTop: '20px',
                     textAlign: 'center',
                     padding: '16px 0',
                     borderTop: '1px dashed rgba(0,0,0,0.1)'
                   }}>
                     <button
-                    onClick={() => navigate('/tasker-search')}
+                      onClick={() => navigate('/tasker-search')}
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
@@ -653,7 +657,7 @@ const Home = () => {
                         Kết quả phù hợp
                       </h2>
                       <small style={{ color: '#6b7280' }}>
-                        "{searchName}" {selectedService && `• ${services.find(s => s.service_id === selectedService)?.name}`}
+                        {searchName && `"${searchName}"`} {selectedService && `• ${services.find(s => s.service_id === selectedService)?.name}`} {selectedCity && `• ${selectedCity}`}
                       </small>
                     </div>
                   </div>
@@ -700,7 +704,7 @@ const Home = () => {
                           <motion.div className="avatar-section" variants={childVariants}>
                             <div className="avatar-wrapper">
                               <img
-                                src={t.profileImage || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop&crop=face"}
+                                src={t.profileImage || "https://nld.mediacdn.vn/2016/img20160416011157172.jpg"}
                                 alt={t.name}
                                 className="avatar-image"
                               />
@@ -740,11 +744,10 @@ const Home = () => {
                                     ? faHeartSolid
                                     : faHeartRegular
                                 }
-                                className={`favorite-icon ${
-                                  wishlistTaskers.includes(Number(t.tasker_id))
-                                    ? 'text-danger'
-                                    : 'text-gray'
-                                }`}
+                                className={`favorite-icon ${wishlistTaskers.includes(Number(t.tasker_id))
+                                  ? 'text-danger'
+                                  : 'text-gray'
+                                  }`}
                               />
                             </button>
 
@@ -796,9 +799,6 @@ const Home = () => {
                                   {displayedVariants.map((variant, idx) => (
                                     <div key={idx} className="service-chip">
                                       <div className="service-name">{variant.variant_name}</div>
-                                      <div className="service-price">
-                                        {variant.price_min}-{variant.price_max}{variant.unit}
-                                      </div>
                                     </div>
                                   ))}
                                 </div>
@@ -827,17 +827,11 @@ const Home = () => {
                                   whileTap={{ scale: 0.95 }}
                                   onClick={() => {
                                     if (!user || !token) {
-                                      toast.error("Vui lòng đăng nhập để đặt dịch vụ!", {
-                                        position: "top-right",
-                                        autoClose: 3000,
-                                      });
+                                      showToast.error("Vui lòng đăng nhập để đặt dịch vụ!");
                                       return;
                                     }
                                     if (user.role !== "Customer") {
-                                      toast.error("Chỉ khách hàng mới có thể đặt lịch!", {
-                                        position: "top-right",
-                                        autoClose: 3000,
-                                      });
+                                      showToast.error("Chỉ khách hàng mới có thể đặt lịch!");
                                       return;
                                     }
                                     window.location.href = `/booking/${t.tasker_id}`;
@@ -860,11 +854,12 @@ const Home = () => {
                       </div>
                       <h3 style={{ fontWeight: 'bold', marginBottom: '12px', color: '#1e293b' }}>Không tìm thấy kết quả</h3>
                       <p style={{ color: '#6b7280', marginBottom: '24px', fontSize: '1.25rem' }}>Thử thay đổi từ khóa hoặc chọn dịch vụ khác</p>
-                      <button 
+                      <button
                         style={{ padding: '12px 24px', background: '#3b82f6', color: 'white', borderRadius: '8px', border: 'none', fontSize: '1.125rem', boxShadow: '0 4px 20px rgba(0,0,0,0.2)' }}
                         onClick={() => {
                           setSearchName("");
                           setSelectedService("");
+                          setSelectedCity("");
                           setShowResults(false);
                         }}
                       >
@@ -877,10 +872,11 @@ const Home = () => {
             </div>
           )}
         </div>
-      </section>
+      </section >
 
       {/* About Section */}
-      <section style={{ padding: '40px 0' }}>
+      < section style={{ padding: '40px 0' }
+      }>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
             <div style={{ flex: '1 1 50%', padding: '20px' }}>
@@ -909,10 +905,10 @@ const Home = () => {
             </div>
           </div>
         </div>
-      </section>
+      </section >
 
       {/* News Section */}
-      <section style={{ padding: '40px 0' }}>
+      < section style={{ padding: '40px 0' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           <h2 style={{ fontSize: '2.5rem', textAlign: 'center', marginBottom: '8px' }}>Tin mới nhất</h2>
           <p style={{ textAlign: 'center', color: '#6b7280', marginBottom: '40px' }}>
@@ -946,10 +942,10 @@ const Home = () => {
             ))}
           </div>
         </div>
-      </section>
+      </section >
 
       {/* CTA Section */}
-      <section style={{ background: '#2b5cff', padding: '40px 0' }}>
+      < section style={{ background: '#2b5cff', padding: '40px 0' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto', textAlign: 'center', color: 'white' }}>
           <h2 style={{ marginBottom: '12px', fontSize: '2.5rem' }}>Cùng nhau khám phá những điều mới</h2>
           <p style={{ marginBottom: '24px', fontSize: '1.25rem' }}>
@@ -957,11 +953,74 @@ const Home = () => {
           </p>
           <button style={{ padding: '12px 24px', background: '#ffd84d', color: '#1b1c24', borderRadius: '8px', border: 'none', fontSize: '1.125rem' }}>Bắt đầu ngay</button>
         </div>
-      </section>
+      </section >
 
+      {/* Tiers Section */}
+      < section style={{ padding: '40px 0' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          <h2 style={{ fontSize: '2.5rem', textAlign: 'center', marginBottom: '8px' }}>Chương trình tích điểm thành viên</h2>
+          <p style={{ textAlign: 'center', color: '#6b7280', marginBottom: '40px' }}>
+            Tích điểm cho mỗi dịch vụ và mở khóa những quyền lợi dành riêng cho thành viên
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px' }}>
+            {tiers.map((t) => (
+              <div key={t.name} style={{ flex: '1 1 25%', padding: '12px' }}>
+                <div
+                  style={{
+                    height: '100%',
+                    boxShadow: t.popular ? '0 0 0 3px #ffe58f inset' : '0 4px 20px rgba(0,0,0,0.1)',
+                    borderRadius: '8px',
+                    position: 'relative'
+                  }}
+                >
+                  {t.popular && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: '-12px',
+                        left: '50%',
+                        transform: 'translateX(-50%)'
+                      }}
+                    >
+                      <span
+                        style={{
+                          background: '#ffd84d',
+                          color: '#1b1c24',
+                          padding: '6px 12px',
+                          borderRadius: '20px',
+                          fontWeight: '700'
+                        }}
+                      >
+                        Most Popular
+                      </span>
+                    </div>
+                  )}
+                  <div style={{ padding: '24px', textAlign: 'center' }}>
+                    <h5 style={{ marginBottom: '8px', fontSize: '1.5rem' }}>{t.name}</h5>
+                    <h3 style={{ color: '#3b82f6', marginBottom: '24px', fontWeight: '700' }}>
+                      {t.points}
+                    </h3>
+                    <ul style={{ listStyle: 'none', padding: '0', marginBottom: '24px', textAlign: 'left' }}>
+                      {t.features.map((f, idx) => (
+                        <li key={idx} style={{ marginBottom: '8px', display: 'flex', alignItems: 'center' }}>
+                          <FontAwesomeIcon icon={faCheckCircle} style={{ color: '#10b981', marginRight: '8px' }} />
+                          <span>{f}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <button style={{ padding: '12px 24px', background: t.popular ? '#ffd84d' : '#3b82f6', color: t.popular ? '#1b1c24' : 'white', border: 'none', borderRadius: '8px' }}>
+                      Unlock Rewards
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section >
 
       {/* Cleaners Section */}
-      <section style={{ background: '#f6f8ff', padding: '40px 0' }}>
+      < section style={{ background: '#f6f8ff', padding: '40px 0' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           <h2 style={{ fontSize: '2.5rem', textAlign: 'center', marginBottom: '8px' }}>Top 3 Professional Cleaners</h2>
           <p style={{ textAlign: 'center', color: '#6b7280', marginBottom: '40px' }}>
@@ -1009,8 +1068,39 @@ const Home = () => {
             ))}
           </div>
         </div>
-      </section>
+      </section >
 
+      {/* Testimonials Section */}
+      < section style={{ background: '#0c1730', padding: '40px 0' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          <h2 style={{ color: 'white', textAlign: 'center', marginBottom: '8px', fontSize: '2.5rem' }}>Happy Customers</h2>
+          <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.8)', marginBottom: '24px' }}>
+            See what our customers say about our services
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '24px' }}>
+            {testimonials.map((t) => (
+              <div key={t.id} style={{ flex: '1 1 33.33%', padding: '12px' }}>
+                <div style={{ background: '#2b5cff', color: 'white', padding: '24px', borderRadius: '8px', boxShadow: '0 4px 20px rgba(0,0,0,0.2)' }}>
+                  <div style={{ color: '#ffea75', marginBottom: '12px' }}>
+                    {[...Array(5)].map((_, i) => (
+                      <FontAwesomeIcon key={i} icon={faStar} style={{ marginRight: '4px' }} />
+                    ))}
+                  </div>
+                  <p style={{ marginBottom: '24px' }}>"{t.quote}"</p>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <div>
+                      <strong>{t.name}</strong>
+                      <div style={{ fontSize: '0.875rem', opacity: '0.9' }}>
+                        Verified Customer
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section >
     </>
   );
 };

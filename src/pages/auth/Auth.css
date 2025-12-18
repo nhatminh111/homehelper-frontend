@@ -64,8 +64,15 @@
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-20px); }
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-20px);
+  }
 }
 
 .auth-content {
@@ -524,24 +531,24 @@
   .auth-container {
     padding: 10px;
   }
-  
+
   .auth-card {
     padding: 30px 20px;
   }
-  
+
   .user-type-selector {
     max-width: 280px;
   }
-  
+
   .type-option {
     padding: 10px 15px;
     font-size: 13px;
   }
-  
+
   .auth-title {
     font-size: 24px;
   }
-  
+
   .form-group input {
     padding: 12px 40px 12px 15px;
     font-size: 14px;

@@ -23,7 +23,7 @@ const BlogCard = ({ post, onLikeToggle, user }) => {
   const handleLikeClick = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     if (!user) {
       alert('Please login to like posts');
       return;
@@ -31,11 +31,11 @@ const BlogCard = ({ post, onLikeToggle, user }) => {
 
     const newLikedState = !isLiked;
     const newLikesCount = newLikedState ? likesCount + 1 : likesCount - 1;
-    
+
     // Optimistic update
     setIsLiked(newLikedState);
     setLikesCount(newLikesCount);
-    
+
     // Call API
     if (onLikeToggle) {
       onLikeToggle(post.post_id);
@@ -80,14 +80,14 @@ const BlogCard = ({ post, onLikeToggle, user }) => {
             <div className="date">{formatDate(post.post_date)}</div>
           </div>
         </div>
-        
+
       </div>
       <div className="blog-content">
         <h3 className="blog-title">
           <Link to={`/blog/${post.post_id}`}>{post.title}</Link>
         </h3>
         <p className="blog-description">{getExcerpt(post.content)}</p>
-        
+
         {/* Services Tags */}
         {post.services && post.services.length > 0 && (
           <div className="services-tags">

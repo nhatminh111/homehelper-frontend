@@ -170,8 +170,6 @@ export default function Booking() {
 
     const [variantsByService, setVariantsByService] = useState({});
 
-
-
     const allVariants = useMemo(() => {
         const acc = [];
         Object.entries(variantsByService).forEach(([sid, arr]) => {
@@ -252,6 +250,12 @@ export default function Booking() {
                         workHours: "",
                         startTime: "07:00",
                         endTime: "21:00",
+                    };
+                } else if (variant.unit === "Buổi") {
+                    resetFields = {
+                        ...resetFields,
+                        date: "",
+                        startTime: "07:00",
                     };
                 }
 
@@ -500,6 +504,28 @@ export default function Booking() {
             );
         }
 
+        if (unit === "Buổi") {
+            return (
+                <>
+                    <div>• <strong>Thời lượng:</strong> Buổi</div>
+                    <div>
+                        • <strong>Ngày bắt đầu:</strong>{" "}
+                        {selection.date
+                            ? new Date(selection.date).toLocaleDateString("vi-VN", {
+                                day: "2-digit",
+                                month: "2-digit",
+                                year: "numeric",
+                            })
+                            : "—"}
+                    </div>
+                    <div>
+                        • <strong>Giờ bắt đầu:</strong>{" "}
+                        {selection.startTime || "—"}
+                    </div>
+                </>
+            );
+        }
+
         return null;
     }
 
@@ -536,6 +562,8 @@ export default function Booking() {
             }
         } else if (["m2", "Mét vuông", "Chiếc"].includes(unit)) {
             subtotal = basePrice * (selection.quantity || 1);
+        } else if (unit === "Buổi") {
+            subtotal = basePrice * 1; // mỗi buổi = 1 lần
         }
 
         return sum + subtotal;
@@ -694,7 +722,7 @@ export default function Booking() {
                                                             <Form.Control
                                                                 type="time"
                                                                 className="fw-semibold text-dark"
-                                                                value={selection.endTime}
+                                                                value={selection.endTime || "09:00"}
                                                                 min={selection.startTime || "07:00"} // 🔒 phải lớn hơn startTime
                                                                 max="21:00"             // 🔒 ≤ 21:00
                                                                 onChange={(e) => {
@@ -1137,6 +1165,48 @@ export default function Booking() {
                                                 </>
                                             );
                                         }
+
+                                        if (currentUnit === "Buổi") {
+                                            return (
+                                                <>
+                                                    <Row className="mb-4">
+                                                        <Col md={6} className="mb-3">
+                                                            <Form.Group>
+                                                                <Form.Label className="fw-bold text-dark">Ngày bắt đầu</Form.Label>
+                                                                <Form.Control
+                                                                    type="date"
+                                                                    className="fw-semibold text-dark"
+                                                                    value={selection.date}
+                                                                    min={new Date().toISOString().split("T")[0]}
+                                                                    onChange={(e) =>
+                                                                        setSelection({ ...selection, date: e.target.value })
+                                                                    }
+                                                                />
+                                                            </Form.Group>
+                                                        </Col>
+
+                                                        <Col md={3} className="mb-3">
+                                                            <Form.Group>
+                                                                <Form.Label className="fw-bold text-dark">Thời gian bắt đầu</Form.Label>
+                                                                <Form.Control
+                                                                    type="time"
+                                                                    className="fw-semibold text-dark"
+                                                                    value={selection.startTime || "07:00"}
+                                                                    min="07:00"
+                                                                    max="21:00"
+                                                                    onChange={(e) => {
+                                                                        const value = e.target.value;
+                                                                        if (value >= "07:00" && value <= "21:00") {
+                                                                            setSelection({ ...selection, startTime: value });
+                                                                        }
+                                                                    }}
+                                                                />
+                                                            </Form.Group>
+                                                        </Col>
+                                                    </Row>
+                                                </>
+                                            );
+                                        }
                                         return null;
                                     })()}
 
@@ -1291,14 +1361,27 @@ export default function Booking() {
                                                             </div>
                                                         )}
                                                     </>
+                                                ) : currentUnit === "Buổi" ? (
+                                                    <>
+                                                        <div>
+                                                            • <strong>Thời lượng:</strong> Buổi
+                                                        </div>
+                                                        <div>
+                                                            • <strong>Ngày bắt đầu:</strong>{" "}
+                                                            {selection.date
+                                                                ? new Date(selection.date).toLocaleDateString("vi-VN", {
+                                                                    day: "2-digit",
+                                                                    month: "2-digit",
+                                                                    year: "numeric",
+                                                                })
+                                                                : "—"}
+                                                        </div>
+                                                        <div>
+                                                            • <strong>Giờ bắt đầu:</strong>{" "}
+                                                            {selection.startTime ? selection.startTime : "—"}
+                                                        </div>
+                                                    </>
                                                 ) : null}
-
-                                                <div className="mt-2">
-                                                    • <strong className="text-primary">Total sessions: </strong>
-                                                    <span className="text-danger fw-semibold">
-                                                        15% discount for recurring!
-                                                    </span>
-                                                </div>
                                             </div>
                                         </Card.Body>
                                     </Card>
@@ -1381,6 +1464,7 @@ export default function Booking() {
                                                     {chosenVariants[0]?.unit === "Tuần" && "Theo tuần"}
                                                     {chosenVariants[0]?.unit === "Tháng" && "Theo tháng"}
                                                     {chosenVariants[0]?.unit === "Chiếc" && "Theo số lượng"}
+                                                    {chosenVariants[0]?.unit === "Buổi" && "Theo buổi"}
                                                     {["m2", "Mét vuông"].includes(chosenVariants[0]?.unit) && "Theo diện tích"}
                                                 </span>
                                             </div>
@@ -1492,13 +1576,53 @@ export default function Booking() {
                                                         ? new Date(`${normDate}T${selection.endTime}:00`).toISOString()
                                                         : null;
 
+                                                const unit = chosenVariants[0]?.unit || "";
+
+                                                let quantity = 1;
+                                                let totalHours = 1;
+
+                                                if (startISO && endISO) {
+                                                    totalHours =
+                                                        (new Date(endISO).getTime() - new Date(startISO).getTime()) /
+                                                        (1000 * 60 * 60);
+                                                }
+
+                                                switch (unit) {
+                                                    case "Giờ":
+                                                        quantity = totalHours;
+                                                        break;
+
+                                                    case "Chiếc":
+                                                        quantity = Number(selection.quantity) || 1;
+                                                        break;
+
+                                                    case "Mét vuông":
+                                                        quantity = Number(selection.quantity) || 1;
+                                                        break;
+
+                                                    case "Ngày":
+                                                        quantity = selection.dates?.length || 1;
+                                                        break;
+
+                                                    case "Buổi":
+                                                    case "Tuần":
+                                                    case "Tháng":
+                                                    default:
+                                                        quantity = 1; // Các loại này luôn 1
+                                                        break;
+                                                }
+
+                                                console.log("🧮 [Booking] FINAL QUANTITY:", quantity);
+
                                                 const payload = {
                                                     step,
                                                     selection: {
                                                         ...selection,
-                                                        unit: chosenVariants[0]?.unit || "",
+                                                        unit,
+                                                        totalHours: unit === "Giờ" ? totalHours : undefined,
                                                         startISO,
                                                         endISO,
+                                                        quantity, // 👈 GIÁ TRỊ QUAN TRỌNG NHẤT
                                                     },
                                                     chosenVariants,
                                                     allVariants,
@@ -1529,6 +1653,8 @@ export default function Booking() {
                                                 };
 
                                                 console.log("📦 [Booking] Dữ liệu gửi sang JobDescription:", payload);
+
+                                                console.log("🔢 [Booking] Số lượng user nhập:", selection.quantity);
 
                                                 navigate("/job-description", { state: payload });
                                             }}
@@ -1837,7 +1963,18 @@ if (typeof document !== "undefined") {
 .summary-section div {
   font-size: 1.05rem;
 }
+.input[type="time"]::-webkit-datetime-edit-ampm-field {
+  display: none;
+}
 
+.input[type="time"] {
+  position: relative;
+}
+
+.input[type="time"]::-webkit-calendar-picker-indicator {
+  color: transparent;
+  background: none;
+}
     `;
         document.head.appendChild(style);
     });
@@ -1854,6 +1991,7 @@ function VariantCard({ v, checked, onToggle }) {
         "Chiếc": "chiếc",
         "Mét vuông": "mét vuông",
         "m2": "mét vuông",
+        "Buổi": "buổi"
     };
     const unit = unitMap[v.unit] ?? "";
     const unitSuffix = unit ? `/${unit}` : "";

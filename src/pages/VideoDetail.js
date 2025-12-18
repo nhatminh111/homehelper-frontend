@@ -2,14 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-  faPlay, faStar, faHeart, faPhone, faShare, faFlag, faEllipsisH, faCircleCheck, faChevronRight, faComment, faEdit, faTrash
+  faPlay, faStar, faHeart, faPhone, faShare, faFlag, faEllipsisH, faCircleCheck, faChevronRight, faComment, faEdit, faTrash, faEye, faThumbsUp, faBookmark, faUser
 } from '@fortawesome/free-solid-svg-icons';
 import VideoService from '../services/VideoService';
 import { authAPI, getStoredToken } from '../services/api';
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { showToast, CustomToastContainer } from '../components/common/CustomToast';
 import '../css/videoDetail.css';
-import { faChevronDown } from '@fortawesome/free-solid-svg-icons';
 
 const VideoDetail = () => {
   const { videoId } = useParams();
@@ -27,6 +25,10 @@ const VideoDetail = () => {
   const [error, setError] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showMenu, setShowMenu] = useState(null); // New state for dropdown menu
+  const [currentUserAvatar, setCurrentUserAvatar] = useState('/images/avatar-placeholder.jpg');
+  const [liked, setLiked] = useState(false);
+  const [likesCount, setLikesCount] = useState(0);
+  const [isInWishlist, setIsInWishlist] = useState(false);
   const videoRef = useRef(null);
 
   useEffect(() => {
@@ -39,6 +41,7 @@ const VideoDetail = () => {
           try {
             const userResponse = await authAPI.getCurrentUser(token);
             setUserId(userResponse.user.user_id);
+            setCurrentUserAvatar(userResponse.user.avatar_url || '/images/avatar-placeholder.jpg');
             setIsAuthenticated(true);
           } catch (authError) {
             console.error('Authentication check failed:', authError);
@@ -53,11 +56,13 @@ const VideoDetail = () => {
 
         const mappedVideo = {
           video_id: videoData.video_id,
+          user_id: videoData.user_id,
           title: videoData.title,
           video_url: videoData.video_url,
           description: videoData.description || 'Không có mô tả',
           timeAgo: calculateTimeAgo(videoData.uploaded_at),
           author: videoData.expert || `Người dùng ${videoData.user_id}`,
+          avatar_url: videoData.avatar_url || '/images/avatar-placeholder.jpg',
           rating: videoData.rating || 4.5,
           views: videoData.views || 'N/A',
           tips: videoData.tips || [
@@ -69,6 +74,35 @@ const VideoDetail = () => {
           tags: videoData.tags || ['Dọn dẹp', 'Tổ chức nhà cửa', 'Mẹo chuyên nghiệp', 'Phong cách sống'],
         };
         setVideo(mappedVideo);
+        setLikesCount(videoData.likes || 0);
+
+        // Check like status if authenticated
+        if (isAuthenticated) {
+          try {
+            const likeStatus = await VideoService.checkLikeStatus(videoId);
+            setLiked(likeStatus);
+          } catch (likeError) {
+            console.error('Failed to check like status:', likeError);
+          }
+
+          // Check wishlist status
+          if (videoData.user_id) {
+            try {
+              const response = await fetch('http://localhost:3001/api/wishlists/', {
+                headers: {
+                  'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+              });
+              const data = await response.json();
+              if (data.success && data.data) {
+                const isInList = data.data.some(item => item.tasker_id === videoData.user_id);
+                setIsInWishlist(isInList);
+              }
+            } catch (wishlistError) {
+              console.error('Failed to check wishlist status:', wishlistError);
+            }
+          }
+        }
 
         const allVideosResponse = await VideoService.getAllVideos();
         const mappedRelatedVideos = (allVideosResponse.videos || [])
@@ -86,12 +120,12 @@ const VideoDetail = () => {
           setComments(commentsResponse.comments || []);
         } catch (commentError) {
           console.error('Failed to fetch comment tree:', commentError);
-          toast.error('Không thể tải bình luận. Vui lòng thử lại sau.');
+          showToast.error('Không thể tải bình luận. Vui lòng thử lại sau.');
           setComments([]);
         }
       } catch (err) {
         console.error('Error fetching video details:', err);
-        toast.error('Lỗi khi tải chi tiết video: ' + err.message);
+        showToast.error('Lỗi khi tải chi tiết video: ' + err.message);
       } finally {
         setLoading(false);
       }
@@ -100,24 +134,24 @@ const VideoDetail = () => {
     fetchVideoDetails();
   }, [videoId]);
 
- const calculateTimeAgo = (uploadedAt) => {
-  const now = new Date();
-  const uploaded = new Date(uploadedAt);
-  const diffMs = now - uploaded;
-  
-  const diffMinutes = Math.floor(diffMs / (1000 * 60));
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  const diffWeeks = Math.floor(diffDays / 7);
-  const diffMonths = Math.floor(diffDays / 30);
+  const calculateTimeAgo = (uploadedAt) => {
+    const now = new Date();
+    const uploaded = new Date(uploadedAt);
+    const diffMs = now - uploaded;
 
-  if (diffMinutes < 1) return 'Vừa xong';
-  if (diffMinutes < 60) return `${diffMinutes} phút trước`;
-  if (diffHours < 24) return `${diffHours} giờ trước`;
-  if (diffDays < 7) return `${diffDays} ngày trước`;
-  if (diffWeeks < 4) return `${diffWeeks} tuần trước`;
-  return `${diffMonths} tháng trước`;
-};
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const diffWeeks = Math.floor(diffDays / 7);
+    const diffMonths = Math.floor(diffDays / 30);
+
+    if (diffMinutes < 1) return 'Vừa xong';
+    if (diffMinutes < 60) return `${diffMinutes} phút trước`;
+    if (diffHours < 24) return `${diffHours} giờ trước`;
+    if (diffDays < 7) return `${diffDays} ngày trước`;
+    if (diffWeeks < 4) return `${diffWeeks} tuần trước`;
+    return `${diffMonths} tháng trước`;
+  };
   const handlePlay = () => {
     if (videoRef.current) {
       videoRef.current.play();
@@ -133,14 +167,87 @@ const VideoDetail = () => {
     setIsPlaying(true);
   };
 
+  const handleLike = async () => {
+    if (!isAuthenticated) {
+      showToast.error('Vui lòng đăng nhập để thích video');
+      return;
+    }
+
+    try {
+      const result = await VideoService.toggleLikeVideo(videoId);
+      setLiked(result.liked);
+      setLikesCount(result.likes);
+      showToast.success(result.message);
+    } catch (err) {
+      showToast.error(err.message || 'Lỗi khi thích video');
+    }
+  };
+
+  const handleToggleWishlist = async () => {
+    if (!isAuthenticated || !userId) {
+      showToast.error('Vui lòng đăng nhập để thêm vào danh sách yêu thích');
+      return;
+    }
+
+    if (!video?.user_id) {
+      showToast.error('Không thể thêm vào wishlist');
+      return;
+    }
+
+    try {
+      const endpoint = isInWishlist ? 'http://localhost:3001/api/wishlists/remove' : 'http://localhost:3001/api/wishlists/';
+      const method = 'POST';
+
+      const response = await fetch(endpoint, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          customer_id: userId,
+          ...(isInWishlist ? { taskerId: video.user_id } : { favorite_taskers: [video.user_id] })
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setIsInWishlist(!isInWishlist);
+        showToast.success(isInWishlist ? 'Đã xóa khỏi danh sách yêu thích' : 'Đã thêm vào danh sách yêu thích');
+      } else {
+        showToast.error(data.error || 'Có lỗi xảy ra');
+      }
+    } catch (err) {
+      showToast.error('Lỗi khi cập nhật danh sách yêu thích');
+      console.error(err);
+    }
+  };
+
+  const handleBooking = () => {
+    if (!video?.user_id) {
+      showToast.error('Không thể đặt lịch');
+      return;
+    }
+    window.location.href = `/booking/${video.user_id}`;
+  };
+
+  const handleViewProfile = () => {
+    if (!video?.user_id) {
+      showToast.error('Không thể xem hồ sơ');
+      return;
+    }
+    window.location.href = `/tasker-profile/${video.user_id}`;
+  };
+
   const handleCreateComment = async (e) => {
     e.preventDefault();
     if (!newComment.trim()) {
-      toast.error('Nội dung bình luận không được để trống');
+      showToast.error('Nội dung bình luận không được để trống');
       return;
     }
     if (!isAuthenticated) {
-      toast.error('Vui lòng đăng nhập để bình luận');
+      showToast.error('Vui lòng đăng nhập để bình luận');
       return;
     }
 
@@ -151,14 +258,14 @@ const VideoDetail = () => {
       setNewComment('');
     } catch (err) {
       if (err.message.includes('401') || err.message.includes('403')) {
-        toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+        showToast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
         setIsAuthenticated(false);
         localStorage.removeItem('token');
         localStorage.removeItem('user_id');
       } else if (err.message.includes('Nội dung comment không phù hợp')) {
-        toast.error('Nội dung bình luận không phù hợp, chứa những từ không cho phép');
+        showToast.error('Nội dung bình luận không phù hợp, chứa những từ không cho phép');
       } else {
-        toast.error('Lỗi khi tạo bình luận: ' + err.message);
+        showToast.error('Lỗi khi tạo bình luận: ' + err.message);
       }
     }
   };
@@ -166,11 +273,11 @@ const VideoDetail = () => {
   const handleCreateReply = async (e, parentCommentId) => {
     e.preventDefault();
     if (!replyContent.trim()) {
-      toast.error('Nội dung trả lời không được để trống');
+      showToast.error('Nội dung trả lời không được để trống');
       return;
     }
     if (!isAuthenticated) {
-      toast.error('Vui lòng đăng nhập để trả lời');
+      showToast.error('Vui lòng đăng nhập để trả lời');
       return;
     }
 
@@ -199,14 +306,14 @@ const VideoDetail = () => {
       setReplyingCommentId(null);
     } catch (err) {
       if (err.message.includes('401') || err.message.includes('403')) {
-        toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+        showToast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
         setIsAuthenticated(false);
         localStorage.removeItem('token');
         localStorage.removeItem('user_id');
       } else if (err.message.includes('Nội dung comment không phù hợp')) {
-        toast.error('Nội dung trả lời không phù hợp, chứa những từ không cho phép');
+        showToast.error('Nội dung trả lời không phù hợp, chứa những từ không cho phép');
       } else {
-        toast.error('Lỗi khi gửi trả lời: ' + err.message);
+        showToast.error('Lỗi khi gửi trả lời: ' + err.message);
       }
     }
   };
@@ -229,7 +336,7 @@ const VideoDetail = () => {
   const handleUpdateComment = async (e, commentId) => {
     e.preventDefault();
     if (!editingContent.trim()) {
-      toast.error('Nội dung bình luận không được để trống');
+      showToast.error('Nội dung bình luận không được để trống');
       return;
     }
 
@@ -241,14 +348,14 @@ const VideoDetail = () => {
       setShowMenu(null); // Close menu after update
     } catch (err) {
       if (err.message.includes('401') || err.message.includes('403')) {
-        toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+        showToast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
         setIsAuthenticated(false);
         localStorage.removeItem('token');
         localStorage.removeItem('user_id');
       } else if (err.message.includes('Nội dung comment không phù hợp')) {
-        toast.error('Nội dung bình luận không phù hợp, chứa những từ không cho phép');
+        showToast.error('Nội dung bình luận không phù hợp, chứa những từ không cho phép');
       } else {
-        toast.error('Lỗi khi cập nhật bình luận: ' + err.message);
+        showToast.error('Lỗi khi cập nhật bình luận: ' + err.message);
       }
     }
   };
@@ -260,12 +367,12 @@ const VideoDetail = () => {
       setShowMenu(null); // Close menu after delete
     } catch (err) {
       if (err.message.includes('401') || err.message.includes('403')) {
-        toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+        showToast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
         setIsAuthenticated(false);
         localStorage.removeItem('token');
         localStorage.removeItem('user_id');
       } else {
-        toast.error('Lỗi khi xóa bình luận: ' + err.message);
+        showToast.error('Lỗi khi xóa bình luận: ' + err.message);
       }
     }
   };
@@ -354,7 +461,7 @@ const VideoDetail = () => {
                 style={{ marginLeft: `${(level + 1) * 20}px` }}
               >
                 <div className="comment-top">
-                  <img src="/images/avatar-placeholder.jpg" alt="Avatar" className="avatar circle" />
+                  <img src={currentUserAvatar} alt="Avatar" className="avatar circle" />
                   <textarea
                     value={replyContent}
                     onChange={(e) => setReplyContent(e.target.value)}
@@ -419,7 +526,7 @@ const VideoDetail = () => {
 
   return (
     <div className="video-detail-page">
-      <ToastContainer position="top-right" autoClose={5000} hideProgressBar={false} newestOnTop={false} closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover theme="colored" />
+      <CustomToastContainer />
       <section className="hero-wrap hero-wrap-2" style={{ backgroundImage: "url('/images/bg_2.jpg')" }} data-stellar-background-ratio="0.5">
         <div className="overlay"></div>
         <div className="container">
@@ -467,70 +574,203 @@ const VideoDetail = () => {
                 <p className="detail-time">{video.timeAgo}</p>
               </div>
 
+              {/* YouTube-style layout: Author info + Actions in one row */}
+              <div className="author-actions-row" style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '16px 0',
+                borderBottom: '1px solid #e5e7eb',
+                marginBottom: '16px'
+              }}>
+                {/* Left: Author info */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <img
+                    src={video.avatar_url}
+                    alt={video.author}
+                    style={{
+                      width: '48px',
+                      height: '48px',
+                      borderRadius: '50%',
+                      objectFit: 'cover'
+                    }}
+                  />
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <strong style={{ fontSize: '1rem' }}>{video.author}</strong>
+                      <FontAwesomeIcon icon={faCircleCheck} style={{ color: '#3b82f6', fontSize: '0.875rem' }} />
+                    </div>
+                    <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                      <FontAwesomeIcon icon={faStar} style={{ color: '#f59e0b' }} /> {video.rating} Sao
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right: Action buttons - Modern Design */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  {/* Like button - Thumbs up */}
+                  <button
+                    onClick={handleLike}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '10px 18px',
+                      background: liked ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : '#ffffff',
+                      border: liked ? 'none' : '2px solid #e5e7eb',
+                      borderRadius: '25px',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                      fontWeight: '600',
+                      transition: 'all 0.3s ease',
+                      boxShadow: liked ? '0 4px 15px rgba(102, 126, 234, 0.4)' : '0 2px 8px rgba(0,0,0,0.08)',
+                      transform: 'translateY(0)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = liked ? '0 6px 20px rgba(102, 126, 234, 0.5)' : '0 4px 12px rgba(0,0,0,0.12)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = liked ? '0 4px 15px rgba(102, 126, 234, 0.4)' : '0 2px 8px rgba(0,0,0,0.08)';
+                    }}
+                    title={liked ? 'Bỏ thích' : 'Thích video'}
+                  >
+                    <FontAwesomeIcon
+                      icon={faThumbsUp}
+                      style={{
+                        color: liked ? '#ffffff' : '#667eea',
+                        fontSize: '1.1rem'
+                      }}
+                    />
+                    <span style={{ color: liked ? '#ffffff' : '#374151' }}>{likesCount}</span>
+                  </button>
+
+                  {/* Wishlist button - Bookmark */}
+                  <button
+                    onClick={handleToggleWishlist}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '10px 18px',
+                      background: isInWishlist ? 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' : '#ffffff',
+                      border: isInWishlist ? 'none' : '2px solid #e5e7eb',
+                      borderRadius: '25px',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                      fontWeight: '600',
+                      transition: 'all 0.3s ease',
+                      boxShadow: isInWishlist ? '0 4px 15px rgba(240, 147, 251, 0.4)' : '0 2px 8px rgba(0,0,0,0.08)',
+                      transform: 'translateY(0)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = isInWishlist ? '0 6px 20px rgba(240, 147, 251, 0.5)' : '0 4px 12px rgba(0,0,0,0.12)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = isInWishlist ? '0 4px 15px rgba(240, 147, 251, 0.4)' : '0 2px 8px rgba(0,0,0,0.08)';
+                    }}
+                    title={isInWishlist ? 'Xóa khỏi yêu thích' : 'Lưu vào yêu thích'}
+                  >
+                    <FontAwesomeIcon
+                      icon={faBookmark}
+                      style={{
+                        color: isInWishlist ? '#ffffff' : '#f5576c',
+                        fontSize: '1.1rem'
+                      }}
+                    />
+                    <span style={{ color: isInWishlist ? '#ffffff' : '#374151' }}>
+                      {isInWishlist ? 'Đã lưu' : 'Lưu'}
+                    </span>
+                  </button>
+
+                  {/* Profile button - User */}
+                  <button
+                    onClick={handleViewProfile}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '10px 18px',
+                      background: '#ffffff',
+                      border: '2px solid #e5e7eb',
+                      borderRadius: '25px',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                      fontWeight: '600',
+                      color: '#374151',
+                      transition: 'all 0.3s ease',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                      transform: 'translateY(0)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.12)';
+                      e.currentTarget.style.borderColor = '#10b981';
+                      e.currentTarget.style.color = '#10b981';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.08)';
+                      e.currentTarget.style.borderColor = '#e5e7eb';
+                      e.currentTarget.style.color = '#374151';
+                    }}
+                    title="Xem hồ sơ"
+                  >
+                    <FontAwesomeIcon icon={faUser} style={{ fontSize: '1rem' }} />
+                    <span>Hồ sơ</span>
+                  </button>
+
+                  {/* Booking button - Primary CTA */}
+                  <button
+                    onClick={handleBooking}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '10px 20px',
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      border: 'none',
+                      borderRadius: '25px',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                      fontWeight: '600',
+                      color: '#ffffff',
+                      transition: 'all 0.3s ease',
+                      boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
+                      transform: 'translateY(0)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.5)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.4)';
+                    }}
+                    title="Đặt lịch ngay"
+                  >
+                    <FontAwesomeIcon icon={faPhone} style={{ fontSize: '1rem' }} />
+                    <span>Đặt lịch</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Description */}
               <div className="desc-box">
                 <p className="video-desc">{video.description}</p>
               </div>
 
-              <div className="author-box">
-                <div className="author-bar">
-                  <img src="/images/bg_1.jpg" alt={video.author} className="author-avatar" />
-                  <div className="author-meta">
-                    <div className="author-name">
-                      {video.author} <FontAwesomeIcon icon={faCircleCheck} className="verified" />
-                    </div>
-                    <div className="author-rating">
-                      <FontAwesomeIcon icon={faStar} className="star" /> {video.rating} Sao
-                    </div>
-                  </div>
 
-                  <div className="author-actions">
-                    <button className="btn-ghost">
-                      <FontAwesomeIcon icon={faHeart} /> <span>Yêu thích</span>
-                    </button>
-                    <button className="btn-outline-blue">
-                      <FontAwesomeIcon icon={faPhone} /> <span>Đặt lịch</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="footer-box">
-                <div className="detail-footer">
-                  <span className="df-item">
-                    <FontAwesomeIcon icon={faHeart} /> {video.views}
-                  </span>
-                  <button className="df-link">
-                    <FontAwesomeIcon icon={faShare} /> Chia sẻ
-                  </button>
-                  <button className="df-link">
-                    <FontAwesomeIcon icon={faFlag} /> Báo cáo
-                  </button>
-                  <button className="df-more">
-                    <FontAwesomeIcon icon={faEllipsisH} />
-                  </button>
-                </div>
-              </div>
-
-              <div className="desc-box">
-                <div className="tags-row">
-                  {video.tags.map((t, i) => (
-                    <span key={i} className="tag-chip">{t}</span>
-                  ))}
-                </div>
-                <div className="tips-panel">
-                  <div className="tips-title">🧰 Công cụ bạn cần:</div>
-                  <ul className="tips-list">
-                    {video.tips.map((tip, i) => <li key={i}>{tip}</li>)}
-                  </ul>
-                </div>
-              </div>
 
               <div className="comments-box">
                 <h3 className="comments-title">Bình luận</h3>
                 {isAuthenticated ? (
                   <form onSubmit={handleCreateComment} className="comment-form">
                     <div className="comment-top">
-                      <img src="/images/avatar-placeholder.jpg" alt="Avatar" className="avatar circle" />
+                      <img src={currentUserAvatar} alt="Avatar" className="avatar circle" />
                       <textarea
                         value={newComment}
                         onChange={(e) => setNewComment(e.target.value)}

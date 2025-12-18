@@ -1,15 +1,13 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import "../../css/TaskerProfile.css";
 import { useAuth } from "../../contexts/AuthContext";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faStar,
   faCheckCircle,
   faEye,
   faAward,
-  faTools,
-  faMapMarkerAlt,
   faCalendarCheck,
   faComments,
   faCopy,
@@ -130,22 +128,21 @@ const TaskerCertificateList = ({ taskerId }) => {
                   >
                     {cert.status && (
                       <span
-                        className={`badge px-3 py-2 ${
-                          cert.status === 'Approved'
-                            ? 'bg-success'
-                            : cert.status === 'pending'
+                        className={`badge px-3 py-2 ${cert.status === 'Approved'
+                          ? 'bg-success'
+                          : cert.status === 'pending'
                             ? 'bg-warning text-dark'
                             : 'bg-secondary'
-                        }`}
+                          }`}
                         style={{ fontSize: "0.9rem", fontWeight: 500 }}
                       >
-                      {cert.status === 'Approved'
-                        ? 'Đã duyệt'
-                        : cert.status === 'pending'
-                        ? 'Chờ duyệt'
-                        : cert.status === 'rejected'
-                        ? 'Bị từ chối'
-                        : cert.status}
+                        {cert.status === 'Approved'
+                          ? 'Đã duyệt'
+                          : cert.status === 'pending'
+                            ? 'Chờ duyệt'
+                            : cert.status === 'rejected'
+                              ? 'Bị từ chối'
+                              : cert.status}
                       </span>
                     )}
                   </div>
@@ -217,8 +214,8 @@ const TaskerCertificateList = ({ taskerId }) => {
                         <strong>Ngày cấp:</strong>{" "}
                         {cert.issued_date
                           ? new Date(cert.issued_date).toLocaleDateString(
-                              "vi-VN"
-                            )
+                            "vi-VN"
+                          )
                           : "—"}
                       </div>
                     </div>
@@ -242,16 +239,16 @@ const createHeaders = (token = null) => {
 };
 
 const TaskerProfile = () => {
+  const navigate = useNavigate();
   const { id: paramId } = useParams();
   const {
     user,
     token,
     loading: authLoading,
     isAuthenticated,
-    isStaff,
     isTasker,
   } = useAuth();
-  
+
   // Nếu không có id trong URL, sử dụng user_id của user hiện tại (dành cho tasker xem profile của chính mình)
   // Sử dụng useMemo để re-compute khi user thay đổi
   const id = useMemo(() => {
@@ -259,7 +256,7 @@ const TaskerProfile = () => {
     if (user?.user_id) return String(user.user_id);
     return null;
   }, [paramId, user?.user_id]);
-  
+
   // Kiểm tra xem đây có phải profile của chính user đang đăng nhập không
   const isOwnProfile = useMemo(() => {
     if (!user?.user_id) return false;
@@ -269,7 +266,7 @@ const TaskerProfile = () => {
     if (paramId && String(user.user_id) === String(paramId)) return true;
     return false;
   }, [paramId, user?.user_id, isTasker]);
-  
+
   const [tasker, setTasker] = useState(null);
   const [reviewsData, setReviewsData] = useState({
     reviews: [],
@@ -279,15 +276,21 @@ const TaskerProfile = () => {
   });
   const [activeTab, setActiveTab] = useState("overview");
   const [canRate, setCanRate] = useState(null);
-  const [alreadyRated, setAlreadyRated] = useState(null);
   const [bookingId, setBookingId] = useState(null);
   const [newRating, setNewRating] = useState(5);
   const [newFeedback, setNewFeedback] = useState("");
-  const [loadingUser, setLoadingUser] = useState(true);
   const [inWishlist, setInWishlist] = useState(false);
   const [skipFetch, setSkipFetch] = useState(false);
   const [profileUrl, setProfileUrl] = useState("");
-  
+
+  // Videos state
+  const [videos, setVideos] = useState([]);
+  const [loadingVideos, setLoadingVideos] = useState(false);
+
+  // Articles state
+  const [articles, setArticles] = useState([]);
+  const [loadingArticles, setLoadingArticles] = useState(false);
+
   // State cho edit mode
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -349,84 +352,8 @@ const TaskerProfile = () => {
     { label: "Years Experience", value: "5+" },
     { label: "Awards Won", value: "5" },
   ];
-  const featuredVideos = [
-    {
-      id: 1,
-      title: "Deep Kitchen Cleaning - Complete Process",
-      minutes: "8:32",
-      views: 2340,
-      likes: 98,
-      when: "1 week ago",
-      img: "https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=1200&q=60",
-    },
-    {
-      id: 3,
-      title: "Eco-Friendly Cleaning Solutions",
-      minutes: "5:46",
-      views: 3210,
-      likes: 267,
-      when: "2 weeks ago",
-      img: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=1200&q=60",
-    },
-  ];
-  const featuredArticles = [
-    {
-      id: 1,
-      title: "How to Clean a Sofa Without Using Water",
-      category: "Furniture Care",
-      read: "9 min read",
-      views: 1340,
-      date: "Jun 12, 2024",
-      img: "https://images.unsplash.com/photo-1524758631624-e2822e304c36?auto=format&fit=crop&w=1200&q=60",
-    },
-    {
-      id: 2,
-      title: "Bathroom Odor Elimination Guide",
-      category: "Bathroom Care",
-      read: "6 min read",
-      views: 1650,
-      date: "Jun 10, 2024",
-      img: "https://images.unsplash.com/photo-1595433707802-6b2626ef1c86?auto=format&fit=crop&w=1200&q=60",
-    },
-  ];
-  const moreArticles = [
-    {
-      id: 3,
-      title: "Outdoor Cleaning and Maintenance",
-      category: "Outdoor",
-      read: "8 min read",
-      views: 980,
-      date: "Jun 8, 2024",
-      img: "https://images.unsplash.com/photo-1523419409543-2f8a125d5dff?auto=format&fit=crop&w=1200&q=60",
-    },
-    {
-      id: 4,
-      title: "Natural Fridge Deodorizing with Lemon",
-      category: "Kitchen Tips",
-      read: "4 min read",
-      views: 760,
-      date: "Jun 6, 2024",
-      img: "https://images.unsplash.com/photo-1514996937319-344454492b37?auto=format&fit=crop&w=1200&q=60",
-    },
-    {
-      id: 5,
-      title: "Professional Window Cleaning Techniques",
-      category: "Windows",
-      read: "7 min read",
-      views: 1220,
-      date: "Jun 4, 2024",
-      img: "https://images.unsplash.com/photo-1515879218367-8466d910aaa4?auto=format&fit=crop&w=1200&q=60",
-    },
-    {
-      id: 6,
-      title: "Fabric Care and Laundry Sorting",
-      category: "Laundry",
-      read: "6 min read",
-      views: 1040,
-      date: "Jun 2, 2024",
-      img: "https://images.unsplash.com/photo-1495433324511-bf8e92934d90?auto=format&fit=crop&w=1200&q=60",
-    },
-  ];
+
+
   // Badges state (achievements tab will use this instead of static demo achievements)
   const [badges, setBadges] = useState([]);
   const [badgesLoading, setBadgesLoading] = useState(false);
@@ -455,7 +382,7 @@ const TaskerProfile = () => {
   useEffect(() => {
     // Đợi auth loading xong
     if (authLoading) return;
-    
+
     // Nếu không có id (và cũng không có user), hiển thị demo
     if (!id) {
       setTasker(demoTasker);
@@ -497,7 +424,7 @@ const TaskerProfile = () => {
       });
       return;
     }
-    
+
     // Có id -> fetch từ API
     console.log("🔍 Fetching tasker profile for id:", id);
     fetch(`${API_BASE_URL}/tasker-profile/${id}`)
@@ -545,6 +472,38 @@ const TaskerProfile = () => {
         setBadgesLoading(false);
       });
   }, [id, token, authLoading]);
+
+  // Load videos when switching to videos tab
+  useEffect(() => {
+    if (activeTab === "videos" && id) {
+      setLoadingVideos(true);
+      fetch(`${API_BASE_URL}/videos/user/${id}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.videos) {
+            setVideos(data.videos);
+          }
+        })
+        .catch((err) => console.error("Fetch videos error:", err))
+        .finally(() => setLoadingVideos(false));
+    }
+  }, [activeTab, id]);
+
+  // Load articles when switching to articles tab
+  useEffect(() => {
+    if (activeTab === "articles" && id) {
+      setLoadingArticles(true);
+      fetch(`${API_BASE_URL}/blogs?user_id=${id}&status=Approved`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && data.data) {
+            setArticles(data.data);
+          }
+        })
+        .catch((err) => console.error("Fetch articles error:", err))
+        .finally(() => setLoadingArticles(false));
+    }
+  }, [activeTab, id]);
 
   // Load reviews (only if an id exists)
   useEffect(() => {
@@ -682,7 +641,7 @@ const TaskerProfile = () => {
   // Hiển thị loading khi đang load auth hoặc chưa có data tasker
   if (authLoading)
     return <div className="container py-5 text-center">Loading...</div>;
-  
+
   // Nếu không có tasker data và đang xem profile của chính mình
   if (!tasker && isOwnProfile) {
     return (
@@ -697,7 +656,7 @@ const TaskerProfile = () => {
       </div>
     );
   }
-  
+
   if (!tasker)
     return <div className="container py-5 text-center">Loading...</div>;
 
@@ -726,26 +685,26 @@ const TaskerProfile = () => {
           <div className="tp-url-banner mb-4">
             <div className="d-flex align-items-center justify-content-between flex-wrap gap-3">
               <div className="d-flex align-items-center gap-3">
-                <div className="d-flex align-items-center justify-content-center" 
-                  style={{width: '48px', height: '48px', background: 'rgba(255,255,255,0.2)', borderRadius: '12px'}}>
-                  <FontAwesomeIcon icon={faLink} style={{fontSize: '20px'}} />
+                <div className="d-flex align-items-center justify-content-center"
+                  style={{ width: '48px', height: '48px', background: 'rgba(255,255,255,0.2)', borderRadius: '12px' }}>
+                  <FontAwesomeIcon icon={faLink} style={{ fontSize: '20px' }} />
                 </div>
                 <div>
-                  <div className="fw-bold" style={{fontSize: '16px'}}>🔗 Link Profile của bạn</div>
-                  <div style={{fontSize: '13px', opacity: 0.9}}>
+                  <div className="fw-bold" style={{ fontSize: '16px' }}>🔗 Link Profile của bạn</div>
+                  <div style={{ fontSize: '13px', opacity: 0.9 }}>
                     Chia sẻ để khách hàng dễ dàng tìm thấy bạn
                   </div>
                 </div>
               </div>
               <div className="d-flex align-items-center gap-2 flex-grow-1" style={{ maxWidth: '500px' }}>
-                <input 
-                  type="text" 
-                  className="form-control tp-url-input" 
-                  value={profileUrl} 
+                <input
+                  type="text"
+                  className="form-control tp-url-input"
+                  value={profileUrl}
                   readOnly
                   onClick={(e) => e.target.select()}
                 />
-                <button 
+                <button
                   className="tp-copy-btn d-flex align-items-center gap-2"
                   onClick={() => {
                     navigator.clipboard.writeText(profileUrl);
@@ -772,13 +731,13 @@ const TaskerProfile = () => {
                     src={tasker.avatar_url || "/images/default-avatar.png"}
                     alt={tasker.name}
                     className="tp-avatar"
-                    style={{width: '120px', height: '120px'}}
+                    style={{ width: '120px', height: '120px' }}
                   />
                   {isOwnProfile && (
-                    <label 
+                    <label
                       className="position-absolute d-flex align-items-center justify-content-center"
                       style={{
-                        bottom: '5px', right: '5px', 
+                        bottom: '5px', right: '5px',
                         width: '36px', height: '36px',
                         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                         borderRadius: '50%', cursor: 'pointer',
@@ -787,35 +746,35 @@ const TaskerProfile = () => {
                       }}
                       title="Thay đổi ảnh đại diện"
                     >
-                      <i className="bi bi-camera-fill text-white" style={{fontSize: '14px'}}></i>
-                      <input 
-                        type="file" 
-                        accept="image/*" 
+                      <i className="bi bi-camera-fill text-white" style={{ fontSize: '14px' }}></i>
+                      <input
+                        type="file"
+                        accept="image/*"
                         className="d-none"
                         onChange={async (e) => {
                           const file = e.target.files[0];
                           if (!file) return;
-                          
+
                           // Validate file size (max 5MB)
                           if (file.size > 5 * 1024 * 1024) {
                             showToast.error('Ảnh quá lớn! Vui lòng chọn ảnh nhỏ hơn 5MB');
                             return;
                           }
-                          
+
                           // Show preview immediately
                           const reader = new FileReader();
                           reader.onload = (ev) => {
-                            setTasker({...tasker, avatar_url: ev.target.result});
+                            setTasker({ ...tasker, avatar_url: ev.target.result });
                           };
                           reader.readAsDataURL(file);
-                          
+
                           // Upload to server
                           try {
                             showToast.info('Đang tải ảnh lên...');
-                            
+
                             const formData = new FormData();
                             formData.append('avatar', file);
-                            
+
                             const uploadRes = await fetch(`${API_BASE_URL}/uploads/avatar`, {
                               method: 'POST',
                               headers: {
@@ -823,18 +782,18 @@ const TaskerProfile = () => {
                               },
                               body: formData
                             });
-                            
+
                             const uploadData = await uploadRes.json();
-                            
+
                             if (!uploadRes.ok || !uploadData.success) {
                               throw new Error(uploadData.message || 'Upload thất bại');
                             }
-                            
+
                             // Save encrypted URL to database
                             const encryptedUrl = uploadData.data.encrypted_url;
                             const originalUrl = uploadData.data.url;
                             console.log('📸 Upload response:', { encryptedUrl, originalUrl });
-                            
+
                             const saveRes = await fetch(`${API_BASE_URL}/tasker-profile/${id}`, {
                               method: 'PUT',
                               headers: {
@@ -843,12 +802,12 @@ const TaskerProfile = () => {
                               },
                               body: JSON.stringify({ avatar_url: encryptedUrl })
                             });
-                            
+
                             const saveData = await saveRes.json();
-                            
+
                             if (saveRes.ok && saveData.success) {
                               // Update UI with original URL for display
-                              setTasker(prev => ({...prev, avatar_url: originalUrl}));
+                              setTasker(prev => ({ ...prev, avatar_url: originalUrl }));
                               showToast.success('Cập nhật ảnh đại diện thành công!');
                             } else {
                               throw new Error(saveData.message || 'Lưu ảnh thất bại');
@@ -862,11 +821,11 @@ const TaskerProfile = () => {
                     </label>
                   )}
                 </div>
-                
+
                 {/* Info */}
                 <div className="flex-grow-1">
                   <div className="d-flex align-items-center flex-wrap gap-2 mb-2">
-                    <h2 className="tp-name mb-0" style={{fontSize: '1.75rem'}}>
+                    <h2 className="tp-name mb-0" style={{ fontSize: '1.75rem' }}>
                       {tasker.name || "Chưa cập nhật tên"}
                     </h2>
                     {tasker.status === 'Active' && (
@@ -875,7 +834,7 @@ const TaskerProfile = () => {
                       </span>
                     )}
                   </div>
-                  
+
                   {/* Rating */}
                   <div className="d-flex align-items-center gap-3 mb-3">
                     <div className="d-flex align-items-center gap-1">
@@ -888,24 +847,24 @@ const TaskerProfile = () => {
                       ({tasker.reviewCount || 0} đánh giá)
                     </span>
                     {tasker.status === 'Active' && (
-                      <span className="badge bg-success px-3 py-2" style={{borderRadius: '20px'}}>
-                        <i className="bi bi-circle-fill me-1" style={{fontSize: '8px'}}></i>
+                      <span className="badge bg-success px-3 py-2" style={{ borderRadius: '20px' }}>
+                        <i className="bi bi-circle-fill me-1" style={{ fontSize: '8px' }}></i>
                         Đang hoạt động
                       </span>
                     )}
                   </div>
 
                   {/* Contact info */}
-                  <div className="d-flex flex-wrap gap-3 text-muted" style={{fontSize: '14px'}}>
+                  <div className="d-flex flex-wrap gap-3 text-muted" style={{ fontSize: '14px' }}>
                     {tasker.email && (
                       <span>
-                        <i className="bi bi-envelope me-1" style={{color: '#667eea'}}></i>
+                        <i className="bi bi-envelope me-1" style={{ color: '#667eea' }}></i>
                         {tasker.email}
                       </span>
                     )}
                     {tasker.phone && (
                       <span>
-                        <i className="bi bi-telephone me-1" style={{color: '#667eea'}}></i>
+                        <i className="bi bi-telephone me-1" style={{ color: '#667eea' }}></i>
                         {tasker.phone}
                       </span>
                     )}
@@ -920,20 +879,26 @@ const TaskerProfile = () => {
                 {/* Hide booking/chat buttons if tasker is viewing their own profile */}
                 {!isOwnProfile && (
                   <>
-                    <button className="btn tp-btn-primary w-100">
+                    <button
+                      className="btn tp-btn-primary w-100"
+                      onClick={() => window.location.href = `/booking/${id}`}
+                    >
                       <FontAwesomeIcon icon={faCalendarCheck} className="me-2" />
                       Đặt lịch ngay
                     </button>
-                    <button className="btn tp-btn-outline w-100">
+                    <button
+                      className="btn tp-btn-outline w-100"
+                      onClick={() => window.location.href = `/chat?userId=${id}`}
+                    >
                       <FontAwesomeIcon icon={faComments} className="me-2" />
                       Nhắn tin
                     </button>
                   </>
                 )}
                 {isOwnProfile && (
-                  <div className="text-center p-3 rounded" style={{background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)', border: '1px solid #bae6fd'}}>
-                    <i className="bi bi-info-circle me-2" style={{color: '#0284c7'}}></i>
-                    <span style={{color: '#0369a1', fontSize: '14px'}}>
+                  <div className="text-center p-3 rounded" style={{ background: 'linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)', border: '1px solid #bae6fd' }}>
+                    <i className="bi bi-info-circle me-2" style={{ color: '#0284c7' }}></i>
+                    <span style={{ color: '#0369a1', fontSize: '14px' }}>
                       Đây là trang profile công khai của bạn
                     </span>
                   </div>
@@ -949,9 +914,8 @@ const TaskerProfile = () => {
             {tabs.map((tab) => (
               <li className="nav-item" key={tab.id}>
                 <button
-                  className={`nav-link tp-tab ${
-                    activeTab === tab.id ? "active" : ""
-                  }`}
+                  className={`nav-link tp-tab ${activeTab === tab.id ? "active" : ""
+                    }`}
                   onClick={() => setActiveTab(tab.id)}
                 >
                   <FontAwesomeIcon icon={tab.icon} className="me-1" />
@@ -966,17 +930,17 @@ const TaskerProfile = () => {
               <div>
                 {/* Header với nút Edit khi xem profile của chính mình */}
                 {isOwnProfile && (
-                  <div className="d-flex justify-content-between align-items-center mb-4 pb-3" style={{borderBottom: '2px solid #f1f5f9'}}>
+                  <div className="d-flex justify-content-between align-items-center mb-4 pb-3" style={{ borderBottom: '2px solid #f1f5f9' }}>
                     <div>
-                      <h4 className="mb-1 fw-bold" style={{color: '#1e293b'}}>
+                      <h4 className="mb-1 fw-bold" style={{ color: '#1e293b' }}>
                         {isEditing ? '✏️ Chỉnh sửa thông tin' : '👤 Thông tin của bạn'}
                       </h4>
-                      <p className="text-muted mb-0" style={{fontSize: '14px'}}>
+                      <p className="text-muted mb-0" style={{ fontSize: '14px' }}>
                         {isEditing ? 'Cập nhật thông tin cá nhân của bạn' : 'Quản lý thông tin hiển thị với khách hàng'}
                       </p>
                     </div>
                     {!isEditing ? (
-                      <button 
+                      <button
                         className="tp-edit-btn"
                         onClick={() => setIsEditing(true)}
                       >
@@ -985,7 +949,7 @@ const TaskerProfile = () => {
                       </button>
                     ) : (
                       <div className="d-flex gap-2">
-                        <button 
+                        <button
                           className="tp-save-btn"
                           onClick={handleSaveProfile}
                           disabled={saving}
@@ -993,7 +957,7 @@ const TaskerProfile = () => {
                           <i className="bi bi-check2-circle me-1"></i>
                           {saving ? "Đang lưu..." : "Lưu thay đổi"}
                         </button>
-                        <button 
+                        <button
                           className="tp-cancel-btn"
                           onClick={() => {
                             setIsEditing(false);
@@ -1018,7 +982,7 @@ const TaskerProfile = () => {
                     <i className="bi bi-person-circle"></i>
                     Thông tin cơ bản
                   </h5>
-                  
+
                   {isEditing ? (
                     // Form chỉnh sửa
                     <div className="row g-4">
@@ -1028,7 +992,7 @@ const TaskerProfile = () => {
                           type="text"
                           className="form-control tp-form-control"
                           value={editForm.name}
-                          onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                          onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                           placeholder="Nhập họ và tên"
                         />
                       </div>
@@ -1038,7 +1002,7 @@ const TaskerProfile = () => {
                           type="tel"
                           className="form-control tp-form-control"
                           value={editForm.phone}
-                          onChange={(e) => setEditForm({...editForm, phone: e.target.value})}
+                          onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
                           placeholder="Nhập số điện thoại"
                         />
                       </div>
@@ -1060,7 +1024,7 @@ const TaskerProfile = () => {
                           className="form-control tp-form-control"
                           rows="5"
                           value={editForm.Introduce}
-                          onChange={(e) => setEditForm({...editForm, Introduce: e.target.value})}
+                          onChange={(e) => setEditForm({ ...editForm, Introduce: e.target.value })}
                           placeholder="Mô tả về bản thân, kinh nghiệm làm việc, kỹ năng chuyên môn..."
                         />
                       </div>
@@ -1075,21 +1039,21 @@ const TaskerProfile = () => {
                       <div className="col-md-6">
                         <div className="tp-info-label">Số điện thoại</div>
                         <div className="tp-info-value">
-                          <i className="bi bi-telephone me-2" style={{color: '#667eea'}}></i>
+                          <i className="bi bi-telephone me-2" style={{ color: '#667eea' }}></i>
                           {tasker.phone || "Chưa cập nhật"}
                         </div>
                       </div>
                       <div className="col-md-6">
                         <div className="tp-info-label">Email</div>
                         <div className="tp-info-value">
-                          <i className="bi bi-envelope me-2" style={{color: '#667eea'}}></i>
+                          <i className="bi bi-envelope me-2" style={{ color: '#667eea' }}></i>
                           {tasker.email || "Chưa cập nhật"}
                         </div>
                       </div>
                       <div className="col-md-6">
                         <div className="tp-info-label">Trạng thái tài khoản</div>
-                        <span className={`badge px-3 py-2 ${tasker.status === 'Active' ? 'bg-success' : 'bg-secondary'}`} 
-                          style={{fontSize: '14px', borderRadius: '20px'}}>
+                        <span className={`badge px-3 py-2 ${tasker.status === 'Active' ? 'bg-success' : 'bg-secondary'}`}
+                          style={{ fontSize: '14px', borderRadius: '20px' }}>
                           <i className={`bi ${tasker.status === 'Active' ? 'bi-check-circle' : 'bi-pause-circle'} me-1`}></i>
                           {tasker.status === 'Active' ? 'Đang hoạt động' : tasker.status || 'Chưa xác định'}
                         </span>
@@ -1099,7 +1063,7 @@ const TaskerProfile = () => {
                         <div className="tp-bio">
                           {tasker.Introduce || (
                             <span className="text-muted fst-italic">
-                              Chưa có thông tin giới thiệu. 
+                              Chưa có thông tin giới thiệu.
                               {isOwnProfile && " Hãy thêm mô tả về bản thân để khách hàng hiểu hơn về bạn!"}
                             </span>
                           )}
@@ -1122,7 +1086,7 @@ const TaskerProfile = () => {
                           {tasker.rating ? Number(tasker.rating).toFixed(1) : "0.0"}
                         </div>
                         <div className="tp-stat-label">
-                          <i className="bi bi-star-fill me-1" style={{color: '#f59e0b'}}></i>
+                          <i className="bi bi-star-fill me-1" style={{ color: '#f59e0b' }}></i>
                           Đánh giá
                         </div>
                       </div>
@@ -1133,7 +1097,7 @@ const TaskerProfile = () => {
                           {tasker.reviewCount || 0}
                         </div>
                         <div className="tp-stat-label">
-                          <i className="bi bi-chat-dots me-1" style={{color: '#10b981'}}></i>
+                          <i className="bi bi-chat-dots me-1" style={{ color: '#10b981' }}></i>
                           Lượt đánh giá
                         </div>
                       </div>
@@ -1144,7 +1108,7 @@ const TaskerProfile = () => {
                           {tasker.reliability_score || 100}%
                         </div>
                         <div className="tp-stat-label">
-                          <i className="bi bi-shield-check me-1" style={{color: '#06b6d4'}}></i>
+                          <i className="bi bi-shield-check me-1" style={{ color: '#06b6d4' }}></i>
                           Độ tin cậy
                         </div>
                       </div>
@@ -1156,7 +1120,7 @@ const TaskerProfile = () => {
                         </div>
                         <div className="tp-stat-label">
                           {tasker.status === 'Active' ? (
-                            <><i className="bi bi-lightning-charge me-1" style={{color: '#f59e0b'}}></i>Hoạt động</>
+                            <><i className="bi bi-lightning-charge me-1" style={{ color: '#f59e0b' }}></i>Hoạt động</>
                           ) : (
                             <><i className="bi bi-moon me-1"></i>Tạm nghỉ</>
                           )}
@@ -1178,20 +1142,20 @@ const TaskerProfile = () => {
                         <div>
                           <div className="tp-info-label mb-1">Tình trạng</div>
                           <span className={`badge px-3 py-2 ${tasker.status === 'Active' ? 'bg-success' : 'bg-secondary'}`}
-                            style={{borderRadius: '20px'}}>
+                            style={{ borderRadius: '20px' }}>
                             {tasker.status === 'Active' ? '🟢 Sẵn sàng nhận việc' : '⏸️ Tạm nghỉ'}
                           </span>
                         </div>
                         <div className="text-end">
                           <div className="tp-info-label mb-1">Điểm tin cậy</div>
                           <div className="d-flex align-items-center justify-content-end gap-2">
-                            <div className="progress" style={{width: '80px', height: '8px', borderRadius: '10px'}}>
-                              <div 
-                                className="progress-bar bg-info" 
-                                style={{width: `${tasker.reliability_score || 100}%`, borderRadius: '10px'}}
+                            <div className="progress" style={{ width: '80px', height: '8px', borderRadius: '10px' }}>
+                              <div
+                                className="progress-bar bg-info"
+                                style={{ width: `${tasker.reliability_score || 100}%`, borderRadius: '10px' }}
                               ></div>
                             </div>
-                            <span className="fw-bold" style={{color: '#06b6d4'}}>
+                            <span className="fw-bold" style={{ color: '#06b6d4' }}>
                               {tasker.reliability_score || 100}%
                             </span>
                           </div>
@@ -1207,24 +1171,24 @@ const TaskerProfile = () => {
                       </div>
                       <div className="d-flex align-items-center gap-3">
                         <div className="d-flex align-items-center">
-                          {[1,2,3,4,5].map(star => (
-                            <FontAwesomeIcon 
+                          {[1, 2, 3, 4, 5].map(star => (
+                            <FontAwesomeIcon
                               key={star}
-                              icon={faStar} 
+                              icon={faStar}
                               className={star <= Math.round(tasker.rating || 0) ? "text-warning" : "text-muted"}
-                              style={{fontSize: '18px', marginRight: '2px'}}
+                              style={{ fontSize: '18px', marginRight: '2px' }}
                             />
                           ))}
                         </div>
                         <div>
-                          <span className="fw-bold" style={{fontSize: '18px'}}>
+                          <span className="fw-bold" style={{ fontSize: '18px' }}>
                             {tasker.rating ? Number(tasker.rating).toFixed(1) : "0.0"}
                           </span>
                           <span className="text-muted ms-1">/ 5.0</span>
                         </div>
                       </div>
-                      <div className="text-muted mt-2" style={{fontSize: '14px'}}>
-                        {tasker.reviewCount > 0 
+                      <div className="text-muted mt-2" style={{ fontSize: '14px' }}>
+                        {tasker.reviewCount > 0
                           ? `Dựa trên ${tasker.reviewCount} đánh giá từ khách hàng`
                           : "Chưa có đánh giá nào. Hoàn thành công việc tốt để nhận đánh giá!"
                         }
@@ -1287,235 +1251,232 @@ const TaskerProfile = () => {
 
                 {/* Reviews + Form */}
                 <div className="col-md-8">
+                  {/* Reviews List */}
                   {reviewsData?.reviews?.length > 0 ? (
                     reviewsData.reviews
                       .filter((review) => review) // loại null/undefined
                       .map((review) => (
                         <div
                           key={review.id || Math.random()}
-                          className="card shadow-sm mb-3 p-3"
+                          className="card shadow-sm mb-4 border-0"
+                          style={{ borderRadius: "12px", overflow: "hidden" }}
                         >
-                          <div className="d-flex align-items-start">
-                            {/* Avatar */}
-                            <img
-                              src={
-                                review.avatar || "/images/default-avatar.png"
-                              }
-                              alt={review.name}
-                              className="rounded-circle me-3"
-                              style={{
-                                width: "50px",
-                                height: "50px",
-                                objectFit: "cover",
-                              }}
-                            />
+                          <div className="card-body p-4">
+                            <div className="d-flex align-items-start gap-3">
+                              {/* Avatar */}
+                              <img
+                                src={
+                                  review.avatar || "/images/default-avatar.png"
+                                }
+                                alt={review.name}
+                                className="rounded-circle shadow-sm"
+                                style={{
+                                  width: "60px",
+                                  height: "60px",
+                                  objectFit: "cover",
+                                  border: "2px solid #fff",
+                                }}
+                              />
 
-                            <div className="flex-grow-1">
-                              {/* Header */}
-                              <div className="d-flex align-items-center mb-1">
-                                <strong className="me-2">
-                                  {review?.name || "Ẩn danh"}
-                                </strong>
-                                <span className="badge bg-primary me-2">
-                                  Verified
-                                </span>
-                              </div>
-
-                              {/* Date */}
-                              <small className="text-muted d-block mb-2">
-                                {review.date ? review.date.split("T")[0] : ""}
-                              </small>
-                              <div>
-                                {[1, 2, 3, 4, 5].map((star) => (
-                                  <FontAwesomeIcon
-                                    key={star}
-                                    icon={faStar}
-                                    className={
-                                      star <= (review?.rating || 0)
-                                        ? "text-warning"
-                                        : "text-muted"
-                                    }
-                                  />
-                                ))}
-                              </div>
-
-                              {/* Comment */}
-                              <p className="mb-2">
-                                {review?.text || "Không có nhận xét."}
-                              </p>
-                              {/* Staff Reply */}
-                              {review.staff_reply && (
-                                <div className="mt-2 ms-4 p-2 bg-light border-start border-primary rounded">
-                                  <strong>Phản hồi từ tasker:</strong>{" "}
-                                  <span>{review.staff_reply}</span>
+                              <div className="flex-grow-1">
+                                {/* Header: Name, Verified, Service Badge */}
+                                <div className="d-flex justify-content-between align-items-center mb-2">
+                                  <div>
+                                    <h6 className="fw-bold mb-0 d-flex align-items-center gap-2">
+                                      {review?.name || "Khách hàng ẩn danh"}
+                                      <span
+                                        className="badge bg-success-subtle text-success d-flex align-items-center gap-1"
+                                        style={{ fontSize: '0.75rem', padding: '0.35em 0.65em', borderRadius: '20px' }}
+                                      >
+                                        <FontAwesomeIcon icon={faCheckCircle} /> Verified Purchase
+                                      </span>
+                                    </h6>
+                                    {review.service_name && (
+                                      <span className="text-primary small fw-semibold">
+                                        {review.service_name}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="text-muted small">
+                                    {review.date ? new Date(review.date).toLocaleDateString('vi-VN') : ""}
+                                  </span>
                                 </div>
-                              )}
-                              {/* ✅ Nếu người dùng hiện tại chính là tasker (người được đánh giá) */}
-                              {user?.user_id === review.reviewee_id &&
-                                !review.staff_reply && (
-                                  <div className="mt-3 ms-4 p-2 border rounded bg-light">
-                                    <label className="form-label fw-semibold">
-                                      Phản hồi:
-                                    </label>
-                                    <textarea
-                                      className="form-control mb-2"
-                                      rows="2"
-                                      placeholder="Nhập phản hồi của bạn..."
-                                      value={review.replyDraft || ""}
-                                      onChange={(e) => {
-                                        const updatedReviews =
-                                          reviewsData.reviews.map((r) =>
-                                            r.id === review.id
-                                              ? {
-                                                  ...r,
-                                                  replyDraft: e.target.value,
-                                                }
-                                              : r
-                                          );
-                                        setReviewsData({
-                                          ...reviewsData,
-                                          reviews: updatedReviews,
-                                        });
-                                      }}
+
+                                {/* Rating Stars */}
+                                <div className="mb-3">
+                                  {[1, 2, 3, 4, 5].map((star) => (
+                                    <FontAwesomeIcon
+                                      key={star}
+                                      icon={faStar}
+                                      className={
+                                        star <= (review?.rating || 0)
+                                          ? "text-warning"
+                                          : "text-muted"
+                                      }
+                                      style={{ fontSize: "1rem", marginRight: '2px' }}
                                     />
-                                    <button
-                                      className="btn btn-sm btn-primary"
-                                      onClick={async () => {
-                                        try {
-                                          const res = await fetch(
-                                            `${API_BASE_URL}/ratings/${review.id}/reply`,
-                                            {
-                                              method: "POST",
-                                              headers: {
-                                                "Content-Type":
-                                                  "application/json",
-                                                Authorization: `Bearer ${token}`,
-                                              },
-                                              body: JSON.stringify({
-                                                reply: review.replyDraft,
-                                              }),
-                                            }
-                                          );
+                                  ))}
+                                </div>
 
-                                          if (res.ok) {
-                                            showToast.success("Phản hồi đã được gửi!");
+                                {/* Task Description & Content Wrapper */}
+                                <div className="bg-light rounded p-3 mb-3">
+                                  {/* Task Info Snippet */}
+                                  {review.task_description && (
+                                    <div className="mb-2 pb-2 border-bottom border-white">
+                                      <small className="text-muted d-block text-uppercase fw-bold" style={{ fontSize: '0.7rem' }}>Chi tiết công việc:</small>
+                                      <div className="text-secondary small fst-italic text-truncate" style={{ maxWidth: '100%' }}>
+                                        "{review.task_description}"
+                                      </div>
+                                    </div>
+                                  )}
 
-                                            // 🟢 Cập nhật trực tiếp vào state để hiển thị ngay lập tức
-                                            const updatedReviews =
-                                              reviewsData.reviews.map((r) =>
-                                                r.id === review.id
-                                                  ? {
-                                                      ...r,
-                                                      staff_reply:
-                                                        review.replyDraft,
-                                                    }
-                                                  : r
-                                              );
+                                  {/* User Review Text */}
+                                  <p className="mb-0 text-dark" style={{ fontSize: '0.95rem', lineHeight: '1.5' }}>
+                                    {review?.text || "Không có nhận xét."}
+                                  </p>
+                                </div>
 
-                                            setReviewsData({
-                                              ...reviewsData,
-                                              reviews: updatedReviews,
-                                            });
-
-                                            // (Tuỳ chọn) nếu muốn load lại từ server:
-                                            // const refreshed = await fetch(`${API_BASE_URL}/ratings/${id}`);
-                                            // const updated = await refreshed.json();
-                                            // setReviewsData(updated || { reviews: [] });
-                                          } else {
-                                            const err = await res.json();
-                                            showToast.error(
-                                              `Không thể gửi phản hồi: ${
-                                                err.message ||
-                                                "Lỗi không xác định."
-                                              }`
-                                            );
-                                          }
-                                        } catch (error) {
-                                          console.error(
-                                            "❌ Lỗi khi gửi phản hồi:",
-                                            error
-                                          );
-                                          showToast.error(
-                                            "Lỗi kết nối hoặc máy chủ. Vui lòng thử lại."
-                                          );
-                                        }
-                                      }}
+                                {/* Booking Image (if available) */}
+                                {review.booking_image && (
+                                  <div className="mb-3">
+                                    <div
+                                      className="d-inline-block position-relative rounded overflow-hidden border"
+                                      style={{ width: '200px', height: '150px', cursor: 'zoom-in' }}
+                                      onClick={() => window.open(review.booking_image, '_blank')}
                                     >
-                                      Gửi phản hồi
-                                    </button>
+                                      <img
+                                        src={review.booking_image}
+                                        alt="Kết quả công việc"
+                                        className="w-100 h-100"
+                                        style={{ objectFit: 'cover' }}
+                                      />
+                                      <div className="position-absolute bottom-0 start-0 w-100 bg-dark bg-opacity-50 text-white text-center py-1 small">
+                                        Ảnh xác thực
+                                      </div>
+                                    </div>
                                   </div>
                                 )}
 
-                              {/* Helpful button */}
-                              {user?.user_id !== review.reviewer_id && (
-                                <div className="mt-3 d-flex justify-content-start">
-                                  <button
-                                    className={`btn btn-sm ${
-                                      review.userLiked
-                                        ? "btn-success"
-                                        : "btn-outline-secondary"
-                                    }`}
-                                    style={{
-                                      borderRadius: "20px",
-                                      padding: "4px 12px",
-                                      marginTop: "6px",
-                                    }}
-                                    onClick={async () => {
-                                      try {
-                                        const res = await fetch(
-                                          `${API_BASE_URL}/ratings/${review.id}/helpful`,
-                                          {
-                                            method: "POST",
-                                            headers: createHeaders(token),
-                                          }
-                                        );
+                                {/* Staff Reply */}
+                                {review.staff_reply && (
+                                  <div className="mt-3 ps-3 border-start border-4 border-primary bg-primary-subtle p-3 rounded-end">
+                                    <div className="fw-bold text-primary mb-1 small">Phản hồi từ Tasker:</div>
+                                    <span className="text-dark small">{review.staff_reply}</span>
+                                  </div>
+                                )}
 
-                                        if (!res.ok) {
-                                          const err = await res.json();
-                                          showToast.error(
-                                            err.message ||
-                                              "Không thể cập nhật lượt hữu ích."
+                                {/* Action Buttons */}
+                                <div className="d-flex align-items-center gap-3 mt-3">
+                                  {/* Like Button */}
+                                  {user?.user_id !== review.reviewer_id && (
+                                    <button
+                                      className={`btn btn-sm d-flex align-items-center gap-2 ${review.userLiked
+                                        ? "btn-primary"
+                                        : "btn-outline-secondary border-0 bg-light"
+                                        }`}
+                                      style={{
+                                        borderRadius: "20px",
+                                        padding: "6px 16px",
+                                        transition: 'all 0.2s'
+                                      }}
+                                      onClick={async () => {
+                                        // Logic like cũ
+                                        try {
+                                          const res = await fetch(
+                                            `${API_BASE_URL}/ratings/${review.id}/helpful`,
+                                            {
+                                              method: "POST",
+                                              headers: createHeaders(token),
+                                            }
                                           );
-                                          return;
-                                        }
 
-                                        const data = await res.json();
+                                          if (!res.ok) {
+                                            const err = await res.json();
+                                            showToast.error(err.message || "Lỗi cập nhật.");
+                                            return;
+                                          }
 
-                                        // Update trực tiếp theo backend
-                                        const updatedReviews =
-                                          reviewsData.reviews.map((r) =>
+                                          const data = await res.json();
+                                          const updatedReviews = reviewsData.reviews.map((r) =>
                                             r.id === review.id
-                                              ? {
-                                                  ...r,
-                                                  helpful: data.helpful,
-                                                  userLiked: data.liked,
-                                                }
+                                              ? { ...r, helpful: data.helpful, userLiked: data.liked }
                                               : r
                                           );
 
-                                        setReviewsData({
-                                          ...reviewsData,
-                                          reviews: updatedReviews,
-                                        });
-                                      } catch (error) {
-                                        console.error(
-                                          "❌ Lỗi khi bấm hữu ích:",
-                                          error
-                                        );
-                                        showToast.error("Lỗi kết nối hoặc máy chủ.");
-                                      }
-                                    }}
-                                  >
-                                    👍 Hữu ích ({review.helpful || 0})
-                                  </button>
+                                          setReviewsData({ ...reviewsData, reviews: updatedReviews });
+                                        } catch (error) {
+                                          console.error("Like error:", error);
+                                        }
+                                      }}
+                                    >
+                                      <i className={`bi ${review.userLiked ? 'bi-hand-thumbs-up-fill' : 'bi-hand-thumbs-up'}`}></i>
+                                      <span>Hữu ích ({review.helpful || 0})</span>
+                                    </button>
+                                  )}
                                 </div>
-                              )}
+
+                                {/* Reply Form (Owner only) */}
+                                {user?.user_id === review.reviewee_id && !review.staff_reply && (
+                                  <div className="mt-3 p-3 bg-light rounded border">
+                                    <label className="form-label fw-bold small text-muted">Trả lời đánh giá này:</label>
+                                    <textarea
+                                      className="form-control mb-2 form-control-sm"
+                                      rows="2"
+                                      placeholder="Nhập câu trả lời..."
+                                      value={review.replyDraft || ""}
+                                      onChange={(e) => {
+                                        const updated = reviewsData.reviews.map((r) =>
+                                          r.id === review.id ? { ...r, replyDraft: e.target.value } : r
+                                        );
+                                        setReviewsData({ ...reviewsData, reviews: updated });
+                                      }}
+                                    />
+                                    <div className="text-end">
+                                      <button
+                                        className="btn btn-primary btn-sm rounded-pill px-3"
+                                        onClick={async () => {
+                                          // Logic reply cũ
+                                          try {
+                                            const res = await fetch(
+                                              `${API_BASE_URL}/ratings/${review.id}/reply`,
+                                              {
+                                                method: "POST",
+                                                headers: {
+                                                  "Content-Type": "application/json",
+                                                  Authorization: `Bearer ${token}`,
+                                                },
+                                                body: JSON.stringify({ reply: review.replyDraft }),
+                                              }
+                                            );
+                                            if (res.ok) {
+                                              showToast.success("Đã gửi phản hồi!");
+                                              const updated = reviewsData.reviews.map((r) =>
+                                                r.id === review.id ? { ...r, staff_reply: review.replyDraft } : r
+                                              );
+                                              setReviewsData({ ...reviewsData, reviews: updated });
+                                            } else {
+                                              showToast.error("Gửi thất bại.");
+                                            }
+                                          } catch (e) {
+                                            console.error(e);
+                                          }
+                                        }}
+                                      >
+                                        Gửi trả lời
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
                       ))
                   ) : (
-                    <p>No reviews yet.</p>
+                    <div className="text-center py-5 text-muted">
+                      <FontAwesomeIcon icon={faComments} className="mb-3 display-4 opacity-25" />
+                      <p>Chưa có đánh giá nào cho Tasker này.</p>
+                    </div>
                   )}
 
                   {/* Review Form */}
@@ -1530,11 +1491,10 @@ const TaskerProfile = () => {
                               key={star}
                               icon={faStar}
                               onClick={() => setNewRating(star)}
-                              className={`me-1 cursor-pointer ${
-                                star <= newRating
-                                  ? "text-warning"
-                                  : "text-muted"
-                              }`}
+                              className={`me-1 cursor-pointer ${star <= newRating
+                                ? "text-warning"
+                                : "text-muted"
+                                }`}
                               style={{ cursor: "pointer", fontSize: "1.5rem" }}
                             />
                           ))}
@@ -1577,123 +1537,166 @@ const TaskerProfile = () => {
             {activeTab === "videos" && (
               <div>
                 <div className="d-flex justify-content-between align-items-center mb-3">
-                  <div className="fw-bold">Featured Videos</div>
-                  <div className="text-muted small">Recent Videos</div>
+                  <div className="fw-bold">Danh sách Video</div>
                 </div>
-                <div className="row g-3">
-                  {featuredVideos.map((v) => (
-                    <div key={v.id} className="col-md-4">
-                      <div className="tp-card tp-media-card h-100">
-                        <div className="thumb w-100">
-                          <img src={v.img} alt={v.title} />
-                        </div>
-                        <div className="card-body">
-                          <div className="d-flex justify-content-between align-items-center mb-2">
-                            <div className="time">{v.minutes}</div>
-                            <div className="text-muted small">{v.when}</div>
+
+                {loadingVideos ? (
+                  <div className="text-center py-5">
+                    <div className="spinner-border text-primary" role="status">
+                      <span className="visually-hidden">Loading...</span>
+                    </div>
+                    <div className="mt-2 text-muted">Đang tải video...</div>
+                  </div>
+                ) : videos.length === 0 ? (
+                  <div className="text-center py-5">
+                    <FontAwesomeIcon icon={faEye} className="mb-3 display-4 opacity-25" />
+                    <p className="text-muted">Tasker này chưa có video nào.</p>
+                  </div>
+                ) : (
+                  <div className="row g-3">
+                    {videos.map((v) => (
+                      <div key={v.video_id} className="col-md-6 col-lg-4">
+                        <div className="tp-card tp-media-card h-100 p-0 overflow-hidden border-0 shadow-sm">
+                          <div
+                            className="thumb w-100 bg-dark position-relative"
+                            style={{ paddingTop: '56.25%', cursor: 'pointer' }}
+                            onClick={() => navigate(`/video/${v.video_id}`)}
+                          >
+                            {/* 16:9 Aspect Ratio Container */}
+                            <video
+                              src={v.video_url}
+                              // controls removed
+                              preload="metadata"
+                              className="position-absolute top-0 start-0 w-100 h-100"
+                              style={{ objectFit: 'contain' }}
+                              onMouseOver={(e) => e.target.play()}
+                              onMouseOut={(e) => {
+                                e.target.pause();
+                                e.target.currentTime = 0;
+                              }}
+                              muted
+                              loop
+                            />
                           </div>
-                          <h6 className="fw-semibold mb-2">{v.title}</h6>
-                          <div className="meta">
-                            {v.views} views · {v.likes} like
+                          <div className="card-body p-3">
+                            <div className="d-flex justify-content-between align-items-start mb-2">
+                              <h6 className="fw-semibold mb-0 text-truncate flex-grow-1 me-2" title={v.title}>
+                                {v.title}
+                              </h6>
+                            </div>
+
+                            {v.description && (
+                              <p className="text-muted small text-truncate mb-2" style={{ maxWidth: '100%' }}>
+                                {v.description}
+                              </p>
+                            )}
+
+                            <div className="d-flex justify-content-between align-items-center mt-auto">
+                              <div className="text-muted small" style={{ fontSize: '0.8rem' }}>
+                                <FontAwesomeIcon icon={faCalendarCheck} className="me-1" />
+                                {new Date(v.uploaded_at).toLocaleDateString('vi-VN')}
+                              </div>
+                              <div className="badge bg-light text-dark border">
+                                <FontAwesomeIcon icon={faStar} className="text-warning me-1" />
+                                {v.likes || 0}
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
             {activeTab === "articles" && (
               <div>
-                <h5 className="mb-3">Cleaning Tips & Guides</h5>
-                <div className="p-3 rounded border bg-white mb-4">
-                  <div className="row g-2 align-items-center">
-                    <div className="col-md-8">
-                      <input
-                        className="form-control"
-                        placeholder="Search across, tips, or techniques..."
-                      />
+                <h5 className="mb-3">Bài viết & Chia sẻ kinh nghiệm</h5>
+
+                {loadingArticles ? (
+                  <div className="text-center py-5">
+                    <div className="spinner-border text-primary" role="status">
+                      <span className="visually-hidden">Loading...</span>
                     </div>
-                    <div className="col-md-4 text-md-end">
-                      <div className="d-inline-flex flex-wrap gap-2">
-                        {[
-                          "All Articles",
-                          "Furniture Care",
-                          "Kitchen Tips",
-                          "Bathroom Care",
-                          "Eco-Friendly",
-                        ].map((f) => (
-                          <span
-                            key={f}
-                            className="badge bg-light text-dark border"
-                          >
-                            {f}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
+                    <div className="mt-2 text-muted">Đang tải bài viết...</div>
                   </div>
-                </div>
+                ) : articles.length === 0 ? (
+                  <div className="text-center py-5">
+                    <FontAwesomeIcon icon={faCopy} className="mb-3 display-4 opacity-25" />
+                    <p className="text-muted">Tasker này chưa có bài viết nào.</p>
+                  </div>
+                ) : (
+                  <div className="row g-3">
+                    {articles.map((a) => {
+                      // Parse photo_urls if it's a string (though it should be parsed by model, being safe)
+                      let photos = [];
+                      try {
+                        photos = typeof a.photo_urls === 'string' ? JSON.parse(a.photo_urls) : (a.photo_urls || []);
+                      } catch (e) { photos = []; }
 
-                <div className="fw-semibold mb-2">Featured Articles</div>
-                <div className="row g-3 mb-4">
-                  {featuredArticles.map((a) => (
-                    <div key={a.id} className="col-md-6">
-                      <div className="tp-card tp-media-card h-100">
-                        <div className="thumb w-100" style={{ height: 220 }}>
-                          <img src={a.img} alt={a.title} />
-                        </div>
-                        <div className="card-body">
-                          <div className="d-flex justify-content-between mb-2">
-                            <span className="badge bg-warning-subtle text-warning border">
-                              Featured
-                            </span>
-                            <span className="badge bg-light text-dark border">
-                              {a.category}
-                            </span>
-                          </div>
-                          <h6 className="fw-semibold mb-2">{a.title}</h6>
-                          <div className="meta">
-                            {a.views} views • {a.read}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                      const thumbnail = photos.length > 0 ? photos[0] : "/images/default-blog.jpg";
 
-                <div className="fw-semibold mb-2">All Articles</div>
-                <div className="row g-3">
-                  {moreArticles.map((a) => (
-                    <div key={a.id} className="col-md-3">
-                      <div className="tp-card tp-media-card h-100">
-                        <div className="thumb w-100" style={{ height: 140 }}>
-                          <img src={a.img} alt={a.title} />
-                        </div>
-                        <div className="card-body">
-                          <div className="d-flex justify-content-between mb-1">
-                            <span className="badge bg-light text-dark border">
-                              {a.category}
-                            </span>
-                            <span className="text-muted small">{a.date}</span>
+                      // Remove HTML tags for preview
+                      const previewText = a.content ? a.content.replace(/<[^>]+>/g, '') : "";
+
+                      return (
+                        <div key={a.post_id} className="col-md-6 col-lg-4">
+                          <div className="tp-card tp-media-card h-100 d-flex flex-column" style={{ overflow: 'hidden' }}>
+                            <div
+                              className="thumb w-100 position-relative"
+                              style={{ height: 200, cursor: 'pointer' }}
+                              onClick={() => navigate(`/blog/${a.post_id}`)}
+                            >
+                              <img
+                                src={thumbnail}
+                                alt={a.title}
+                                className="w-100 h-100"
+                                style={{ objectFit: 'cover' }}
+                                onError={(e) => { e.target.src = "https://via.placeholder.com/400x200?text=No+Image" }}
+                              />
+                            </div>
+                            <div className="card-body d-flex flex-column p-3">
+                              <div className="d-flex justify-content-between mb-2">
+                                <span className="text-muted small">
+                                  {new Date(a.post_date || a.created_at).toLocaleDateString('vi-VN')}
+                                </span>
+                                {a.likes > 0 && (
+                                  <span className="text-primary small">
+                                    <i className="bi bi-hand-thumbs-up-fill me-1"></i>{a.likes}
+                                  </span>
+                                )}
+                              </div>
+                              <h6
+                                className="fw-semibold mb-2 text-truncate"
+                                style={{ cursor: 'pointer' }}
+                                onClick={() => navigate(`/blog/${a.post_id}`)}
+                                title={a.title}
+                              >
+                                {a.title}
+                              </h6>
+                              <p className="text-muted small mb-3 flex-grow-1" style={{
+                                display: '-webkit-box',
+                                WebkitLineClamp: 3,
+                                WebkitBoxOrient: 'vertical',
+                                overflow: 'hidden'
+                              }}>
+                                {previewText}
+                              </p>
+
+                              <button
+                                className="btn btn-sm btn-outline-primary w-100 mt-auto"
+                                onClick={() => navigate(`/blog/${a.post_id}`)}
+                              >
+                                Xem chi tiết
+                              </button>
+                            </div>
                           </div>
-                          <div className="fw-semibold small mb-1">
-                            {a.title}
-                          </div>
-                          <div className="meta">
-                            {a.views} views • {a.read}
-                          </div>
                         </div>
-                        <div className="card-footer bg-white border-0 pt-0 pb-3">
-                          <button className="btn btn-sm btn-primary w-100">
-                            Read Full Article
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
 
@@ -1732,7 +1735,7 @@ const TaskerProfile = () => {
                               style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: '50%', border: '2px solid #eee', background: '#fff' }}
                             />
                           ) : (
-                            <div className="rounded-circle bg-light d-flex align-items-center justify-content-center" style={{ width:48, height:48 }}>🏅</div>
+                            <div className="rounded-circle bg-light d-flex align-items-center justify-content-center" style={{ width: 48, height: 48 }}>🏅</div>
                           )}
                           <div className="ms-2 flex-grow-1">
                             <div className="fw-semibold small mb-1" title={b.badge_name}>

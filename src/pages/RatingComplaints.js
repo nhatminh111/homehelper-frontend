@@ -153,6 +153,7 @@ const RatingComplaints = () => {
         </div>
       </div>
 
+
       {/* Main Content */}
       <div className="container py-4">
         {/* Tabs */}
@@ -160,9 +161,8 @@ const RatingComplaints = () => {
           <ul className="nav nav-tabs" id="ratingTabs" role="tablist">
             <li className="nav-item">
               <button
-                className={`nav-link ${
-                  activeTab === "ratings" ? "active" : ""
-                }`}
+                className={`nav-link ${activeTab === "ratings" ? "active" : ""
+                  }`}
                 onClick={() => setActiveTab("ratings")}
               >
                 <FontAwesomeIcon icon={faStar} className="mr-2" />
@@ -171,9 +171,8 @@ const RatingComplaints = () => {
             </li>
             <li className="nav-item">
               <button
-                className={`nav-link ${
-                  activeTab === "complaints" ? "active" : ""
-                }`}
+                className={`nav-link ${activeTab === "complaints" ? "active" : ""
+                  }`}
                 onClick={() => setActiveTab("complaints")}
               >
                 <FontAwesomeIcon
@@ -183,139 +182,104 @@ const RatingComplaints = () => {
                 Complaints
               </button>
             </li>
-            <li className="nav-item">
-              <button
-                className={`nav-link ${
-                  activeTab === "feedback" ? "active" : ""
-                }`}
-                onClick={() => setActiveTab("feedback")}
-              >
-                <FontAwesomeIcon icon={faComments} className="mr-2" />
-                Feedback
-              </button>
-            </li>
           </ul>
 
           <div className="tab-content p-4">
             {/* Ratings Tab */}
             {activeTab === "ratings" && (
               <div className="ratings-content">
-                <div className="d-flex justify-content-between align-items-center mb-3">
+                <div className="d-flex justify-content-between align-items-center mb-4">
                   <h5>Ratings & Reviews</h5>
-                  <button
-                    className="btn btn-primary ml-2"
-                    onClick={() => setShowRatingForm(true)}
-                  >
-                    <FontAwesomeIcon icon={faStar} className="mr-2" />
-                    Submit Rating
-                  </button>
-
-                  <div className="d-flex">
-                    <div
-                      className="input-group mr-2"
-                      style={{ width: "200px" }}
+                  <div className="d-flex gap-2">
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => setShowRatingForm(true)}
                     >
+                      <FontAwesomeIcon icon={faStar} className="mr-2" />
+                      Submit Rating
+                    </button>
+                    <div className="input-group" style={{ width: "250px" }}>
                       <input
                         type="text"
                         className="form-control"
-                        placeholder="Search..."
+                        placeholder="Search reviews..."
                       />
                       <div className="input-group-append">
-                        <button className="btn btn-outline-secondary">
+                        <span className="input-group-text bg-white">
                           <FontAwesomeIcon icon={faSearch} />
-                        </button>
+                        </span>
                       </div>
                     </div>
-                    <button className="btn btn-outline-secondary">
-                      <FontAwesomeIcon icon={faFilter} className="mr-1" />
-                      Filter
-                    </button>
                   </div>
                 </div>
 
                 <div className="ratings-list">
                   {ratings.map((rating) => (
-                    <div key={rating.rating_id} className="rating-card">
-                      <div className="row">
-                        <div className="col-md-8">
-                          <div className="d-flex justify-content-between align-items-start mb-2">
-                            <div>
-                              <h6 className="mb-1">{rating.reviewer_name}</h6>
-                              <p className="text-muted mb-1">
-                                {rating.service_name}
-                              </p>
-                              <small className="text-muted">
-                                <FontAwesomeIcon
-                                  icon={faCalendar}
-                                  className="mr-1"
-                                />
-                                {new Date(
-                                  rating.created_at
-                                ).toLocaleDateString()}
-                              </small>
+                    <div key={rating.rating_id} className="card mb-3 border-0 shadow-sm">
+                      <div className="card-body">
+                        <div className="row">
+                          {/* Reviewer Info & Rating */}
+                          <div className="col-md-9">
+                            <div className="d-flex align-items-start mb-3">
+                              <div className="mr-3">
+                                <div className="rounded-circle bg-light d-flex align-items-center justify-content-center" style={{ width: '50px', height: '50px' }}>
+                                  <span className="font-weight-bold text-secondary">{rating.reviewer_name?.charAt(0) || 'U'}</span>
+                                </div>
+                              </div>
+                              <div>
+                                <h6 className="mb-1 font-weight-bold">{rating.reviewer_name}</h6>
+                                <div className="mb-1">
+                                  {renderStars(rating.rating)}
+                                  <span className="ml-2 text-muted small">
+                                    {new Date(rating.created_at).toLocaleDateString()}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="review-content mb-3 pl-0 pl-md-1">
+                              <p className="mb-0 text-dark">{rating.comment}</p>
+                            </div>
+
+                            {/* Booking Info Box */}
+                            <div className="bg-light p-3 rounded mb-3 border">
+                              <h6 className="small font-weight-bold text-uppercase text-muted mb-2">Booking Details</h6>
+                              <div className="row small">
+                                <div className="col-md-4">
+                                  <strong>Booking ID:</strong> #{rating.booking_id || 'N/A'}
+                                </div>
+                                <div className="col-md-4">
+                                  <strong>Service:</strong> {rating.service_name}
+                                </div>
+                                <div className="col-md-4">
+                                  <strong>Tasker:</strong> {rating.reviewee_name || rating.tasker || 'N/A'}
+                                </div>
+                              </div>
                             </div>
                           </div>
 
-                          <div className="rating-stars mb-2">
-                            {renderStars(rating.rating)}
-                            <span className="ml-2 font-weight-bold">
-                              {rating.rating}/5
-                            </span>
-                          </div>
+                          {/* Actions */}
+                          <div className="col-md-3 border-left">
+                            <div className="d-flex flex-column gap-2 mt-2 mt-md-0">
+                              {isStaff && (
+                                <>
+                                  {Number(rating.status) === 0 && (
+                                    <>
+                                      <button className="btn btn-sm btn-outline-success w-100 mb-2" onClick={() => handleApprove(rating.rating_id)}>
+                                        <FontAwesomeIcon icon={faCheck} className="mr-1" /> Approve
+                                      </button>
+                                      <button className="btn btn-sm btn-outline-danger w-100 mb-2" onClick={() => handleReject(rating.rating_id)}>
+                                        <FontAwesomeIcon icon={faTimes} className="mr-1" /> Reject
+                                      </button>
+                                    </>
+                                  )}
+                                  {Number(rating.status) === 1 && <div className="badge badge-success p-2 w-100 mb-2">Approved</div>}
+                                  {Number(rating.status) === 2 && <div className="badge badge-danger p-2 w-100 mb-2">Rejected</div>}
+                                </>
+                              )}
 
-                          <div className="rating-comment mb-3">
-                            <p className="mb-2">{rating.comment}</p>
-                          </div>
-                        </div>
-                        {console.log(
-                          "CHECK:",
-                          rating.rating_id,
-                          "status:",
-                          rating.status,
-                          "type:",
-                          typeof rating.status,
-                          "role:",
-                          userRole
-                        )}
-
-                        <div className="col-md-4 text-right">
-                          <div className="rating-actions">
-                            <div className="d-flex align-items-center gap-2 mt-2">
-                              {isStaff && (() => {
-                                const statusNum = Number(rating.status);
-                                if (statusNum === 0) {
-                                  return <>
-                                    <button
-                                      className="btn btn-outline-success btn-sm"
-                                      onClick={() => handleApprove(rating.rating_id)}
-                                    >
-                                      Approve
-                                    </button>
-                                    <button
-                                      className="btn btn-outline-danger btn-sm"
-                                      onClick={() => handleReject(rating.rating_id)}
-                                    >
-                                      Reject
-                                    </button>
-                                  </>;
-                                } else if (statusNum === 1) {
-                                  return <span className="badge bg-success d-flex align-items-center p-2">Approved</span>;
-                                } else if (statusNum === 2) {
-                                  return <span className="badge bg-danger d-flex align-items-center p-2">Rejected</span>;
-                                } else {
-                                  return <span className="badge bg-secondary d-flex align-items-center p-2">Pending</span>;
-                                }
-                              })()}
-
-                              <button
-                                className="btn btn-outline-primary btn-sm"
-                                onClick={() => setSelectedRating(rating)}
-                              >
-                                <FontAwesomeIcon
-                                  icon={faEye}
-                                  className="mr-1"
-                                />
-                                View Details
+                              <button className="btn btn-sm btn-outline-primary w-100" onClick={() => setSelectedRating(rating)}>
+                                <FontAwesomeIcon icon={faEye} className="mr-1" /> View Details
                               </button>
                             </div>
                           </div>
@@ -323,6 +287,12 @@ const RatingComplaints = () => {
                       </div>
                     </div>
                   ))}
+                  {ratings.length === 0 && (
+                    <div className="text-center py-5 text-muted">
+                      <FontAwesomeIcon icon={faComments} size="3x" className="mb-3 opacity-50" />
+                      <p>No ratings found.</p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -421,193 +391,125 @@ const RatingComplaints = () => {
                 </div>
               </div>
             )}
-            {/* rating Tab */}
-            {showRatingForm && (
-              <div className="modal-overlay">
-                <div className="modal-content bg-white rounded shadow-lg p-4">
-                  <div className="d-flex justify-content-between align-items-center mb-4">
-                    <h5>Submit Rating</h5>
-                    <button
-                      className="btn btn-sm btn-outline-secondary"
-                      onClick={() => setShowRatingForm(false)}
-                    >
-                      <FontAwesomeIcon icon={faTimes} />
-                    </button>
-                  </div>
-
-                  <form
-                    onSubmit={async (e) => {
-                      e.preventDefault();
-                      await handleSubmitRating(newRating);
-                      setShowRatingForm(false);
-                      fetchRatings();
-                    }}
-                  >
-                    <div className="form-group mb-3">
-                      <label>Booking ID</label>
-                      <input
-                        type="number"
-                        className="form-control"
-                        value={newRating.booking_id}
-                        onChange={(e) =>
-                          setNewRating({
-                            ...newRating,
-                            booking_id: e.target.value,
-                          })
-                        }
-                        required
-                      />
-                    </div>
-                    <div className="form-group mb-3">
-                      <label>Reviewer ID</label>
-                      <input
-                        type="number"
-                        className="form-control"
-                        value={newRating.reviewer_id}
-                        onChange={(e) =>
-                          setNewRating({
-                            ...newRating,
-                            reviewer_id: e.target.value,
-                          })
-                        }
-                        required
-                      />
-                    </div>
-                    <div className="form-group mb-3">
-                      <label>Reviewee ID (Tasker)</label>
-                      <input
-                        type="number"
-                        className="form-control"
-                        value={newRating.reviewee_id}
-                        onChange={(e) =>
-                          setNewRating({
-                            ...newRating,
-                            reviewee_id: e.target.value,
-                          })
-                        }
-                        required
-                      />
-                    </div>
-                    <div className="form-group mb-3">
-                      <label>Rating (1-5)</label>
-                      <input
-                        type="number"
-                        min="1"
-                        max="5"
-                        className="form-control"
-                        value={newRating.rating}
-                        onChange={(e) =>
-                          setNewRating({ ...newRating, rating: e.target.value })
-                        }
-                        required
-                      />
-                    </div>
-                    <div className="form-group mb-3">
-                      <label>Comment</label>
-                      <textarea
-                        className="form-control"
-                        rows="3"
-                        value={newRating.comment}
-                        onChange={(e) =>
-                          setNewRating({
-                            ...newRating,
-                            comment: e.target.value,
-                          })
-                        }
-                        required
-                      />
-                    </div>
-
-                    <div className="text-right">
-                      <button
-                        type="button"
-                        className="btn btn-secondary mr-2"
-                        onClick={() => setShowRatingForm(false)}
-                      >
-                        Cancel
-                      </button>
-                      <button type="submit" className="btn btn-primary">
-                        <FontAwesomeIcon icon={faPaperPlane} className="mr-2" />
-                        Submit Rating
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              </div>
-            )}
-
-            {/* Feedback Tab */}
-            {activeTab === "feedback" && (
-              <div className="feedback-content">
-                <h5 className="mb-3">System Feedback</h5>
-
-                <div className="row">
-                  <div className="col-md-6">
-                    <div className="feedback-form bg-light rounded p-4">
-                      <h6>Submit Feedback</h6>
-                      <form>
-                        <div className="form-group mb-3">
-                          <label>Feedback Type</label>
-                          <select className="form-control">
-                            <option>General Feedback</option>
-                            <option>Bug Report</option>
-                            <option>Feature Request</option>
-                            <option>Improvement Suggestion</option>
-                          </select>
-                        </div>
-                        <div className="form-group mb-3">
-                          <label>Subject</label>
-                          <input
-                            type="text"
-                            className="form-control"
-                            placeholder="Brief description"
-                          />
-                        </div>
-                        <div className="form-group mb-3">
-                          <label>Description</label>
-                          <textarea
-                            className="form-control"
-                            rows="4"
-                            placeholder="Detailed feedback..."
-                          ></textarea>
-                        </div>
-                        <button type="submit" className="btn btn-primary">
-                          <FontAwesomeIcon
-                            icon={faPaperPlane}
-                            className="mr-2"
-                          />
-                          Submit Feedback
-                        </button>
-                      </form>
-                    </div>
-                  </div>
-                  <div className="col-md-6">
-                    <div className="feedback-stats">
-                      <h6>Feedback Statistics</h6>
-                      <div className="stat-item d-flex justify-content-between align-items-center p-3 border-bottom">
-                        <span>Total Feedback</span>
-                        <strong>156</strong>
-                      </div>
-                      <div className="stat-item d-flex justify-content-between align-items-center p-3 border-bottom">
-                        <span>Resolved</span>
-                        <strong className="text-success">142</strong>
-                      </div>
-                      <div className="stat-item d-flex justify-content-between align-items-center p-3 border-bottom">
-                        <span>Pending</span>
-                        <strong className="text-warning">14</strong>
-                      </div>
-                      <div className="stat-item d-flex justify-content-between align-items-center p-3">
-                        <span>Response Time</span>
-                        <strong>2.3 days</strong>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>
+
+
+      {/* Rating Form Modal */}
+      {showRatingForm && (
+        <div className="modal-overlay">
+          <div className="modal-content bg-white rounded shadow-lg p-4">
+            <div className="d-flex justify-content-between align-items-center mb-4">
+              <h5>Submit Rating</h5>
+              <button
+                className="btn btn-sm btn-outline-secondary"
+                onClick={() => setShowRatingForm(false)}
+              >
+                <FontAwesomeIcon icon={faTimes} />
+              </button>
+            </div>
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                await handleSubmitRating(newRating);
+                setShowRatingForm(false);
+                fetchRatings();
+              }}
+            >
+              <div className="form-group mb-3">
+                <label>Booking ID</label>
+                <input
+                  type="number"
+                  className="form-control"
+                  value={newRating.booking_id}
+                  onChange={(e) =>
+                    setNewRating({
+                      ...newRating,
+                      booking_id: e.target.value,
+                    })
+                  }
+                  required
+                />
+              </div>
+              <div className="form-group mb-3">
+                <label>Reviewer ID</label>
+                <input
+                  type="number"
+                  className="form-control"
+                  value={newRating.reviewer_id}
+                  onChange={(e) =>
+                    setNewRating({
+                      ...newRating,
+                      reviewer_id: e.target.value,
+                    })
+                  }
+                  required
+                />
+              </div>
+              <div className="form-group mb-3">
+                <label>Reviewee ID (Tasker)</label>
+                <input
+                  type="number"
+                  className="form-control"
+                  value={newRating.reviewee_id}
+                  onChange={(e) =>
+                    setNewRating({
+                      ...newRating,
+                      reviewee_id: e.target.value,
+                    })
+                  }
+                  required
+                />
+              </div>
+              <div className="form-group mb-3">
+                <label>Rating (1-5)</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="5"
+                  className="form-control"
+                  value={newRating.rating}
+                  onChange={(e) =>
+                    setNewRating({ ...newRating, rating: e.target.value })
+                  }
+                  required
+                />
+              </div>
+              <div className="form-group mb-3">
+                <label>Comment</label>
+                <textarea
+                  className="form-control"
+                  rows="3"
+                  value={newRating.comment}
+                  onChange={(e) =>
+                    setNewRating({
+                      ...newRating,
+                      comment: e.target.value,
+                    })
+                  }
+                  required
+                />
+              </div>
+
+              <div className="text-right">
+                <button
+                  type="button"
+                  className="btn btn-secondary mr-2"
+                  onClick={() => setShowRatingForm(false)}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  <FontAwesomeIcon icon={faPaperPlane} className="mr-2" />
+                  Submit Rating
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Rating Detail Modal */}
       {selectedRating && (

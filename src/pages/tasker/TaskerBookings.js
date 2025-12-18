@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Button, Badge, Spinner, Alert, Toast } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
-import api from '../../services/api';
 import socketService from '../../services/socketService';
+import api from '../../services/api';
+
 
 export default function TaskerBookings() {
   const navigate = useNavigate();
@@ -193,7 +194,22 @@ export default function TaskerBookings() {
   };
 
   const handleBookingClick = (booking) => {
-    // Navigate to preview page with booking data
+    // Nếu đang chờ khách hoặc admin xác nhận → vào trang job done
+    if (booking.status === "Chờ xác nhận") {
+      return navigate(`/tasker/bookings/${booking.booking_id}/jobdone`, {
+        state: { booking }
+      });
+    }
+
+    // Nếu đang trong quá trình → vào progress
+    if (booking.status === "Đang tiến hành") {
+      return navigate(`/tasker/bookings/${booking.booking_id}/progress`, {
+        replace: true,
+        state: { booking }
+      });
+    }
+
+    // Các trạng thái còn lại → vào trang detail như cũ
     navigate(`/tasker/bookings/${booking.booking_id}`, {
       state: { booking }
     });
@@ -217,13 +233,10 @@ export default function TaskerBookings() {
   const getTimeRemaining = (expiresAt) => {
     if (!expiresAt) return null;
 
-    // BƯỚC FIX: Luôn hiểu chuỗi là UTC (có Z hoặc không có Z đều ok)
-    let expiresAtStr = expiresAt.trim();
-    if (!expiresAtStr.endsWith('Z')) {
-      expiresAtStr += 'Z';  // Thêm Z để ép JavaScript hiểu là UTC
-    }
-
-    const expires = new Date(expiresAtStr);
+    // Parse timestamp directly. 
+    // Socket sends UTC (ending in Z), API sends Local (no Z).
+    // Browser handles both correctly if we don't force Z.
+    const expires = new Date(expiresAt);
     const now = new Date();
 
     const diffMs = expires.getTime() - now.getTime();
@@ -430,11 +443,6 @@ export default function TaskerBookings() {
                         {booking.type === 'SOS' ? (
                           <>
                             <Badge bg="danger">🔥 SOS</Badge>
-                            {booking.sos_expires_at && (
-                              <Badge bg="warning" text="dark" className="ms-1">
-                                ⏱️ {refreshTrigger && getTimeRemaining(booking.sos_expires_at)}
-                              </Badge>
-                            )}
                           </>
                         ) : null}
                         {getStatusBadge(booking.status)}
@@ -506,9 +514,11 @@ export default function TaskerBookings() {
                       <div className="bg-success bg-opacity-10 rounded-3 p-2 text-center">
                         <h5 className="fw-bold text-success mb-0">
                           {formatPrice(
-                            booking.final_price > 0
-                              ? booking.final_price
-                              : booking.expected_price
+                            booking.paid_amount > 0
+                              ? booking.paid_amount
+                              : booking.final_price > 0
+                                ? booking.final_price
+                                : booking.expected_price
                           )}
                         </h5>
                         <small className="text-muted">Giá</small>
