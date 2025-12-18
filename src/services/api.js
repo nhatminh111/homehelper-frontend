@@ -1,6 +1,9 @@
 const API_BASE_URL =
   process.env.REACT_APP_API_URL || "http://localhost:3001/api";
 
+const PYTHON_OCR_URL =
+  process.env.REACT_APP_PYTHON_OCR_URL || "http://localhost:8080";
+
 // Helper function để tạo headers với token
 const createHeaders = (token = null, isFormData = false) => {
   const headers = {};
@@ -356,7 +359,7 @@ export const pythonOCRAPI = {
     form.append('file', frontImage);
 
     // Bước 1: Upload ảnh
-    const uploadResponse = await fetch('http://localhost:8080/uploader', {
+    const uploadResponse = await fetch(`${PYTHON_OCR_URL}/uploader`, {
       method: 'POST',
       body: form,
     });
@@ -366,7 +369,7 @@ export const pythonOCRAPI = {
     }
 
     // Bước 2: Extract thông tin
-    const extractResponse = await fetch('http://localhost:8080/extract', {
+    const extractResponse = await fetch(`${PYTHON_OCR_URL}/extract`, {
       method: 'POST',
     });
 
@@ -389,7 +392,7 @@ export const pythonOCRAPI = {
     };
 
     // Lấy ảnh từ thư mục results (giống web interface gốc)
-    const faceImageUrl = 'http://localhost:8080/static/results/0.jpg';
+    const faceImageUrl = `${PYTHON_OCR_URL}/static/results/0.jpg`;
 
     return {
       success: true,
@@ -401,7 +404,7 @@ export const pythonOCRAPI = {
   },
   // Health check for Python OCR
   healthCheck: async () => {
-    const response = await fetch('http://localhost:8080/api/ocr/health');
+    const response = await fetch(`${PYTHON_OCR_URL}/api/ocr/health`);
     const data = await response.json();
     if (!response.ok) {
       throw new Error('Python OCR service not available');

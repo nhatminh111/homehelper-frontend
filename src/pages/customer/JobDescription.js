@@ -158,7 +158,7 @@ export default function JobDescription() {
 
       // ✅ Gửi request POST tạo Booking + Task
       const token = user.token;
-      const res = await fetch("http://localhost:3001/api/bookings", {
+      const res = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/bookings`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -687,7 +687,7 @@ export default function JobDescription() {
                                 try {
                                   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
-                                  const res = await fetch("http://localhost:3001/api/uploads/post-images", {
+                                  const res = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/uploads/post-images`, {
                                     method: "POST",
                                     headers: {
                                       'Authorization': `Bearer ${user.token}`

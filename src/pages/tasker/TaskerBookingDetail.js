@@ -246,7 +246,7 @@ export default function TaskerBookingDetail() {
         try {
           console.log(`🔍 Checking SOS availability for booking ${booking_id}...`);
           const checkRes = await fetch(
-            `http://localhost:3001/api/bookings/${booking_id}/sos-check`,
+            `${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/bookings/${booking_id}/sos-check`,
             {
               headers: {
                 'Authorization': `Bearer ${token}`,
@@ -274,8 +274,8 @@ export default function TaskerBookingDetail() {
       // If check passed or not SOS, proceed with accepting
       const isSosAccept = (type === 'SOS' && newStatus === 'Đã chấp nhận');
       const endpoint = isSosAccept
-        ? `http://localhost:3001/api/bookings/${booking_id}/status-sos`
-        : `http://localhost:3001/api/bookings/${booking_id}/status`;
+        ? `${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/bookings/${booking_id}/status-sos`
+        : `${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/bookings/${booking_id}/status`;
 
       const response = await fetch(
         endpoint,
@@ -412,7 +412,7 @@ export default function TaskerBookingDetail() {
       const token = api.getStoredToken();
 
       const res = await fetch(
-        `http://localhost:3001/api/bookings/${booking.booking_id}/cancel`,
+        `${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/bookings/${booking.booking_id}/cancel`,
         {
           method: "POST",
           headers: {
