@@ -570,22 +570,24 @@ export default function CustomerBookingDetail() {
             margin-bottom: 16px;
         }
       `}</style>
-            {booking?.status === "Chờ xác nhận" ? (
+            {(booking?.status === "Chờ xác nhận" || booking?.status === "Đang tiến hành") ? (
                 <Container className="py-4">
 
                     {/* ===================== TITLE ===================== */}
                     <div className="mb-4">
                         <h2 className="fw-bold text-dark" style={{ letterSpacing: "-0.5px" }}>
-                            Xác nhận công việc Tasker đã hoàn thành
+                            {booking?.status === "Chờ xác nhận" ? "Xác nhận công việc hoàn thành" : "Tiến độ công việc thực tế"}
                         </h2>
                         <p className="text-muted mt-1" style={{ fontSize: "0.95rem" }}>
-                            Vui lòng xem hình ảnh – checklist – ghi chú trước khi xác nhận.
+                            {booking?.status === "Chờ xác nhận"
+                                ? "Vui lòng xem hình ảnh – checklist – ghi chú trước khi xác nhận."
+                                : "Theo dõi sát sao tiến độ làm việc của người giúp việc theo từng mốc thời gian."}
                         </p>
                     </div>
 
 
-                    <Row className="justify-content-center">
-                        <Col lg={10}>
+                    <Row className="g-4">
+                        <Col lg={8}>
                             {/* === WORK DETAIL CARD === */}
                             <Card className="shadow-sm border-0 rounded-4 mb-4">
                                 <Card.Body className="p-4">
@@ -628,8 +630,8 @@ export default function CustomerBookingDetail() {
                                                                         <Badge bg="success">Đã hoàn thành</Badge>
                                                                     </div>
                                                                     <div className="d-flex gap-4 text-muted small">
-                                                                        <div><i className="bi bi-box-arrow-in-right me-1"></i> Check-in: <strong>{formatTimeHHMM(session.checkIn)}</strong></div>
-                                                                        <div><i className="bi bi-box-arrow-left me-1"></i> Check-out: <strong>{formatTimeHHMM(session.checkOut)}</strong></div>
+                                                                        <div><i className="bi bi-box-arrow-in-right me-1"></i> Check-in: <strong>{formatTimeHHMM(session?.checkIn)}</strong></div>
+                                                                        <div><i className="bi bi-box-arrow-left me-1"></i> Check-out: <strong>{formatTimeHHMM(session?.checkOut)}</strong></div>
                                                                     </div>
                                                                 </Card.Body>
                                                             </Card>
@@ -707,12 +709,17 @@ export default function CustomerBookingDetail() {
 
                                                 return (
                                                     <div>
-                                                        {singleSession && (
+                                                        {(singleSession || startDate) && (
                                                             <Card className="mb-3 border-0 bg-light">
                                                                 <Card.Body>
+                                                                    {startDate && (
+                                                                        <div className="fw-bold fs-5 mb-2">
+                                                                            {formatDateTimeForDay.format(startDate)}
+                                                                        </div>
+                                                                    )}
                                                                     <div className="d-flex gap-4 text-muted small">
-                                                                        <div><i className="bi bi-box-arrow-in-right me-1"></i> Check-in: <strong>{formatTimeHHMM(singleSession.checkIn)}</strong></div>
-                                                                        <div><i className="bi bi-box-arrow-left me-1"></i> Check-out: <strong>{formatTimeHHMM(singleSession.checkOut)}</strong></div>
+                                                                        <div><i className="bi bi-box-arrow-in-right me-1"></i> Check-in: <strong>{formatTimeHHMM(singleSession?.checkIn)}</strong></div>
+                                                                        <div><i className="bi bi-box-arrow-left me-1"></i> Check-out: <strong>{formatTimeHHMM(singleSession?.checkOut)}</strong></div>
                                                                     </div>
                                                                 </Card.Body>
                                                             </Card>
@@ -781,17 +788,156 @@ export default function CustomerBookingDetail() {
                                         )}
                                     </div>
 
-                                    {/* === ACTION BUTTONS === */}
-                                    <div className="d-flex justify-content-center gap-3 mt-5">
-                                        <Button variant="success" size="lg" className="px-5 rounded-pill fw-bold" onClick={handleConfirmComplete}>
-                                            ✔ Xác nhận hoàn thành
-                                        </Button>
-                                        <Button variant="outline-danger" size="lg" className="px-5 rounded-pill fw-bold" onClick={() => setShowPopup(true)}>
-                                            ❌ Báo cáo / Khiếu nại
-                                        </Button>
-                                    </div>
+                                    {/* === ACTION BUTTONS (Only for Confirmation) === */}
+                                    {booking?.status === "Chờ xác nhận" && (
+                                        <div className="d-flex justify-content-center gap-3 mt-5">
+                                            <Button variant="success" size="lg" className="px-5 rounded-pill fw-bold" onClick={handleConfirmComplete}>
+                                                ✔ Xác nhận hoàn thành
+                                            </Button>
+                                            <Button variant="outline-danger" size="lg" className="px-5 rounded-pill fw-bold" onClick={() => setShowPopup(true)}>
+                                                ❌ Báo cáo / Khiếu nại
+                                            </Button>
+                                        </div>
+                                    )}
+
+                                    {booking?.status === "Đang tiến hành" && (
+                                        <div className="d-flex justify-content-center gap-3 mt-5">
+                                            <Button variant="outline-danger" size="lg" className="px-5 rounded-pill fw-bold" onClick={() => setShowPopup(true)}>
+                                                ❌ Báo cáo / Khiếu nại
+                                            </Button>
+                                        </div>
+                                    )}
                                 </Card.Body>
                             </Card>
+                        </Col>
+
+                        {/* === SIDEBAR (Like Admin) === */}
+                        <Col lg={4}>
+                            <div className="sticky-top" style={{ top: "2rem" }}>
+                                <Card className="border-0 shadow-sm mb-4 rounded-4 overflow-hidden">
+                                    <Card.Body className="p-4">
+                                        <h5 className="fw-bold mb-3">Tóm tắt đơn hàng</h5>
+                                        <hr />
+
+                                        <div className="mb-3">
+                                            <label className="text-muted small mb-1">Trạng thái booking</label>
+                                            <div>
+                                                <Badge bg={status === "Đang tiến hành" ? "primary" : "success"} className="px-3 py-2 text-uppercase">
+                                                    {status}
+                                                </Badge>
+                                            </div>
+                                        </div>
+
+                                        <div className="mb-3">
+                                            <label className="text-muted small fw-bold text-uppercase mb-1 border-start border-primary border-3 ps-2">Vị trí công việc</label>
+                                            <p className="mb-0 small fw-medium mt-1">{booking.location}</p>
+                                        </div>
+
+                                        <div className="mb-3">
+                                            <label className="text-muted small fw-bold text-uppercase mb-1 border-start border-primary border-3 ps-2">Thời gian dự kiến</label>
+                                            <div className="mt-1">
+                                                {startDate ? (
+                                                    <div className="small fw-medium">
+                                                        <div className="d-flex align-items-center gap-2 mb-1">
+                                                            <i className="bi bi-clock text-primary"></i>
+                                                            {startDate.toLocaleTimeString("vi-VN", { hour: '2-digit', minute: '2-digit' })} - {endDate ? endDate.toLocaleTimeString("vi-VN", { hour: '2-digit', minute: '2-digit' }) : "—"}
+                                                        </div>
+                                                        <div className="d-flex align-items-center gap-2 text-muted">
+                                                            <i className="bi bi-calendar-event"></i>
+                                                            {isMultiDay ? (
+                                                                <>
+                                                                    {startDate.toLocaleDateString("vi-VN")} - {endDate ? endDate.toLocaleDateString("vi-VN") : "—"}
+                                                                    <Badge bg="secondary" className="ms-2" style={{ fontSize: '0.7rem' }}>
+                                                                        {booking.total_sessions} ngày
+                                                                    </Badge>
+                                                                </>
+                                                            ) : (
+                                                                startDate.toLocaleDateString("vi-VN")
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ) : "—"}
+                                            </div>
+                                        </div>
+
+                                        {booking.description && (
+                                            <div className="mb-3">
+                                                <label className="text-muted small fw-bold text-uppercase mb-1 border-start border-primary border-3 ps-2">Ghi chú từ bạn</label>
+                                                <p className="mb-0 small text-muted mt-1" style={{ fontSize: '0.85rem', whiteSpace: 'pre-wrap' }}>{booking.description}</p>
+                                            </div>
+                                        )}
+
+                                        <hr />
+                                        <h6 className="fw-bold mb-3">Chi tiết thanh toán</h6>
+                                        <div className="bg-light p-3 rounded-3 shadow-sm border">
+                                            {(() => {
+                                                const qty = Number(booking?.quantity || 1);
+                                                let unitPrice = 0;
+                                                let rawTotal = 0;
+
+                                                if (booking?.final_price && Number(booking.final_price) > 0) {
+                                                    unitPrice = Number(booking.final_price);
+                                                } else {
+                                                    unitPrice = Number(booking?.expected_price || 0);
+                                                }
+                                                rawTotal = unitPrice * qty;
+
+                                                return (
+                                                    <>
+                                                        <div className="mb-2">
+                                                            <div className="d-flex justify-content-between small text-muted mb-1">
+                                                                <span>Đơn giá:</span>
+                                                                <span>{formatVND(unitPrice)} / {getDisplayUnit(booking?.unit)}</span>
+                                                            </div>
+                                                            {qty > 1 && (
+                                                                <div className="d-flex justify-content-between small text-muted mb-1">
+                                                                    <span>Số lượng:</span>
+                                                                    <span>{qty} {getDisplayUnit(booking?.unit)}</span>
+                                                                </div>
+                                                            )}
+                                                            <div className="d-flex justify-content-between small fw-bold text-dark mb-1">
+                                                                <span>Tổng tiền:</span>
+                                                                <span>{formatVND(rawTotal)}</span>
+                                                            </div>
+                                                        </div>
+
+                                                        {booking.paid_amount < rawTotal && booking.paid_amount > 0 && (
+                                                            <div className="d-flex justify-content-between small text-success mb-1">
+                                                                <span>Đã giảm giá:</span>
+                                                                <span>-{formatVND(rawTotal - booking.paid_amount)}</span>
+                                                            </div>
+                                                        )}
+
+                                                        <hr className="my-2" />
+                                                        <div className="d-flex justify-content-between align-items-center">
+                                                            <span className="fw-bold text-uppercase small" style={{ fontSize: '0.7rem' }}>Giá cuối cùng:</span>
+                                                            <span className="fs-5 fw-bold text-danger">
+                                                                {formatVND(booking.paid_amount || rawTotal)}
+                                                            </span>
+                                                        </div>
+
+                                                        {booking.paid_amount > 0 && (
+                                                            <div className="text-end mt-1">
+                                                                <Badge bg="success" className="px-2 py-1" style={{ fontSize: '0.7rem' }}>
+                                                                    <i className="bi bi-check-circle-fill me-1"></i> ĐÃ THANH TOÁN
+                                                                </Badge>
+                                                            </div>
+                                                        )}
+                                                    </>
+                                                );
+                                            })()}
+                                        </div>
+                                    </Card.Body>
+                                </Card>
+
+                                <Button
+                                    variant="outline-secondary"
+                                    className="w-100 py-3 rounded-4 fw-bold shadow-sm bg-white"
+                                    onClick={() => navigate("/customer/bookings")}
+                                >
+                                    ← Quay lại danh sách
+                                </Button>
+                            </div>
                         </Col>
                     </Row>
 
@@ -1110,19 +1256,6 @@ export default function CustomerBookingDetail() {
                                 </>
                             )}
 
-                            {(status === "Chờ xử lý" || status === "Đã chấp nhận" || type === "SOS") && (
-                                <Button
-                                    variant="primary"
-                                    size="lg"
-                                    className="px-5 fw-semibold"
-                                    style={{ borderRadius: "10px", minWidth: "160px" }}
-                                    onClick={() => {
-                                        window.location.href = `/chat?bookingId=${booking_id}&peer=${booking.tasker_id}`;
-                                    }}
-                                >
-                                    💬 Chat với người giúp việc
-                                </Button>
-                            )}
 
                             {status === "Hoàn thành" && (
                                 <Button

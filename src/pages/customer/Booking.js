@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect, useRef } from "react";
-import { Container, Row, Col, Card, Badge, Form, Button, Accordion, ProgressBar, Spinner, InputGroup, FileText } from "react-bootstrap";
+import { Container, Row, Col, Card, Badge, Form, Button, Accordion, ProgressBar, Spinner, InputGroup } from "react-bootstrap";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 import { servicesAPI } from "../../services/api";
@@ -8,6 +8,21 @@ import { useNavigate, useLocation, useParams } from "react-router-dom";
 import TaskerService from '../../services/taskerService';
 import _ from "lodash";
 import { formatVND } from "../../utils/formatVND";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+    Star,
+    ShieldCheck,
+    Award,
+    User,
+    Phone,
+    Mail,
+    MapPin,
+    Trophy,
+    CheckCircle2,
+    MessageSquare,
+    ChevronRight,
+    Info
+} from "lucide-react";
 
 function normalizeDate(d) {
     if (!d) return null;
@@ -41,6 +56,18 @@ export default function Booking() {
     const [previewImages, setPreviewImages] = useState([]);
 
     const [loadingServices, setLoadingServices] = useState(true);
+
+    const age = useMemo(() => {
+        if (!tasker?.date_of_birth) return null;
+        const birthDate = new Date(tasker.date_of_birth);
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const m = today.getMonth() - birthDate.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
+        }
+        return age;
+    }, [tasker?.date_of_birth]);
 
     // Moved up: selection state must exist before any useEffect dependencies referencing it
     const defaultSelection = () => ({
@@ -557,32 +584,154 @@ export default function Booking() {
         <Container className="py-4">
             <Row className="justify-content-center">
                 <Col lg={8}>
-                    {/* Header Provider Card (GIỮ NGUYÊN TIẾNG ANH) */}
-                    <Card
-                        className="shadow-sm border-0 mb-4 provider-card"
-                        style={{ borderRadius: 16, marginTop: "20px", transition: "transform 0.2s, box-shadow 0.2s" }}
-                    >
-                        {tasker && (
-                            <Card.Body className="d-flex align-items-center gap-3">
-                                <img
-                                    src={tasker.avatar || "https://i.pravatar.cc/80"}
-                                    alt="avatar"
-                                    width={56}
-                                    height={56}
-                                    className="rounded-circle object-fit-cover"
-                                />
-                                <div className="flex-grow-1">
-                                    <div className="d-flex align-items-center gap-2">
-                                        <h5 className="mb-0">{tasker.name}</h5>
-                                        <Badge bg="primary" className="rounded-pill">Verified</Badge>
+                    {/* Tasker Profile Hero Section */}
+                    {tasker && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.5 }}
+                        >
+                            <Card className="shadow-sm border-0 mb-4 overflow-hidden" style={{ borderRadius: 24 }}>
+                                <div style={{ height: 100, background: "linear-gradient(135deg, #169c98 0%, #007bff 100%)", opacity: 0.8 }}></div>
+                                <Card.Body className="pt-0 px-4 pb-4">
+                                    <div className="d-flex flex-column flex-md-row gap-4 align-items-start" style={{ marginTop: -40 }}>
+                                        <div className="position-relative">
+                                            <img
+                                                src={tasker.avatar || "https://i.pravatar.cc/120"}
+                                                alt={tasker.name}
+                                                style={{
+                                                    width: 120,
+                                                    height: 120,
+                                                    border: "5px solid white",
+                                                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                                                    objectFit: "cover"
+                                                }}
+                                                className="rounded-circle"
+                                            />
+                                            <div className="position-absolute bottom-0 right-0 p-1 bg-white rounded-circle shadow-sm" style={{ bottom: 10, right: 10 }}>
+                                                <Badge bg="success" className="p-1 rounded-circle">
+                                                    <CheckCircle2 size={12} color="white" />
+                                                </Badge>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex-grow-1 pt-md-5">
+                                            <div className="d-flex flex-wrap align-items-center gap-2 mb-1">
+                                                <h3 className="fw-bold mb-0 text-dark">{tasker.name}</h3>
+                                                <Badge bg="primary" style={{ backgroundColor: "rgba(0, 123, 255, 0.1) !important", color: "#ffffffff", fontWeight: 600, padding: "6px 12px" }} className="rounded-pill d-flex align-items-center gap-1 border-0">
+                                                    <ShieldCheck size={14} /> {tasker.cccd_status === 'Verified' ? 'Đã xác minh' : 'Xác thực'}
+                                                </Badge>
+                                                {tasker.reliability_score >= 90 && (
+                                                    <Badge bg="success" style={{ backgroundColor: "rgba(40, 167, 69, 0.1) !important", color: "#ffffffff", fontWeight: 600, padding: "6px 12px" }} className="rounded-pill d-flex align-items-center gap-1 border-0">
+                                                        <Trophy size={14} /> Uy tín cao
+                                                    </Badge>
+                                                )}
+                                            </div>
+
+                                            <div className="d-flex flex-wrap gap-2 text-muted mb-3 small">
+                                                <div className="d-flex align-items-center gap-1 me-2">
+                                                    <Mail size={14} className="text-primary" />
+                                                    <span>{tasker.email}</span>
+                                                </div>
+                                                <div className="d-flex align-items-center gap-1 me-2">
+                                                    <Phone size={14} className="text-success" />
+                                                    <span>{tasker.phone}</span>
+                                                </div>
+                                                {age && (
+                                                    <div className="d-flex align-items-center gap-1 me-2">
+                                                        <User size={14} className="text-info" />
+                                                        <span>{age} tuổi</span>
+                                                    </div>
+                                                )}
+                                                {tasker.points > 0 && (
+                                                    <div className="d-flex align-items-center gap-1">
+                                                        <Trophy size={14} className="text-warning" />
+                                                        <span className="text-dark fw-bold">{tasker.points} điểm</span>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <div className="d-flex flex-wrap gap-3 text-muted mb-3">
+                                                <div className="d-flex align-items-center gap-1">
+                                                    <Star size={16} fill="#ffc107" color="#ffc107" />
+                                                    <span className="fw-bold text-dark">{tasker.rating || 0}</span>
+                                                    <span>({tasker.reviewCount || 0} đánh giá)</span>
+                                                </div>
+                                                <div className="d-flex align-items-center gap-1">
+                                                    <Award size={16} color="#169c98" />
+                                                    <span>{tasker.certifications || "Chưa cập nhật chứng chỉ"}</span>
+                                                </div>
+                                            </div>
+
+                                            <div className="text-dark mb-3" style={{ maxWidth: 600, whiteSpace: "pre-line", fontSize: "0.95rem" }}>
+                                                {tasker.Introduce || tasker.bio || "Rất hân hạnh được phục vụ quý khách!"}
+                                            </div>
+
+                                            {/* Quick Stats Grid */}
+                                            {/* <Row className="g-2 mt-2">
+                                                <Col xs={6} md={3}>
+                                                    <div className="p-2 rounded-3 border bg-light text-center">
+                                                        <small className="text-muted d-block">Tin cậy</small>
+                                                        <span className="fw-bold text-primary">{tasker.reliability_score || 0}%</span>
+                                                    </div>
+                                                </Col>
+                                                <Col xs={6} md={3}>
+                                                    <div className="p-2 rounded-3 border bg-light text-center">
+                                                        <small className="text-muted d-block">Hoàn thành</small>
+                                                        <span className="fw-bold text-success">98%</span>
+                                                    </div>
+                                                </Col>
+                                            </Row> */}
+                                        </div>
                                     </div>
-                                    <div className="text-muted small mt-1">
-                                        ⭐ {tasker.rating} ({tasker.reviews} reviews)
-                                    </div>
-                                </div>
-                            </Card.Body>
-                        )}
-                    </Card>
+
+                                    {/* Detailed Reviews Expandable Section */}
+                                    {/* {tasker.reviews && tasker.reviews.length > 0 && (
+                                        <div className="mt-4 border-top pt-4">
+                                            <Accordion flush className="review-accordion">
+                                                <Accordion.Item eventKey="0" className="border-0">
+                                                    <Accordion.Header className="px-0">
+                                                        <div className="d-flex align-items-center gap-2">
+                                                            <MessageSquare size={18} className="text-primary" />
+                                                            <span className="fw-bold">Xem các đánh giá từ khách hàng ({tasker.reviews.length})</span>
+                                                        </div>
+                                                    </Accordion.Header>
+                                                    <Accordion.Body className="px-0 pt-3">
+                                                        <div className="d-flex flex-column gap-3">
+                                                            {tasker.reviews.map((rev, idx) => (
+                                                                <div key={idx} className="p-3 rounded-4 border bg-white shadow-sm hover-shadow" style={{ transition: "all 0.2s" }}>
+                                                                    <div className="d-flex justify-content-between align-items-center mb-2">
+                                                                        <div className="d-flex align-items-center gap-2">
+                                                                            <div className="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style={{ width: 32, height: 32, fontSize: '0.8rem' }}>
+                                                                                {rev.name?.charAt(0) || 'K'}
+                                                                            </div>
+                                                                            <div>
+                                                                                <div className="fw-bold small">{rev.name}</div>
+                                                                                <div className="text-muted" style={{ fontSize: '0.75rem' }}>
+                                                                                    {new Date(rev.date).toLocaleDateString('vi-VN')} • {rev.service}
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="d-flex align-items-center gap-1 bg-warning bg-opacity-10 px-2 py-1 rounded-pill">
+                                                                            <Star size={12} fill="#ffc107" color="#ffc107" />
+                                                                            <span className="fw-bold text-dark" style={{ fontSize: '0.8rem' }}>{rev.rating}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                    <p className="mb-0 text-dark" style={{ fontSize: '0.9rem', lineHeight: 1.5 }}>
+                                                                        {rev.text}
+                                                                    </p>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </Accordion.Body>
+                                                </Accordion.Item>
+                                            </Accordion>
+                                        </div>
+                                    )} */}
+                                </Card.Body>
+                            </Card>
+                        </motion.div>
+                    )}
 
                     {/* Wizard Card (Toàn bộ chuyển sang tiếng Việt) */}
                     <Card className="border-0 shadow-sm" style={{ borderRadius: 16 }}>

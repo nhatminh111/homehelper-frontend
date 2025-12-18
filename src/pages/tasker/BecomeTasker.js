@@ -120,6 +120,30 @@ const BecomeTasker = () => {
   const [isSignatureConfirmed, setIsSignatureConfirmed] = useState(false);
   const [signatureSubmitting, setSignatureSubmitting] = useState(false);
 
+  // Fix signature canvas scaling/offset issue
+  useEffect(() => {
+    const handleResize = () => {
+      if (sigCanvas.current && !isSignatureConfirmed) {
+        const canvas = sigCanvas.current.getCanvas();
+        if (canvas) {
+          const container = canvas.parentElement;
+          if (container) {
+            canvas.width = container.offsetWidth;
+            // Note: clearing canvas is required when changing width
+            sigCanvas.current.clear();
+          }
+        }
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    const timeout = setTimeout(handleResize, 500); // Initial sync
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      clearTimeout(timeout);
+    };
+  }, [isSignatureConfirmed]);
+
   useEffect(() => {
     // Try to get user info from localStorage (assuming auth stores user object JSON under 'user')
     try {
@@ -1114,9 +1138,9 @@ const BecomeTasker = () => {
                           ref={sigCanvas}
                           penColor="black"
                           canvasProps={{
-                            width: 500,
                             height: 150,
                             className: `w-100 ${isSignatureConfirmed ? 'bg-secondary-subtle' : 'bg-white'}`,
+                            style: { display: 'block', width: '100%' }
                           }}
                           onBegin={() => !isSignatureConfirmed}
                         />

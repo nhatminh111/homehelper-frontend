@@ -12,6 +12,7 @@ import {
   faStar
 } from '@fortawesome/free-solid-svg-icons';
 import { faGoogle, faFacebook, faTwitter, faInstagram, faLinkedin } from '@fortawesome/free-brands-svg-icons';
+import { showToast } from '../../components/common/CustomToast';
 import './Auth.css';
 
 const Register = () => {
@@ -52,13 +53,13 @@ const Register = () => {
 
     // Validation
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+      setError('Mật khẩu xác nhận không khớp');
       setLoading(false);
       return;
     }
 
     if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters');
+      setError('Mật khẩu phải có ít nhất 6 ký tự');
       setLoading(false);
       return;
     }
@@ -73,8 +74,8 @@ const Register = () => {
       };
 
       const res = await register(userData);
-      if (res?.message) {
-        alert('Registration successful! You have been automatically logged in.');
+      if (res) {
+        showToast.success('Đăng ký thành công! Chào mừng bạn đến với HomeHelper.');
       }
     } catch (error) {
       console.error('Register error:', error);
