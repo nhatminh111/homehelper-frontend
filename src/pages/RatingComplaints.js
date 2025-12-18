@@ -104,7 +104,7 @@ const RatingComplaints = () => {
   const fetchRatings = async () => {
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.get("http://localhost:3001/api/ratings", {
+      const res = await axios.get(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/ratings`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setRatings(res.data);
@@ -116,7 +116,7 @@ const RatingComplaints = () => {
   const fetchComplaints = async () => {
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.get("http://localhost:3001/api/complaints", {
+      const res = await axios.get(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/complaints`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setComplaints(res.data);
@@ -129,7 +129,7 @@ const RatingComplaints = () => {
     try {
       const token = localStorage.getItem("token");
       await axios.put(
-        `http://localhost:3001/api/ratings/${id}/approve`,
+        `${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/ratings/${id}/approve`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -143,7 +143,7 @@ const RatingComplaints = () => {
     try {
       const token = localStorage.getItem("token");
       await axios.put(
-        `http://localhost:3001/api/ratings/${id}/reject`,
+        `${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/ratings/${id}/reject`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -157,7 +157,7 @@ const RatingComplaints = () => {
     try {
       const token = localStorage.getItem("token");
       await axios.put(
-        `http://localhost:3001/api/complaints/${id}/status`,
+        `${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/complaints/${id}/status`,
         { status },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -174,7 +174,7 @@ const RatingComplaints = () => {
     e.preventDefault();
     try {
       const token = localStorage.getItem("token");
-      await axios.post("http://localhost:3001/api/ratings", newRating, {
+      await axios.post(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/ratings`, newRating, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setShowRatingForm(false);
@@ -280,36 +280,36 @@ const RatingComplaints = () => {
                       <div key={rating.rating_id} className="premium-review-card">
                         <div className="card-header-v2">
                           <div className="user-info">
-                          <div
-                            style={{
-                              width: 48,
-                              height: 48,
-                              borderRadius: '50%',
-                              overflow: 'hidden',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              backgroundColor: '#e5e7eb',
-                              fontSize: 14,
-                              flexShrink: 0
-                            }}
-                          >
-                            {rating.reviewer_avatar ? (
-                              <img
-                                src={rating.reviewer_avatar}
-                                alt={rating.reviewer_name}
-                                style={{
-                                  width: '100%',
-                                  height: '100%',
-                                  objectFit: 'cover'
-                                }}
-                              />
-                            ) : rating.reviewer_name ? (
-                              rating.reviewer_name.charAt(0).toUpperCase()
-                            ) : (
-                              <FontAwesomeIcon icon={faUser} />
-                            )}
-                          </div>
+                            <div
+                              style={{
+                                width: 48,
+                                height: 48,
+                                borderRadius: '50%',
+                                overflow: 'hidden',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                backgroundColor: '#e5e7eb',
+                                fontSize: 14,
+                                flexShrink: 0
+                              }}
+                            >
+                              {rating.reviewer_avatar ? (
+                                <img
+                                  src={rating.reviewer_avatar}
+                                  alt={rating.reviewer_name}
+                                  style={{
+                                    width: '100%',
+                                    height: '100%',
+                                    objectFit: 'cover'
+                                  }}
+                                />
+                              ) : rating.reviewer_name ? (
+                                rating.reviewer_name.charAt(0).toUpperCase()
+                              ) : (
+                                <FontAwesomeIcon icon={faUser} />
+                              )}
+                            </div>
                             <div>
                               <h5 className="mb-0">{rating.reviewer_name}</h5>
                               <span className="text-muted small">

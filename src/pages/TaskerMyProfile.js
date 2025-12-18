@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { 
-  faUser, 
-  faEnvelope, 
-  faPhone, 
-  faMapMarkerAlt, 
+import {
+  faUser,
+  faEnvelope,
+  faPhone,
+  faMapMarkerAlt,
   faStar,
   faEdit,
   faSave,
@@ -28,7 +28,7 @@ import { useNavigate } from 'react-router-dom';
 import TaskerCertificateRegister from '../components/TaskerCertificateRegister';
 import { CustomToastContainer, showToast } from '../components/common/CustomToast';
 
-const API_BASE_URL = "http://localhost:3001/api";
+const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:3001/api";
 
 const TaskerMyProfile = () => {
   const { user, token, logout } = useAuth();
@@ -141,11 +141,11 @@ const TaskerMyProfile = () => {
           cccdAPI.getCCCDStatus(token),
           cccdAPI.checkVerifiedCCCD(token)
         ]);
-        
+
         if (statusRes.success) {
           setCccdStatus(statusRes.data);
         }
-        
+
         if (verifiedRes.success) {
           const verified = verifiedRes.data.hasVerified;
           setHasVerifiedCCCD(verified);
@@ -214,7 +214,7 @@ const TaskerMyProfile = () => {
       setSuccess(null);
       setIsLoading(true);
       const response = await addressAPI.update(editingAddress.address_id, newAddress.trim(), token);
-      setAddresses(prev => prev.map(addr => 
+      setAddresses(prev => prev.map(addr =>
         addr.address_id === editingAddress.address_id ? response : addr
       ));
       setEditingAddress(null);
@@ -264,11 +264,11 @@ const TaskerMyProfile = () => {
         cccdAPI.getCCCDStatus(token),
         cccdAPI.checkVerifiedCCCD(token)
       ]);
-      
+
       if (statusRes.success) {
         setCccdStatus(statusRes.data);
       }
-      
+
       if (verifiedRes.success) {
         const verified = verifiedRes.data.hasVerified;
         setHasVerifiedCCCD(verified);
@@ -293,45 +293,45 @@ const TaskerMyProfile = () => {
   const submitCccd = async (e) => {
     e.preventDefault();
     if (!front || !back) return alert('Vui lòng tải ảnh mặt trước và mặt sau CCCD');
-    
+
     const validateDate = (dateStr) => {
       if (!dateStr) return false;
       const parts = dateStr.split('/');
       if (parts.length !== 3) return false;
-      
+
       const day = parseInt(parts[0]);
       const month = parseInt(parts[1]);
       const year = parseInt(parts[2]);
-      
+
       if (day < 1 || day > 31 || month < 1 || month > 12 || year < 1900 || year > 2100) {
         return false;
       }
-      
+
       const date = new Date(year, month - 1, day);
       return date.getDate() === day && date.getMonth() === month - 1 && date.getFullYear() === year;
     };
-    
+
     if (!validateDate(cccdForm.dob)) {
       alert('Ngày sinh không hợp lệ! Vui lòng nhập đúng định dạng dd/mm/yyyy');
       return;
     }
-    
+
     try {
       setCccdLoading(true);
-      const payload = { 
-        ...cccdForm, 
-        front, 
-        back 
+      const payload = {
+        ...cccdForm,
+        front,
+        back
       };
-      
+
       const res = await cccdAPI.submit(payload, token);
       setCccdResult(res);
-      
+
       if (res.success) {
         showToast.success(res.message || 'Xác minh CCCD thành công!');
         await refreshCCCDStatus();
       }
-      
+
     } catch (err) {
       console.error('❌ CCCD submission error:', err);
       showToast.error(err.message || 'Có lỗi xảy ra khi xử lý CCCD');
@@ -349,7 +349,7 @@ const TaskerMyProfile = () => {
         certs: data.certs,
         status: 'pending'
       };
-      
+
       const res = await fetch(`${API_BASE_URL}/tasker/certifications/pending`, {
         method: "POST",
         headers: {
@@ -358,7 +358,7 @@ const TaskerMyProfile = () => {
         },
         body: JSON.stringify(payload)
       });
-      
+
       const json = await res.json();
       if (res.ok && json.success) {
         showToast.success('Đăng ký thành công! Chờ duyệt.');
@@ -409,9 +409,9 @@ const TaskerMyProfile = () => {
               <div className="user-summary p-4 border-bottom">
                 <div className="text-center">
                   <div className="profile-image-container mb-3">
-                    <img 
-                      src={profileData.profileImage} 
-                      alt="Profile" 
+                    <img
+                      src={profileData.profileImage}
+                      alt="Profile"
                       className="rounded-circle"
                       style={{ width: '80px', height: '80px', objectFit: 'cover' }}
                     />
@@ -571,7 +571,7 @@ const TaskerMyProfile = () => {
                 <h4 className="mb-4">Quản lý địa chỉ</h4>
                 {error && <div className="alert alert-danger">{error}</div>}
                 {success && <div className="alert alert-success">{success}</div>}
-                
+
                 <div className="form-group mb-3">
                   <label><FontAwesomeIcon icon={faMapMarkerAlt} className="mr-1" /> Địa chỉ</label>
                   <input

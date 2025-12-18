@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { showToast } from "../components/common/CustomToast";
 
-const API_BASE_URL = "http://localhost:3001/api";
+const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:3001/api";
 
 const createHeaders = (token) => ({
   "Content-Type": "application/json",
@@ -45,7 +45,7 @@ const Wishlist = () => {
     if (!window.confirm("Bạn có chắc muốn xóa tasker này khỏi wishlist?"))
       return;
     try {
-      const res = await fetch(`${API_BASE_URL}/wishlists/remove`, {
+      const res = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/wishlists/remove`, {
         method: "POST",
         headers: createHeaders(token),
         body: JSON.stringify({ customer_id: user.user_id, taskerId }),

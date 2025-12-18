@@ -47,7 +47,7 @@ export default function BookingHistory() {
     const [selectedBooking, setSelectedBooking] = useState(null);
     const [isCancelling, setIsCancelling] = useState(false);
 
-    const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:3001";
+    const API_BASE = (process.env.REACT_APP_API_URL || "http://localhost:3001/api").replace(/\/api$/, "").replace(/\/$/, "");
 
     const fetchBookings = async () => {
         try {

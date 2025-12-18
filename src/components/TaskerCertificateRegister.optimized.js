@@ -26,7 +26,7 @@ const TaskerCertificateRegister = ({ onSubmit, excludeServiceIds = [] }) => {
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
-    fetch("http://localhost:3001/api/services")
+    fetch(`${API_BASE_URL}/services`)
       .then((res) => res.json())
       .then((data) => {
         let all = Array.isArray(data.data) ? data.data : [];

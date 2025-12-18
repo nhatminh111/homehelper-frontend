@@ -31,7 +31,7 @@ const TaskerCertificateRegister = ({ onSubmit, excludeServiceIds = [], excludeVa
   const [zoomImgUrl, setZoomImgUrl] = useState(null);
 
   useEffect(() => {
-    fetch("http://localhost:3001/api/services")
+    fetch(`${API_BASE_URL}/services`)
       .then((res) => res.json())
       .then((data) => {
         let all = Array.isArray(data.data) ? data.data : [];
@@ -235,7 +235,7 @@ const TaskerCertificateRegister = ({ onSubmit, excludeServiceIds = [], excludeVa
         const obj = JSON.parse(raw);
         accountName = obj?.name || '';
       }
-    } catch {}
+    } catch { }
     const hasUnconfirmedHolderMismatch = certs.some(c => {
       const inferredHolder = (c?.holder_name || '').trim();
       if (!inferredHolder || !accountName) return false;
@@ -281,13 +281,13 @@ const TaskerCertificateRegister = ({ onSubmit, excludeServiceIds = [], excludeVa
                 const checked = selectedVariants.includes(v.variant_id);
                 return (
                   <div key={v.variant_id} className="col-md-4 col-sm-6">
-                    <label className={`form-check-label w-100 h-100 p-2 rounded border ${checked ? 'bg-light border-primary' : 'border-light'}`} style={{display:'block', cursor:'pointer'}}>
+                    <label className={`form-check-label w-100 h-100 p-2 rounded border ${checked ? 'bg-light border-primary' : 'border-light'}`} style={{ display: 'block', cursor: 'pointer' }}>
                       <input
                         type="checkbox"
                         className="form-check-input me-1"
                         checked={checked}
                         onChange={() => toggleVariant(v.variant_id)}
-                        style={{display:'none'}}
+                        style={{ display: 'none' }}
                       />
                       <span className="fw-semibold d-block">{v.variant_name}</span>
                       {v.price_min && v.price_max && (
@@ -326,7 +326,7 @@ const TaskerCertificateRegister = ({ onSubmit, excludeServiceIds = [], excludeVa
             </div>
             {(serviceCerts[selectedServiceId] || []).length === 0 && (
               <>
-                {currentService.requires_certificate && ( 
+                {currentService.requires_certificate && (
                   <div className="alert alert-danger py-1 mb-0 small">Cần ít nhất 1 chứng chỉ cho dịch vụ này.</div>
                 )}
                 {!currentService.requires_certificate && (
@@ -343,14 +343,14 @@ const TaskerCertificateRegister = ({ onSubmit, excludeServiceIds = [], excludeVa
                   const obj = JSON.parse(raw);
                   accountName = obj?.name || '';
                 }
-              } catch {}
+              } catch { }
               const holderMismatch = !!(inferredHolder && accountName && inferredHolder.toLowerCase() !== accountName.toLowerCase());
               const aiServiceMismatch = c.ai_service_match === false || c.ai_service_mismatch === true || c.ai_service_mismatch === 'true' || c.error_type === 'service_mismatch';
               return (
-                <div key={idx} className="border border-warning rounded p-3 mb-3 position-relative" style={{background:'#fffbe6'}}>
+                <div key={idx} className="border border-warning rounded p-3 mb-3 position-relative" style={{ background: '#fffbe6' }}>
                   <div className="mb-2">
                     <label className="form-label fw-semibold">Tên bằng cấp / chứng chỉ *</label>
-                    <textarea rows={3} className="form-control" style={{resize:'vertical'}} value={c.cert_name} onChange={e => {
+                    <textarea rows={3} className="form-control" style={{ resize: 'vertical' }} value={c.cert_name} onChange={e => {
                       setServiceCerts(prev => ({
                         ...prev,
                         [selectedServiceId]: prev[selectedServiceId].map((cc, i) => i === idx ? { ...cc, cert_name: e.target.value } : cc)
@@ -362,7 +362,7 @@ const TaskerCertificateRegister = ({ onSubmit, excludeServiceIds = [], excludeVa
                       <label className="form-label">Ảnh chứng chỉ</label>
                       {c.cert_file_url ? (
                         (/\.pdf(\?|$)/i).test(c.cert_file_url) ? (
-                          <div className="small text-muted text-center" style={{minHeight: '120px'}}>
+                          <div className="small text-muted text-center" style={{ minHeight: '120px' }}>
                             <a href={c.cert_file_url} target="_blank" rel="noreferrer">Xem file PDF</a>
                           </div>
                         ) : (
@@ -370,7 +370,7 @@ const TaskerCertificateRegister = ({ onSubmit, excludeServiceIds = [], excludeVa
                             src={c.cert_file_url}
                             alt="cert"
                             className="img-fluid d-block mx-auto hover-shadow"
-                            style={{maxHeight:'140px', objectFit:'contain', cursor:'zoom-in'}}
+                            style={{ maxHeight: '140px', objectFit: 'contain', cursor: 'zoom-in' }}
                             onClick={() => setZoomImgUrl(c.cert_file_url)}
                           />
                         )
@@ -458,10 +458,10 @@ const TaskerCertificateRegister = ({ onSubmit, excludeServiceIds = [], excludeVa
         </div>
       )}
       {zoomImgUrl && (
-        <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-dark bg-opacity-75" style={{zIndex:1050}} onClick={() => setZoomImgUrl(null)}>
-          <div className="position-relative p-2 bg-white rounded shadow" onClick={e => e.stopPropagation()} style={{maxWidth:'90%', maxHeight:'90%'}}>
+        <div className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-dark bg-opacity-75" style={{ zIndex: 1050 }} onClick={() => setZoomImgUrl(null)}>
+          <div className="position-relative p-2 bg-white rounded shadow" onClick={e => e.stopPropagation()} style={{ maxWidth: '90%', maxHeight: '90%' }}>
             <button type="button" className="btn-close position-absolute end-0 top-0 m-2" onClick={() => setZoomImgUrl(null)} />
-            <img src={zoomImgUrl} alt="zoom" style={{maxWidth:'100%', maxHeight:'80vh', objectFit:'contain'}} />
+            <img src={zoomImgUrl} alt="zoom" style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain' }} />
           </div>
         </div>
       )}

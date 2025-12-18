@@ -40,8 +40,7 @@ export default function StaffBlogs() {
 
   const updateStatus = async (post_id, status) => {
     const confirmed = await confirmAction(
-      `Bạn có chắc muốn ${
-        status === "Approved" ? "DUYỆT" : "TỪ CHỐI"
+      `Bạn có chắc muốn ${status === "Approved" ? "DUYỆT" : "TỪ CHỐI"
       } bài viết này?`
     );
     if (!confirmed) return;
@@ -180,7 +179,7 @@ export default function StaffBlogs() {
 
             const imageSrc = firstImage
               ? firstImage.startsWith("/images/")
-                ? `http://localhost:3001${firstImage}`
+                ? `${(process.env.REACT_APP_API_URL || 'http://localhost:3001/api').replace(/\/api$/, '')}${firstImage}`
                 : firstImage
               : null;
 
@@ -188,15 +187,15 @@ export default function StaffBlogs() {
               blog.status === "Approved"
                 ? "approved"
                 : blog.status === "Rejected"
-                ? "rejected"
-                : "pending";
+                  ? "rejected"
+                  : "pending";
 
             const statusText =
               blog.status === "Approved"
                 ? "Đã duyệt"
                 : blog.status === "Rejected"
-                ? "Bị từ chối"
-                : "Chờ duyệt";
+                  ? "Bị từ chối"
+                  : "Chờ duyệt";
 
             return (
               <div key={blog.post_id} className="staff-blog-card">

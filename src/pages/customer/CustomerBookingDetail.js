@@ -21,7 +21,7 @@ import { showToast } from "../../components/common/CustomToast";
 // Popup hủy đơn lấy 100% từ BookingHistory
 
 export default function CustomerBookingDetail() {
-    const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:3001";
+    const API_BASE = (process.env.REACT_APP_API_URL || "http://localhost:3001/api").replace(/\/api$/, "").replace(/\/$/, "");
 
     const navigate = useNavigate();
     const location = useLocation();
