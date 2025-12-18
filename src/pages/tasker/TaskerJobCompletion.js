@@ -618,7 +618,7 @@ export default function TaskerJobCompletion() {
           onClick={handleCompleteSubmission}
         >
           <i className="bi bi-check-circle-fill me-2"></i>
-          Complete Task
+          Hoàn thành
         </Button>
       </div>
     </Container>

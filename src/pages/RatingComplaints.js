@@ -280,9 +280,36 @@ const RatingComplaints = () => {
                       <div key={rating.rating_id} className="premium-review-card">
                         <div className="card-header-v2">
                           <div className="user-info">
-                            <div className="avatar-placeholder">
-                              {rating.reviewer_name?.charAt(0) || <FontAwesomeIcon icon={faUser} />}
-                            </div>
+                          <div
+                            style={{
+                              width: 48,
+                              height: 48,
+                              borderRadius: '50%',
+                              overflow: 'hidden',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              backgroundColor: '#e5e7eb',
+                              fontSize: 14,
+                              flexShrink: 0
+                            }}
+                          >
+                            {rating.reviewer_avatar ? (
+                              <img
+                                src={rating.reviewer_avatar}
+                                alt={rating.reviewer_name}
+                                style={{
+                                  width: '100%',
+                                  height: '100%',
+                                  objectFit: 'cover'
+                                }}
+                              />
+                            ) : rating.reviewer_name ? (
+                              rating.reviewer_name.charAt(0).toUpperCase()
+                            ) : (
+                              <FontAwesomeIcon icon={faUser} />
+                            )}
+                          </div>
                             <div>
                               <h5 className="mb-0">{rating.reviewer_name}</h5>
                               <span className="text-muted small">

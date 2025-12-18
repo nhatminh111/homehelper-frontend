@@ -63,8 +63,7 @@ export default function TaskerBookingDetail() {
   const [showSosAcceptWarning, setShowSosAcceptWarning] = useState(false);
   const [cancelType, setCancelType] = useState(null); // "normal" hoặc "late"
 
-  // 🧾 Giải nén dữ liệu booking
-  // Safely destructure with a fallback when booking is null (e.g., direct URL navigation)
+  // 🧾 Giải nén dữ liệu booking (an toàn khi booking null)
   const safeBooking = booking || {};
   const {
     booking_id,
@@ -87,7 +86,9 @@ export default function TaskerBookingDetail() {
     variant_name,
     quantity,
     unit,
-  } = booking;
+    description,
+    task_photos,
+  } = safeBooking;
 
   // Helper
   const getDisplayUnit = (u) => {
@@ -103,7 +104,16 @@ export default function TaskerBookingDetail() {
     return u;
   };
 
-  const photos = booking.task_photos ? JSON.parse(booking.task_photos) : [];
+  let photos = [];
+  try {
+    if (task_photos) {
+      photos = Array.isArray(task_photos)
+        ? task_photos
+        : JSON.parse(task_photos);
+    }
+  } catch (_) {
+    photos = [];
+  }
 
   const [previewImages, setPreviewImages] = useState([]);
 
@@ -604,10 +614,10 @@ export default function TaskerBookingDetail() {
                 ) : null}
 
                 {/* ⭐ HIỂN THỊ QUANTITY */}
-                {booking.quantity && booking.quantity > 1 && (
+                {quantity && Number(quantity) > 1 && (
                   <div>
                     <i className="bi bi-boxes text-primary me-2"></i>
-                    Số lượng: <strong>{booking.quantity} {getDisplayUnit(booking.unit)}</strong>
+                    Số lượng: <strong>{quantity} {getDisplayUnit(unit)}</strong>
                   </div>
                 )}
 
@@ -618,10 +628,10 @@ export default function TaskerBookingDetail() {
                   </div>
                 ) : null}
 
-                {booking.description && (
+                {description && (
                   <div>
                     <i className="bi bi-info-circle text-primary me-2"></i>
-                    Lưu ý: <strong>{booking.description}</strong>
+                    Lưu ý: <strong>{description}</strong>
                   </div>
                 )}
 
@@ -694,7 +704,7 @@ export default function TaskerBookingDetail() {
                   <div className="d-flex flex-wrap gap-3">
                     {previewImages.map((url, i) => (
                       <img
-                        key={i}
+                        key={`${i}-${url}`}
                         src={url}
                         alt=""
                         width={140}
