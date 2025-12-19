@@ -81,8 +81,6 @@ const useAudioCall = (conversationId) => {
 
       setCallId(data.call.call_id);
       callIdRef.current = data.call.call_id;
-      setCallId(data.call.call_id);
-      callIdRef.current = data.call.call_id;
       setIsInitiator(true);
 
       // Set remote user info from response (callee)

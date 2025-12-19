@@ -432,7 +432,7 @@ export default function CustomerBookingDetail() {
         try {
             const user = JSON.parse(localStorage.getItem("user"));
             const res = await fetch(
-                `${process.env.REACT_APP_API_BASE || "http://localhost:3001"}/api/bookings/${booking_id}/cancel`,
+                `${API_BASE}/api/bookings/${booking_id}/cancel`,
                 {
                     method: "POST",
                     headers: {

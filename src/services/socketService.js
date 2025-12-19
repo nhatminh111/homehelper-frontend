@@ -19,14 +19,12 @@ class SocketService {
     }
 
     try {
-      // Derive socket URL from API URL if not explicitly provided
-      let socketUrl = process.env.REACT_APP_SOCKET_URL;
-      if (!socketUrl && process.env.REACT_APP_API_URL) {
-        // Remove /api or /api/ from the end
-        socketUrl = process.env.REACT_APP_API_URL.replace(/\/api\/?$/, '');
-      }
+      // Derive socket URL: Prefer REACT_APP_SOCKET_URL, then derived from REACT_APP_API_URL, then fallback to localhost
+      const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+      const defaultSocketUrl = apiBase.replace(/\/api\/?$/, '');
+      const socketUrl = process.env.REACT_APP_SOCKET_URL || defaultSocketUrl;
 
-      this.socket = io(socketUrl || 'http://localhost:3001', {
+      this.socket = io(socketUrl, {
         auth: {
           token: token
         },
