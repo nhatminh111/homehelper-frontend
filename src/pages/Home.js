@@ -458,7 +458,7 @@ const Home = () => {
                         <FontAwesomeIcon
                           icon={faSearch}
                           style={{ position: 'absolute', top: '50%', left: '16px', transform: 'translateY(-50%)', color: '#6b7280', fontSize: '1.25rem', zIndex: '10' }}
-                        />
+                        />  
                         <input
                           style={{
                             width: '100%',
