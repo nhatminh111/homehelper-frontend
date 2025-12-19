@@ -63,9 +63,11 @@ export default function PaymentPage() {
     if (!booking?.booking_time) return;
 
     const timer = setInterval(() => {
-      const created = new Date(booking.booking_time.replace("Z", ""));
+      const created = new Date(booking.booking_time);
       const now = new Date();
-      const diffMs = 30 * 60 * 1000 - (now - created);
+
+      // Tính độ lệch giây (Sử dụng getTime() để đảm bảo tính bằng ms)
+      const diffMs = (30 * 60 * 1000) - (now.getTime() - created.getTime());
 
       if (diffMs <= 0) {
         setRemainingTime(0);
