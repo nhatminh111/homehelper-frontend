@@ -61,7 +61,7 @@ const Footer = () => {
                 </h3>
                 <div className="meta">
                   <div>
-                    <a href="#">04 Tháng 03, 2020</a>
+                    <a href="#">05 Tháng 09, 2025</a>
                   </div>
                   <div>
                     <a href="#">Quản trị viên</a>
@@ -84,7 +84,7 @@ const Footer = () => {
                 </h3>
                 <div className="meta">
                   <div>
-                    <a href="#">04 Tháng 03, 2020</a>
+                    <a href="#">05 Tháng 09, 2025</a>
                   </div>
                   <div>
                     <a href="#">Quản trị viên</a>
