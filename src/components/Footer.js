@@ -171,8 +171,8 @@ const Footer = () => {
         <div className="row mt-5">
           <div className="col-md-12 text-center">
             <p className="copyright">
-              © {new Date().getFullYear()} Bản quyền thuộc về Công ty Vệ Sinh
-              ddd | Giao diện được thiết kế bởi{" "}
+              © {new Date().getFullYear()} Bản quyền thuộc về Homehelper | Giao
+              diện được thiết kế bởi{" "}
               <a
                 href="https://colorlib.com"
                 target="_blank"
