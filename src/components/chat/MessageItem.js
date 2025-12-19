@@ -62,13 +62,9 @@ const MessageItem = ({
   })();
 
   const formatMessageTime = (dateString) => {
+    if (!dateString) return '';
     const date = new Date(dateString);
-    const hasTimeZone = typeof dateString === 'string' && /Z$|[+-]\d{2}:?\d{2}$/.test(dateString);
-    if (hasTimeZone) {
-      const hh = String(date.getUTCHours()).padStart(2, '0');
-      const mm = String(date.getUTCMinutes()).padStart(2, '0');
-      return `${hh}:${mm}`;
-    }
+    if (isNaN(date.getTime())) return '';
     return format(date, 'HH:mm', { locale: vi });
   };
 

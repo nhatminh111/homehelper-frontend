@@ -20,19 +20,19 @@ const ConversationList = ({
   const currentUserId = user?.user_id || user?.userId;
 
 
-// Sort and Deduplicate conversations
+  // Sort and Deduplicate conversations
   const sortedConversations = useMemo(() => {
     const uniqueMap = new Map();
     conversations.forEach((conv) => {
       const id = conv.conversation_id || conv.id;
-      if (!id) return; 
+      if (!id) return;
       if (!uniqueMap.has(id)) {
         uniqueMap.set(id, conv);
       }
     });
     const uniqueConversations = Array.from(uniqueMap.values());
     const sorted = [...uniqueConversations];
-    
+
     switch (sortBy) {
       case 'unread':
         return sorted.sort((a, b) => {
@@ -63,18 +63,16 @@ const ConversationList = ({
     if (!dateString) return '';
 
     let isoString = dateString;
+    // Handle standard SQL Server DATETIME format (space between date and time)
     if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(dateString)) {
       isoString = dateString.replace(' ', 'T');
     }
-    let msgDate;
-    let now = new Date();
-    // Nếu là UTC (có Z hoặc dạng ISO UTC), ép về giờ Việt Nam
-    if (/(Z|\+00:00)$/.test(isoString)) {
-      msgDate = new Date(new Date(isoString).getTime() + 7 * 60 * 60 * 1000);
-      now = new Date(now.getTime() + 7 * 60 * 60 * 1000 - now.getTimezoneOffset() * 60000);
-    } else {
-      msgDate = new Date(isoString);
-    }
+
+    const msgDate = new Date(isoString);
+    const now = new Date();
+
+    if (isNaN(msgDate.getTime())) return '';
+
     const diffMs = now.getTime() - msgDate.getTime();
     const diffMin = Math.floor(diffMs / (1000 * 60));
     const diffHour = Math.floor(diffMin / 60);
@@ -83,27 +81,31 @@ const ConversationList = ({
     if (diffMin < 1) return 'vừa xong';
     if (diffHour < 1) return `${diffMin} phút trước`;
     if (diffHour < 24) return `${diffHour} giờ trước`;
-    // Hiển thị ngày/tháng theo giờ Việt Nam
-    return msgDate.getDate().toString().padStart(2, '0') + '-' +
-      (msgDate.getMonth() + 1).toString().padStart(2, '0') +
-      (msgDate.getFullYear() !== now.getFullYear() ? '-' + msgDate.getFullYear() : '');
+
+    // For older messages, show day-month
+    const d = msgDate.getDate().toString().padStart(2, '0');
+    const m = (msgDate.getMonth() + 1).toString().padStart(2, '0');
+    const y = msgDate.getFullYear();
+    const currentYear = now.getFullYear();
+
+    return y !== currentYear ? `${d}-${m}-${y}` : `${d}-${m}`;
   };
 
 
-const getConversationTitle = (conversation) => {
+  const getConversationTitle = (conversation) => {
     // 1. Ưu tiên Title nếu có (cho nhóm chat đã đặt tên)
     if (conversation.title && conversation.title.trim() !== '') {
       return conversation.title;
     }
-    
+
     const participants = conversation.participants || [];
-    
+
     // 2. Logic tìm "người kia"
     // Chỉ cần có người tham gia, ta sẽ cố gắng hiển thị tên, không quan tâm type là 'direct' hay không
     if (participants.length > 0) {
       // Ép kiểu về String để so sánh an toàn (tránh lỗi 5 !== "5")
       const myId = String(currentUserId);
-      
+
       // Tìm người không phải là mình
       const other = participants.find(p => {
         const pId = String(p.user_id || p.userId || p.id || '');
@@ -112,11 +114,11 @@ const getConversationTitle = (conversation) => {
 
       // Nếu tìm thấy người kia thì lấy, nếu không (chat với chính mình hoặc lỗi) thì lấy người đầu tiên
       const target = other || participants[0];
-      
+
       // Kiểm tra các trường tên phổ biến
       return target.name || target.full_name || target.username || target.email || 'Người dùng không tên';
     }
-    
+
     return 'Cuộc trò chuyện';
   };
 
@@ -125,7 +127,7 @@ const getConversationTitle = (conversation) => {
       const other = conversation.participants.find(p => (p.user_id ?? p.userId) !== currentUserId) || conversation.participants[0];
       return other?.avatar;
     }
-    
+
     // For group conversations, show first letter of title or first participant
     return null;
   };
@@ -245,7 +247,7 @@ const getConversationTitle = (conversation) => {
             <label className="btn btn-outline-secondary" htmlFor="sort-lastMessage" title="Sắp xếp theo tin nhắn cuối">
               <i className="fas fa-clock"></i>
             </label>
-            
+
             <input
               type="radio"
               className="btn-check"
@@ -258,7 +260,7 @@ const getConversationTitle = (conversation) => {
             <label className="btn btn-outline-secondary" htmlFor="sort-unread" title="Sắp xếp theo chưa đọc">
               <i className="fas fa-envelope"></i>
             </label>
-            
+
             <input
               type="radio"
               className="btn-check"
@@ -367,7 +369,7 @@ const ConversationItem = ({
     if (avatar) {
       return <img src={avatar} alt={title} className="conversation-avatar-img" />;
     }
-    
+
     if (conversation.type === 'group') {
       return (
         <div className="conversation-avatar-group">
@@ -375,7 +377,7 @@ const ConversationItem = ({
         </div>
       );
     }
-    
+
     return (
       <div className="conversation-avatar-initials">
         {getInitials(title)}
@@ -396,7 +398,7 @@ const ConversationItem = ({
           <div className={`conversation-status ${conversation.is_online ? 'online' : 'offline'}`}></div>
         )}
       </div>
-      
+
       <div className="conversation-content">
         <div className="conversation-title">
           <span className="conversation-name">{title}</span>
@@ -410,7 +412,7 @@ const ConversationItem = ({
           <span className="conversation-last-message">{subtitle}</span>
         </div>
       </div>
-      
+
       <div className="conversation-meta">
         <div className="conversation-time">
           {lastMessageTime}
