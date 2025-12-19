@@ -1,9 +1,41 @@
 import React, { useEffect, useState } from "react";
-import { Container, Table, Badge, Button, Spinner } from "react-bootstrap";
-import { Calendar, MapPin, Clock, Info, MessageCircle } from "lucide-react";
+import { Container, Badge, Button, Spinner, Row, Col, Card } from "react-bootstrap";
+import {
+    Calendar,
+    MapPin,
+    Clock,
+    Info,
+    MessageCircle,
+    ChevronRight,
+    CreditCard,
+    Star,
+    FileText,
+    XCircle,
+    Search,
+    Filter,
+    ClipboardList,
+    TrendingUp,
+    CheckCircle2,
+    Clock3,
+    AlertCircle,
+    History
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import NegotiatePriceButton from "../../components/negotiation/NegotiatePriceButton";
 import { useNavigate } from "react-router-dom";
+import { formatVND } from "../../utils/formatVND";
 import { showToast } from "../../components/common/CustomToast";
+
+const STATUS_OPTIONS = [
+    { label: "Tất cả", value: "all", color: "#64748b", icon: Filter },
+    { label: "Chờ xử lý", value: "Pending", color: "#f59e0b", icon: Clock3 },
+    { label: "Đã chấp nhận", value: "Accepted", color: "#3b82f6", icon: CheckCircle2 },
+    { label: "Đã thanh toán", value: "Paid", color: "#8b5cf6", icon: CreditCard },
+    { label: "Đang tiến hành", value: "In Progress", color: "#06b6d4", icon: TrendingUp },
+    { label: "Chờ xác nhận", value: "Pending Confirmation", color: "#f97316", icon: AlertCircle },
+    { label: "Hoàn thành", value: "Completed", color: "#10b981", icon: Star },
+    { label: "Hủy", value: "Cancelled", color: "#ef4444", icon: XCircle },
+];
 
 export default function BookingHistory() {
     const navigate = useNavigate();
@@ -16,6 +48,33 @@ export default function BookingHistory() {
     const [isCancelling, setIsCancelling] = useState(false);
 
     const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:3001";
+
+    const fetchBookings = async () => {
+        try {
+            setLoading(true);
+            const user = JSON.parse(localStorage.getItem("user"));
+            const token = user?.token;
+            if (!token) return;
+
+            let url = `${API_BASE}/api/bookings/mybookings`;
+            if (statusFilter !== "all") url += `?status=${statusFilter}`;
+
+            const res = await fetch(url, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            const data = await res.json();
+            setBookings(data.data || []);
+        } catch (err) {
+            console.error("❌ Error fetching bookings:", err);
+            showToast.error("Không thể tải danh sách đặt lịch.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchBookings();
+    }, [statusFilter]);
 
     const openCancelModal = (booking) => {
         setSelectedBooking(booking);
@@ -44,9 +103,8 @@ export default function BookingHistory() {
 
             const data = await res.json();
             if (data.success) {
-                showToast.success(`Hủy thành công! Quy tắc: ${data.rule}. Hoàn: ${data.refundAmount.toLocaleString("vi-VN")}₫`);
-                // Reload danh sách booking
-                window.location.reload();
+                showToast.success(`Hủy thành công! Quy tắc: ${data.rule}. Hoàn: ${formatVND(data.refundAmount)}`);
+                fetchBookings();
             } else {
                 showToast.error(`Hủy thất bại: ${data.message}`);
             }
@@ -59,68 +117,20 @@ export default function BookingHistory() {
         }
     };
 
-    useEffect(() => {
-        const fetchBookings = async () => {
-            try {
-                const user = JSON.parse(localStorage.getItem("user"));
-                const token = user?.token;
-                if (!token) return;
+    const getStatusInfo = (status) => {
+        const option = STATUS_OPTIONS.find(o => o.value === status || o.label === status);
+        if (option) return option;
 
-                let url = `${API_BASE}/api/bookings/mybookings`;
-                if (statusFilter !== "all") url += `?status=${statusFilter}`;
+        // Fallback checks
+        if (status?.includes("Hoàn")) return STATUS_OPTIONS.find(o => o.value === "Completed");
+        if (status?.includes("Hủy")) return STATUS_OPTIONS.find(o => o.value === "Cancelled");
+        if (status?.includes("Chờ xử lý")) return STATUS_OPTIONS.find(o => o.value === "Pending");
+        if (status?.includes("Chấp")) return STATUS_OPTIONS.find(o => o.value === "Accepted");
+        if (status?.includes("Thanh toán")) return STATUS_OPTIONS.find(o => o.value === "Paid");
+        if (status?.includes("tiến hành")) return STATUS_OPTIONS.find(o => o.value === "In Progress");
+        if (status?.includes("xác nhận")) return STATUS_OPTIONS.find(o => o.value === "Pending Confirmation");
 
-                const res = await fetch(url, {
-                    headers: { Authorization: `Bearer ${token}` },
-                });
-                const data = await res.json();
-                setBookings(data.data || []);
-            } catch (err) {
-                console.error("❌ Error fetching bookings:", err);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchBookings();
-    }, [statusFilter, API_BASE]);
-
-    const getBadgeVariant = (status) => {
-        if (!status) return "secondary";
-
-        // ⭐ Trạng thái vắng mặt (REPORT)
-        if (status === "Chờ duyệt báo cáo") return "warning";        // vàng
-        if (status === "Báo cáo được duyệt") return "info";          // xanh dương nhạt
-        if (status === "Báo cáo bị từ chối") return "dark";          // xám đậm
-
-        if (status === "Chờ xác nhận") return "warning";
-        if (status === "Xử lí khiếu nại của khách") return "info";
-        if (status === "Khiếu nại được duyệt") return "success";
-        if (status === "Khiếu nại bị từ chối") return "danger";
-
-        // ⭐ Các trạng thái còn lại
-        if (status.includes("Hoàn")) return "success";
-        if (status.includes("Chờ")) return "warning";
-        if (status.includes("Hủy")) return "danger";
-        if (status.includes("Đang")) return "info";
-        if (status.includes("Chấp")) return "primary";
-        if (status.includes("Thanh toán")) return "dark";
-        return "secondary";
-    };
-
-    const mapCustomerStatus = (status) => {
-        switch (status) {
-
-            case "Chờ duyệt báo cáo":
-                return "Đang xử lý báo cáo vắng mặt";
-
-            case "Báo cáo được duyệt":
-                return "Kết quả đơn: Đã vắng mặt";
-
-            case "Báo cáo bị từ chối":
-                return "Kết quả đơn: Không vắng mặt";
-
-            default:
-                return status;
-        }
+        return { label: status, color: "#64748b", icon: Info };
     };
 
     const handleContract = (booking) => {
@@ -128,301 +138,542 @@ export default function BookingHistory() {
     };
 
     return (
-        <Container className="py-4">
+        <Container className="py-5" style={{ background: '#f8fafc', minHeight: '100vh', borderRadius: '24px' }}>
             <style>{`
-      .history-header {
-          background: white;
-          border-radius: 16px;
-          box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-          padding: 24px;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 28px;
-        }
+                .booking-history-container {
+                    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+                }
 
-        .history-header h3 {
-          font-weight: 700;
-          color: #0f4c75;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
+                /* Page Header Styling */
+                .page-header {
+                    margin-bottom: 2.5rem;
+                    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+                    padding: 3rem 2rem;
+                    border-radius: 2rem;
+                    color: white;
+                    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+                }
 
-        .filter-select {
-          border-radius: 12px;
-          padding: 8px 16px;
-          border: 1px solid #d0e2ff;
-          box-shadow: 0 1px 4px rgba(0,0,0,0.05);
-          transition: all 0.2s;
-        }
-        .filter-select:hover {
-          border-color: #00b4d8;
-        }
-        .booking-row:hover {
-          background-color: #f9fcff;
-          transition: background-color 0.2s ease-in-out;
-        }
-        .table {
-          border-radius: 12px;
-          overflow: hidden;
-        }
-        button.btn {
-          border-radius: 10px !important;
-        }
-        .action-buttons {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          gap: 10px;
-          flex-wrap: nowrap;
-        }
-          .cancel-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.4);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 2000;
-        }
+                .page-title {
+                    font-size: 2.25rem;
+                    font-weight: 800;
+                    margin-bottom: 0.5rem;
+                    letter-spacing: -0.025em;
+                }
 
-        .cancel-box {
-            background: white;
-            padding: 24px;
-            border-radius: 12px;
-            max-width: 480px;
-            width: 90%;
-            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
-            animation: fadeIn 0.3s ease;
-        }
+                /* Tab Bar Styles */
+                .status-tabs {
+                    display: flex;
+                    gap: 0.75rem;
+                    overflow-x: auto;
+                    padding: 0.5rem;
+                    margin-bottom: 2.5rem;
+                    scrollbar-width: none;
+                    background: white;
+                    padding: 1rem;
+                    border-radius: 9999px;
+                    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+                }
+                .status-tabs::-webkit-scrollbar { display: none; }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+                .status-tab {
+                    padding: 0.75rem 1.5rem;
+                    border-radius: 9999px;
+                    border: 1px solid transparent;
+                    background: transparent;
+                    color: #64748b;
+                    font-weight: 600;
+                    font-size: 0.875rem;
+                    white-space: nowrap;
+                    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                }
 
-        .cancel-box h5 {
-            color: #d90429;
-            font-weight: bold;
-            margin-bottom: 12px;
-        }
+                .status-tab:hover {
+                    color: #1e293b;
+                    background: #f1f5f9;
+                }
 
-        .cancel-box ul {
-            font-size: 14px;
-            color: #555;
-            margin-bottom: 16px;
-        }
-      `}</style>
+                .status-tab.active {
+                    background: #1e293b;
+                    color: white;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                }
 
-            <div className="history-header">
-                <h3>📜 Lịch sử đặt dịch vụ</h3>
-                <select
-                    className="filter-select"
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
+                /* Refined Booking Card */
+                .booking-card {
+                    background: white;
+                    border-radius: 2rem;
+                    border: 1px solid #eef2f6;
+                    padding: 2.25rem;
+                    margin-bottom: 1.5rem;
+                    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+                    position: relative;
+                    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+                    overflow: visible;
+                }
+
+                .booking-card:hover {
+                    transform: translateY(-8px);
+                    box-shadow: 0 25px 40px -12px rgba(0, 0, 0, 0.08);
+                    border-color: #e2e8f0;
+                }
+
+
+                .booking-id-tag {
+                    font-family: 'JetBrains Mono', monospace;
+                    font-size: 0.875rem;
+                    color: #94a3b8;
+                    margin-bottom: 0.5rem;
+                    display: block;
+                }
+
+                .card-header-main {
+                    margin-bottom: 1.75rem;
+                    padding-right: 0; 
+                }
+
+                .service-display {
+                    display: flex;
+                    align-items: center;
+                    gap: 1.25rem;
+                }
+
+                .service-icon-wrapper {
+                    width: 60px;
+                    height: 60px;
+                    background: #f1f5f9;
+                    border-radius: 1.25rem;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: #475569;
+                    flex-shrink: 0;
+                }
+
+                .service-details h3 {
+                    font-size: 1.375rem;
+                    font-weight: 800;
+                    color: #0f172a;
+                    margin-bottom: 0.25rem;
+                }
+
+                .variant-pill {
+                    font-size: 0.75rem;
+                    font-weight: 700;
+                    color: #64748b;
+                    background: #f1f5f9;
+                    padding: 0.25rem 0.75rem;
+                    border-radius: 0.5rem;
+                    display: inline-block;
+                }
+
+                .info-grid {
+                    display: grid;
+                    grid-template-columns: repeat(2, 1fr);
+                    gap: 1.5rem;
+                    margin-bottom: 2rem;
+                    padding: 1.5rem;
+                    background: #f8fafc;
+                    border-radius: 1.5rem;
+                }
+
+                .info-item {
+                    display: flex;
+                    align-items: center;
+                    gap: 1rem;
+                }
+
+                .info-icon-circle {
+                    width: 36px;
+                    height: 36px;
+                    background: white;
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+                }
+
+                .info-label {
+                    font-size: 0.75rem;
+                    font-weight: 600;
+                    color: #94a3b8;
+                    text-transform: uppercase;
+                    margin-bottom: 0.125rem;
+                }
+
+                .info-value {
+                    font-size: 0.9375rem;
+                    font-weight: 700;
+                    color: #334155;
+                }
+
+                .price-section {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    border-top: 2px dashed #f1f5f9;
+                    padding-top: 1.5rem;
+                    margin-top: 0.5rem;
+                }
+
+                .total-amount {
+                    font-size: 1.75rem;
+                    font-weight: 900;
+                    color: #1e293b;
+                    background: linear-gradient(135deg, #1e293b 0%, #475569 100%);
+                    -webkit-background-clip: text;
+                    -webkit-text-fill-color: transparent;
+                }
+
+                .footer-actions {
+                    display: flex;
+                    gap: 0.75rem;
+                    margin-top: 1.5rem;
+                    flex-wrap: wrap;
+                }
+
+                .btn-modern {
+                    padding: 0.75rem 1.5rem;
+                    border-radius: 1rem;
+                    font-weight: 700;
+                    font-size: 0.875rem;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.625rem;
+                    transition: all 0.3s;
+                    border: none;
+                }
+
+                .btn-modern:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+                }
+
+                .btn-primary-modern { background: #1e293b; color: white; }
+                .btn-outline-modern { background: #f1f5f9; color: #1e293b; }
+                .btn-danger-modern { background: #fee2e2; color: #ef4444; }
+                .btn-success-modern { background: #dcfce7; color: #16a34a; }
+                .btn-warning-modern { background: #fef9c3; color: #ca8a04; }
+
+                /* Modal Adjustments */
+                .cancel-modal-content {
+                    border: none;
+                    border-radius: 2.5rem;
+                }
+
+                @media (max-width: 768px) {
+                    .info-grid { grid-template-columns: 1fr; }
+                    .card-header-main { padding-right: 0; margin-top: 1rem; }
+                    .status-badge-container { margin-bottom: 1.5rem; }
+                    .page-header { padding: 2rem 1rem; }
+                    .total-amount { font-size: 1.5rem; }
+                }
+            `}</style>
+
+            <div className="booking-history-container">
+                <motion.div
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="page-header text-center"
                 >
-                    <option value="all">Tất cả</option>
-                    <option value="Pending">Chờ xử lý</option>
-                    <option value="Accepted">Đã chấp nhận</option>
-                    <option value="In Progress">Đang tiến hành</option>
-                    <option value="Completed">Hoàn thành</option>
-                    <option value="Cancelled">Hủy</option>
-                </select>
-            </div>
+                    <h1 className="page-title">
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem" }}>
+                            <History size={32} strokeWidth={2.5} />
+                            Lịch sử đặt lịch
+                        </span>
+                    </h1>
+                    <p className="opacity-75 lead">Chào mừng trở lại! Bạn có thể xem lại toàn bộ hành trình trải nghiệm dịch vụ tại đây.</p>
+                </motion.div>
 
-            {loading ? (
-                <div className="text-center py-5">
-                    <Spinner animation="border" variant="primary" />
+                {/* Status Filter Tabs */}
+                <div className="status-tabs">
+                    {STATUS_OPTIONS.map((opt) => {
+                        const Icon = opt.icon;
+                        return (
+                            <motion.button
+                                key={opt.value}
+                                whileTap={{ scale: 0.95 }}
+                                className={`status-tab ${statusFilter === opt.value ? 'active' : ''}`}
+                                onClick={() => setStatusFilter(opt.value)}
+                            >
+                                <Icon size={16} />
+                                {opt.label}
+                            </motion.button>
+                        );
+                    })}
                 </div>
-            ) : bookings.length === 0 ? (
-                <div className="text-center text-muted py-5">
-                    <Info size={32} className="mb-2" />
-                    <p>Không có công việc nào phù hợp.</p>
-                </div>
-            ) : (
-                <div className="table-responsive">
-                    <Table hover className="align-middle shadow-sm border rounded-3">
-                        <thead className="table-light">
-                            <tr>
-                                <th>#</th>
-                                <th>Dịch vụ</th>
-                                <th>Gói</th>
-                                <th>Thời gian</th>
-                                <th>Địa chỉ</th>
-                                <th>Trạng thái</th>
-                                <th>Tổng tiền</th>
-                                <th className="text-center">Hành động</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {bookings.map((b, idx) => (
-                                <tr key={b.booking_id} className="booking-row">
-                                    <td className="fw-semibold text-secondary">{idx + 1}</td>
-                                    <td className="fw-semibold text-dark">{b.service_name}</td>
-                                    <td>{b.variant_name || "-"}</td>
-                                    <td className="small text-muted">
-                                        <Calendar size={14} className="me-1" />
-                                        {b.start_time
-                                            ? new Date(b.start_time).toLocaleString("vi-VN", {
-                                                hour: "2-digit",
-                                                minute: "2-digit",
-                                                day: "2-digit",
-                                                month: "2-digit",
-                                                year: "numeric",
-                                            })
-                                            : "-"}
-                                        <br />
-                                        <Clock size={14} className="me-1" />
-                                        {b.end_time
-                                            ? new Date(b.end_time).toLocaleTimeString("vi-VN", {
-                                                hour: "2-digit",
-                                                minute: "2-digit",
-                                                year: "numeric",
-                                            })
-                                            : "-"}
-                                    </td>
-                                    <td>
-                                        <MapPin size={14} className="me-1 text-secondary" />
-                                        {b.location || "Không có địa chỉ"}
-                                    </td>
-                                    <td>
-                                        <Badge bg={getBadgeVariant(b.status)}>{mapCustomerStatus(b.status)}</Badge>
-                                    </td>
-                                    <td className="fw-bold text-primary">
-                                        {b.paid_amount && b.paid_amount > 0
-                                            ? Number(b.paid_amount).toLocaleString("vi-VN") + " ₫"
-                                            : b.final_price && b.final_price > 0
-                                                ? Number(b.final_price).toLocaleString("vi-VN") + " ₫"
-                                                : b.expected_price
-                                                    ? Number(b.expected_price).toLocaleString("vi-VN") + " ₫"
-                                                    : "-"}
-                                    </td>
-                                    <td>
-                                        <div className="action-buttons">
 
-                                            {/* 👉 Nút Xem – thay toàn bộ phần nút trạng thái */}
+                {loading ? (
+                    <div className="d-flex flex-column align-items-center justify-content-center py-5">
+                        <div className="spinner-grow text-dark mb-3" role="status"></div>
+                        <p className="text-muted fw-bold">Đang tải dữ liệu...</p>
+                    </div>
+                ) : bookings.length === 0 ? (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="text-center py-5 px-4 bg-white rounded-5 shadow-sm border-0"
+                    >
+                        <div className="mb-4 d-inline-flex p-5 bg-light rounded-circle">
+                            <Search size={64} className="text-muted opacity-20" />
+                        </div>
+                        <h2 className="fw-black text-dark mb-3">Trống trơn rồi...</h2>
+                        <p className="text-muted mb-4 fs-5">Hệ thống không tìm thấy đơn nào ở trạng thái này.</p>
+                        <Button
+                            variant="dark"
+                            className="rounded-pill px-5 py-3 fw-bold shadow-lg"
+                            onClick={() => setStatusFilter('all')}
+                        >
+                            Quay lại xem tất cả
+                        </Button>
+                    </motion.div>
+                ) : (
+                    <div className="booking-list">
+                        <AnimatePresence mode="popLayout">
+                            {bookings.map((b, idx) => {
+                                const statusInfo = getStatusInfo(b.status);
+                                const StatusIcon = statusInfo.icon;
+                                return (
+                                    <motion.div
+                                        key={b.booking_id}
+                                        layout
+                                        initial={{ opacity: 0, x: -20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, scale: 0.9 }}
+                                        transition={{ duration: 0.4, delay: idx * 0.08 }}
+                                        className="booking-card shadow-sm"
+                                    >
+                                        <div style={{
+                                            display: 'flex',
+                                            justifyContent: 'center',
+                                            alignItems: 'center',
+                                            width: '100%',
+                                            paddingBottom: '1.25rem',
+                                            borderBottom: '1px solid #f1f5f9',
+                                            marginBottom: '1.5rem',
+                                            flexWrap: 'wrap',
+                                            gap: '0.75rem'
+                                        }}>
+                                            <span style={{
+                                                fontSize: '0.875rem',
+                                                fontWeight: 900,
+                                                color: '#000000ff',
+                                                textTransform: 'uppercase',
+                                                letterSpacing: '0.05em'
+                                            }}>Tình trạng:</span>
+                                            <div style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.5rem',
+                                                color: statusInfo.color,
+                                                fontSize: '1rem',
+                                                fontWeight: 900,
+                                                textTransform: 'uppercase',
+                                                letterSpacing: '0.05em'
+                                            }}>
+                                                <StatusIcon size={20} strokeWidth={3} />
+                                                {statusInfo.label}
+                                            </div>
+                                        </div>
+
+                                        <div className="card-header-main">
+                                            <span className="booking-id-tag">ID TRANSACTION: HH-{b.booking_id.toString().padStart(6, '0')}</span>
+                                            <div className="service-display">
+                                                <div className="service-icon-wrapper">
+                                                    <ClipboardList size={28} strokeWidth={2.5} />
+                                                </div>
+                                                <div className="service-details">
+                                                    <h3>{b.service_name}</h3>
+                                                    <div className="d-flex align-items-center gap-2">
+                                                        <span className="variant-pill">{b.variant_name || "Dịch vụ"}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="info-grid shadow-inner">
+                                            <div className="info-item">
+                                                <div className="info-icon-circle">
+                                                    <Calendar size={18} className="text-primary" />
+                                                </div>
+                                                <div>
+                                                    <div className="info-label">Ngày đặt</div>
+                                                    <div className="info-value">
+                                                        {b.booking_time ? new Date(b.booking_time).toLocaleDateString("vi-VN", { day: '2-digit', month: '2-digit', year: 'numeric' }) : "-"}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="info-item">
+                                                <div className="info-icon-circle">
+                                                    <TrendingUp size={18} className="text-success" />
+                                                </div>
+                                                <div>
+                                                    <div className="info-label">Ngày thực hiện</div>
+                                                    <div className="info-value">
+                                                        {b.start_time ? new Date(b.start_time).toLocaleDateString("vi-VN", { day: '2-digit', month: '2-digit', year: 'numeric' }) : "-"}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="info-item">
+                                                <div className="info-icon-circle">
+                                                    <MapPin size={18} className="text-danger" />
+                                                </div>
+                                                <div>
+                                                    <div className="info-label">Vị trí thực hiện</div>
+                                                    <div className="info-value text-truncate" style={{ maxWidth: '150px' }}>{b.location || "Chưa xác định"}</div>
+                                                </div>
+                                            </div>
+                                            <div className="info-item">
+                                                <div className="info-icon-circle">
+                                                    <Info size={18} className="text-info" />
+                                                </div>
+                                                <div>
+                                                    <div className="info-label">Loại dịch vụ</div>
+                                                    <div className="info-value">{b.type || "Cơ bản"}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="price-section">
+                                            <div className="d-flex flex-column">
+                                                <span className="info-label">Số tiền thanh toán</span>
+                                                <span className="total-amount">
+                                                    {(() => {
+                                                        if (b.paid_amount && Number(b.paid_amount) > 0) {
+                                                            return formatVND(b.paid_amount);
+                                                        }
+                                                        const isFinalized = ["Đã chấp nhận", "Đã thanh toán", "Đang tiến hành", "Hoàn thành", "Chờ xác nhận"].includes(b.status);
+                                                        const quantity = Number(b.quantity || 1);
+                                                        const mult = (isFinalized && quantity > 1) ? quantity : 1;
+                                                        const price = b.final_price && Number(b.final_price) > 0 ? Number(b.final_price) : Number(b.expected_price || 0);
+
+                                                        return price > 0 ? formatVND(price * mult) : "-";
+                                                    })()}
+                                                </span>
+                                            </div>
                                             <Button
-                                                variant="info"
-                                                size="sm"
+                                                className="btn-modern btn-primary-modern shadow-lg"
                                                 onClick={() => navigate(`/customer/booking/${b.booking_id}`, { state: { booking: b } })}
                                             >
-                                                🔍 Xem
+                                                Chi tiết <ChevronRight size={18} />
                                             </Button>
+                                        </div>
 
-                                            {/* 💳 Thanh toán (chỉ khi Đã chấp nhận & không phải thuê theo tuần/tháng) */}
-                                            {b.status === "Đã chấp nhận" &&
-                                                !["week", "month"].includes(b.pricing_type) && (
-                                                    <Button
-                                                        variant="success"
-                                                        size="sm"
-                                                        className="ms-2"
-                                                        onClick={() => {
-                                                            window.location.href = `/payment/${b.booking_id}`;
-                                                        }}
-                                                    >
-                                                        💳 Thanh toán
-                                                    </Button>
-                                                )}
+                                        <div className="footer-actions">
+                                            {(b.status === "Đã chấp nhận" || b.status === "Đã ký hợp đồng") && (
+                                                <Button className="btn-modern btn-primary-modern" onClick={() => navigate(`/payment/${b.booking_id}`)}>
+                                                    <CreditCard size={18} /> Thanh toán
+                                                </Button>
+                                            )}
 
                                             {b.status === "Hoàn thành" && (
-                                                <Button
-                                                    variant="warning"
-                                                    size="sm"
-                                                    className="ms-2"
-                                                    onClick={() =>
-                                                        navigate(`/customer/booking/${b.booking_id}/rating`, {
-                                                            state: { booking: b }
-                                                        })
-                                                    }
-                                                >
-                                                    ⭐ Đánh giá
+                                                <Button className="btn-modern btn-warning-modern" onClick={() => navigate(`/customer/booking/${b.booking_id}/rating`, { state: { booking: b } })}>
+                                                    <Star size={18} /> Gửi đánh giá
                                                 </Button>
                                             )}
 
-                                            {/* 📄 Ký hợp đồng (nếu là week/month) */}
-                                            {b.status === "Đã chấp nhận" &&
-                                                ["week", "month"].includes(b.pricing_type) && (
-                                                    <Button
-                                                        variant="warning"
-                                                        size="sm"
-                                                        className="ms-2"
-                                                        onClick={() => handleContract(b)}
-                                                    >
-                                                        📄 Ký hợp đồng
-                                                    </Button>
-                                                )}
+                                            {b.status === "Đã chấp nhận" && (b.pricing_type && ["week", "month", "tuần", "tháng"].some(k => b.pricing_type.toLowerCase().includes(k))) && (
+                                                <Button className="btn-modern btn-outline-modern border" onClick={() => handleContract(b)}>
+                                                    <FileText size={18} /> Xem hợp đồng
+                                                </Button>
+                                            )}
 
-                                            {/* ➕ Nút Hủy (chỉ hiện khi còn có thể hủy) */}
                                             {["Chờ xử lý", "Đã chấp nhận", "Đã thanh toán"].includes(b.status) && (
-                                                <Button
-                                                    variant="danger"
-                                                    size="sm"
-                                                    className="ms-2"
-                                                    onClick={() => openCancelModal(b)} // mở modal điều khoản
-                                                >
-                                                    ❌ Hủy
+                                                <Button className="btn-modern btn-danger-modern" onClick={() => openCancelModal(b)}>
+                                                    <XCircle size={18} /> Hủy yêu cầu
                                                 </Button>
                                             )}
 
-                                            {/* Nút Chat */}
                                             {["Chờ xử lý", "Đã chấp nhận"].includes(b.status) && (
-                                                <NegotiatePriceButton
-                                                    peerId={b.tasker_id}
-                                                    bookingId={b.booking_id}
-                                                    label="Chat"
-                                                    size="md"
-                                                    className="ms-2"
-                                                    onClick={() => {
-                                                        window.location.href = `/chat?bookingId=${b.booking_id}&negotiation=1&peer=${b.tasker_id}`;
-                                                    }}
-                                                />
+                                                <Button
+                                                    className="btn-modern btn-success-modern"
+                                                    onClick={() => navigate(`/chat?bookingId=${b.booking_id}&negotiation=1&peer=${b.tasker_id}`)}
+                                                >
+                                                    <MessageCircle size={18} /> Trò chuyện
+                                                </Button>
                                             )}
                                         </div>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </Table>
-                </div>
-            )}
-            {showCancelModal && (
-                <div className="cancel-overlay" onClick={closeCancelModal}>
-                    <div className="cancel-box" onClick={(e) => e.stopPropagation()}>
-                        <h5>📜 Chính sách hủy & hoàn tiền</h5>
-                        <ul>
-                            <li>🕐 Trên 24h: Hoàn 100%</li>
-                            <li>⏰ 12–24h: Hoàn 75% – trừ 25%</li>
-                            <li>⌛ 4–12h: Hoàn 50% – đền 50%</li>
-                            <li>🚫 Dưới 4h: Không hoàn tiền</li>
-                            <li>⚡ Tasker hủy: Hoàn 100% + voucher 10%</li>
-                            <li>🏠 Khách không có mặt: Không hoàn tiền (xác minh)</li>
-                        </ul>
-                        <p className="fw-semibold text-danger">Bạn có chắc chắn muốn hủy đơn này không?</p>
-                        <div className="d-flex justify-content-end gap-2 mt-3">
-                            <Button
-                                variant="secondary"
-                                className="px-4 py-2 fw-semibold"
-                                onClick={closeCancelModal}
-                            >
-                                Đóng
-                            </Button>
-
-                            <Button
-                                variant="danger"
-                                className="px-4 py-2 fw-semibold"
-                                onClick={handleConfirmCancel}
-                                disabled={isCancelling}
-                            >
-                                {isCancelling ? "Đang hủy..." : "Xác nhận hủy"}
-                            </Button>
-                        </div>
+                                    </motion.div>
+                                );
+                            })}
+                        </AnimatePresence>
                     </div>
-                </div>
-            )}
+                )}
+
+                {showCancelModal && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="cancel-overlay"
+                        onClick={closeCancelModal}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.92, y: 30 }}
+                            animate={{ scale: 1, y: 0 }}
+                            className="cancel-box rounded-5 border-0"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="text-center mb-4">
+                                <div className="d-inline-flex p-4 bg-danger bg-opacity-10 rounded-circle mb-4">
+                                    <AlertCircle size={40} className="text-danger" />
+                                </div>
+                                <h2 className="fw-black text-dark mb-2">Quy định hủy đơn</h2>
+                                <p className="text-muted fs-6">Hành động này có thể đi kèm phí dịch vụ.</p>
+                            </div>
+
+                            <Card className="bg-light border-0 rounded-4 mb-4">
+                                <Card.Body className="p-4">
+                                    <div className="d-flex gap-3 mb-3 pb-3 border-bottom border-secondary border-opacity-10">
+                                        <Clock size={20} className="text-primary flex-shrink-0" />
+                                        <span><strong>Trên 24h:</strong> Không mất phí, hoàn tiền 100% về ví.</span>
+                                    </div>
+                                    <div className="d-flex gap-3 mb-3 pb-3 border-bottom border-secondary border-opacity-10">
+                                        <Clock size={20} className="text-warning flex-shrink-0" />
+                                        <span><strong>12h - 24h:</strong> Phí dịch vụ 25%, hoàn lại 75%.</span>
+                                    </div>
+                                    <div className="d-flex gap-3 mb-3 pb-3 border-bottom border-secondary border-opacity-10">
+                                        <Clock size={20} className="text-danger flex-shrink-0" />
+                                        <span><strong>4h - 12h:</strong> Phí dịch vụ 50%, hoàn lại 50%.</span>
+                                    </div>
+                                    <div className="d-flex gap-3">
+                                        <XCircle size={20} className="text-dark flex-shrink-0" />
+                                        <span><strong>Dưới 4h:</strong> Rất tiếc, chúng tôi không hỗ trợ hoàn tiền.</span>
+                                    </div>
+                                </Card.Body>
+                            </Card>
+
+                            <div className="alert alert-info border-0 rounded-4 d-flex align-items-center mb-4 p-3">
+                                <Info size={24} className="me-3 opacity-50" />
+                                <small className="fw-bold">Yêu cầu hủy sẽ được Admin duyệt trong vòng 24h làm việc.</small>
+                            </div>
+
+                            <div className="d-grid gap-3">
+                                <Button
+                                    variant="danger"
+                                    className="py-3 fw-black rounded-4 shadow-lg border-0"
+                                    onClick={handleConfirmCancel}
+                                    disabled={isCancelling}
+                                >
+                                    {isCancelling ? <Spinner size="sm" className="me-2" /> : null}
+                                    {isCancelling ? "Đang hủy đơn..." : "Đồng ý và Hủy ngay"}
+                                </Button>
+                                <Button
+                                    variant="light"
+                                    className="py-3 fw-bold rounded-4 text-muted border-0"
+                                    onClick={closeCancelModal}
+                                >
+                                    Tôi muốn giữ lại đơn
+                                </Button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </div>
         </Container>
     );
 }

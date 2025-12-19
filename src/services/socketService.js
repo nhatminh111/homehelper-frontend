@@ -19,7 +19,14 @@ class SocketService {
     }
 
     try {
-      this.socket = io(process.env.REACT_APP_SOCKET_URL || 'http://localhost:3001', {
+      // Derive socket URL from API URL if not explicitly provided
+      let socketUrl = process.env.REACT_APP_SOCKET_URL;
+      if (!socketUrl && process.env.REACT_APP_API_URL) {
+        // Remove /api or /api/ from the end
+        socketUrl = process.env.REACT_APP_API_URL.replace(/\/api\/?$/, '');
+      }
+
+      this.socket = io(socketUrl || 'http://localhost:3001', {
         auth: {
           token: token
         },
@@ -66,7 +73,7 @@ class SocketService {
       console.log('❌ Disconnected from Socket.IO server:', reason);
       this.isConnected = false;
       this.emit('connection_status', { status: 'disconnected', reason });
-      
+
       // Auto reconnect if not manually disconnected
       if (reason !== 'io client disconnect') {
         this.handleReconnect();
@@ -262,9 +269,9 @@ class SocketService {
 
     this.reconnectAttempts++;
     const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
-    
+
     console.log(`🔄 Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
-    
+
     setTimeout(() => {
       if (this.socket && !this.isConnected) {
         this.socket.connect();

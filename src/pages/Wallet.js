@@ -5,9 +5,11 @@ import {
   faRotateRight, faDownload, faChevronRight, faCircleCheck, faArrowUpRightFromSquare
 } from '@fortawesome/free-solid-svg-icons';
 
-const API_BASE = (process.env.REACT_APP_API_BASE || '').replace(/\/+$/, '');
+import { formatVND } from '../utils/formatVND';
+
+const API_BASE = (process.env.REACT_APP_API_URL || 'http://localhost:3001/api').replace(/\/+$/, '').replace(/\/api$/, '');
 const token = () => localStorage.getItem('token') || '';
-const vnd = (n) => (Number(n) || 0).toLocaleString('vi-VN') + '₫';
+const vnd = (n) => formatVND(n);
 
 function useCurrentUser() {
   const [user, setUser] = useState(null);
@@ -26,8 +28,9 @@ export default function WalletPage() {
   const [limit, setLimit] = useState(10); // tải 10 dòng đầu, có nút "Tải thêm"
   const [reloading, setReloading] = useState(false);
   const [filter, setFilter] = useState('all'); // all | credit | debit
-  // const currentUser = useCurrentUser();
-  // const navigate = useNavigate();
+  const currentUser = useCurrentUser();
+  const navigate = useNavigate();
+  const [withdrawing, setWithdrawing] = useState(false);
 
   const fetchAll = useCallback(async (lim = limit) => {
     try {
@@ -112,15 +115,40 @@ export default function WalletPage() {
     .filter(x => x.type !== 'credit')
     .reduce((s, x) => s + Number(x.amount || 0), 0);
 
+  const isCreditType = (type) => ['credit', 'refund', 'compensation'].includes(type);
+
   // === LỌC BẢNG THEO YÊU CẦU ===
-  const filtered = history.filter(x =>
-    filter === 'all' ? true : (filter === 'credit' ? x.type === 'credit' : x.type !== 'credit')
-  );
+  const filtered = history.filter(x => {
+    if (filter === 'all') return true;
+    const isCredit = isCreditType(x.type);
+    return filter === 'credit' ? isCredit : !isCredit;
+  });
+
+  const getPurposeLabel = (p) => {
+    const map = {
+      'booking_cancel': 'Khách hủy dịch vụ',
+      'booking_payment': 'Thanh toán dịch vụ',
+      'complaint_approved': 'Duyệt khiếu nại',
+      'complaint_rejected': 'Từ chối khiếu nại',
+      'demo_topup': 'Nạp tiền',
+      'topup': 'Nạp tiền',
+      'evidence_approved': 'Bằng chứng hợp lệ',
+      'evidence_rejected': 'Bằng chứng không hợp lệ',
+      'tasker_cancel': 'Tasker hủy dịch vụ',
+      'tasker_payout': 'Tasker hoàn thành',
+      'withdrawal': 'Rút tiền',
+      'refund': 'Hoàn tiền',
+      'compensation': 'Bồi thường',
+      'no_show': 'Khách không có mặt',
+      'system_cancel': 'Hệ thống tự động hủy'
+    };
+    return map[p] || p;
+  };
 
   return (
     <>
       {/* Hero */}
-      <section className="hero-wrap hero-wrap-2" style={{ backgroundImage: "url('/images/bg_2.jpg')" }} data-stellar-background-ratio="0.5">
+      <section className="hero-wrap hero-wrap-2" style={{ backgroundImage: "url('/images/home.jpg')" }} data-stellar-background-ratio="0.5">
         <div className="overlay"></div>
         <div className="container">
           <div className="row no-gutters slider-text align-items-end">
@@ -130,9 +158,9 @@ export default function WalletPage() {
                 <span>Ví của bạn</span>
               </p>
               <h1 className="mb-0 bread">Xem số dư & giao dịch ví</h1>
-              {useCurrentUser && (
+              {currentUser && (
                 <p className="text-white-50 small mb-0">
-                  Xin chào, <b>{(JSON.parse(localStorage.getItem('currentUser') || '{}').name) || (JSON.parse(localStorage.getItem('currentUser') || '{}').email) || 'bạn'}</b>
+                  Xin chào, <b>{currentUser.name || currentUser.email || 'bạn'}</b>
                 </p>
               )}
             </div>
@@ -162,6 +190,21 @@ export default function WalletPage() {
                 </button>
               </div>
             </div>
+            <div className="mt-3">
+              <button
+                className="btn btn-outline-primary btn-sm rounded-pill px-4 me-2"
+                onClick={() => navigate('/withdraw-request')}
+                disabled={balance <= 0}
+              >
+                Rút tiền
+              </button>
+              <button
+                className="btn btn-outline-secondary btn-sm rounded-pill px-4"
+                onClick={() => navigate('/withdraw-history')}
+              >
+                Lịch sử yêu cầu
+              </button>
+            </div>
           </div>
 
           {/* BẢNG TỔNG KẾT: ĐÃ NẠP / ĐÃ TIÊU */}
@@ -177,11 +220,11 @@ export default function WalletPage() {
                 </thead>
                 <tbody>
                   <tr>
-                    <td>Đã nạp (tổng cộng)</td>
+                    <td>Đã cộng (tổng cộng)</td>
                     <td className="text-right text-success">+{vnd(creditSum)}</td>
                   </tr>
                   <tr>
-                    <td>Đã tiêu (tổng cộng)</td>
+                    <td>Đã trừ (tổng cộng)</td>
                     <td className="text-right text-danger">-{vnd(debitSum)}</td>
                   </tr>
                 </tbody>
@@ -208,9 +251,9 @@ export default function WalletPage() {
                   <tr>
                     <th>Thời gian</th>
                     <th>Loại</th>
-                    <th>Mục đích</th>
+                    <th style={{ minWidth: '200px' }}>Mục đích</th>
+                    <th>Ghi chú</th>
                     <th className="text-right">Số tiền</th>
-                    <th>Liên quan</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -224,10 +267,7 @@ export default function WalletPage() {
                     </tr>
                   ) : (
                     filtered.map(x => {
-                      const isCredit =
-                        x.type === 'credit' ||
-                        x.type === 'refund' ||
-                        x.type === 'compensation';
+                      const isCredit = isCreditType(x.type);
                       return (
                         <tr key={`${x.id}-${x.created_at}`}>
                           <td>{new Date(x.created_at).toLocaleString('vi-VN')}</td>
@@ -236,11 +276,13 @@ export default function WalletPage() {
                               {isCredit ? 'Cộng' : 'Trừ'}
                             </span>
                           </td>
-                          <td>{x.purpose}</td>
+                          <td className="fw-medium">{getPurposeLabel(x.purpose)}</td>
+                          <td>
+                            <span className="small text-muted">{x.note || '—'}</span>
+                          </td>
                           <td className={`text-right ${isCredit ? 'text-success' : 'text-danger'}`}>
                             {isCredit ? '+' : '-'}{vnd(x.amount)}
                           </td>
-                          <td>{x.related_id || '—'}</td>
                         </tr>
                       );
                     })
@@ -249,31 +291,132 @@ export default function WalletPage() {
               </table>
             </div>
 
-            <div className="p-3 d-flex justify-content-center">
+            <div className="p-4 d-flex justify-content-center">
               <button
-                className="btn-light"
+                className="btn-load-more"
                 onClick={loadMore}
                 disabled={loading || reloading}
               >
-                Tải thêm
+                {reloading ? (
+                  <>
+                    <FontAwesomeIcon icon={faRotateRight} className="fa-spin mr-2" />
+                    Đang tải dữ liệu...
+                  </>
+                ) : (
+                  <>
+                    Xem thêm giao dịch
+                    <FontAwesomeIcon icon={faChevronRight} className="ml-2 small opacity-50" />
+                  </>
+                )}
               </button>
             </div>
           </div>
 
-          <div className="glass card-top mt-4">
+          <div className="glass card-top mt-4 mb-5">
             <div className="d-flex justify-content-between align-items-center">
               <div>
-                <div className="card-title">Cần nạp ngay?</div>
-                <div className="text-muted small">Thanh toán qua MoMo an toàn, cập nhật số dư tức thì.</div>
+                <div className="card-title text-primary">Cần nạp thêm tiền?</div>
+                <div className="text-muted small">Nạp tiền qua MoMo hoặc Chuyển khoản ngân hàng để tiếp tục sử dụng dịch vụ.</div>
               </div>
               <Link to="/topUp" className="btn-gradient">
-                Nạp ngay <FontAwesomeIcon icon={faArrowUpRightFromSquare} className="ml-1" />
+                Nạp ngay <FontAwesomeIcon icon={faArrowUpRightFromSquare} className="ml-2" />
               </Link>
             </div>
           </div>
 
         </div>
       </section>
+
+      <style>{`
+        .btn-load-more {
+          background: #fff;
+          border: 1px solid #e2e8f0;
+          color: #475569;
+          padding: 10px 30px;
+          border-radius: 99px;
+          font-weight: 600;
+          font-size: 0.9rem;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+
+        .btn-load-more:hover:not(:disabled) {
+          background: #f8fafc;
+          border-color: #cbd5e1;
+          color: #1e293b;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+        }
+
+        .btn-load-more:active:not(:disabled) {
+          transform: translateY(0);
+        }
+
+        .btn-load-more:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+          background: #f1f5f9;
+        }
+
+        .table-responsive {
+          border-radius: 0 0 15px 15px;
+        }
+
+        .table thead th {
+          background: #f8fafc;
+          border-top: none;
+          color: #64748b;
+          font-size: 0.75rem;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          padding: 15px 20px;
+        }
+
+        .table tbody tr {
+          transition: background 0.2s;
+        }
+
+        .table tbody tr:hover {
+          background-color: #f1f5f9;
+        }
+
+        .table td {
+          padding: 15px 20px;
+          vertical-align: middle;
+          border-top: 1px solid #f1f5f9;
+        }
+
+        .badge-success {
+          background-color: #ecfdf5;
+          color: #059669;
+          border: 1.5px solid #10b981;
+        }
+
+        .badge-danger {
+          background-color: #fef2f2;
+          color: #dc2626;
+          border: 1.5px solid #ef4444;
+        }
+
+        .btn-gradient {
+          background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+          color: white !important;
+          padding: 12px 25px;
+          border-radius: 12px;
+          font-weight: 700;
+          transition: all 0.3s ease;
+          border: none;
+          box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+        }
+
+        .btn-gradient:hover {
+          transform: scale(1.03);
+          box-shadow: 0 6px 15px rgba(37, 99, 235, 0.3);
+        }
+      `}</style>
     </>
   );
 }

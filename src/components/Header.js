@@ -56,7 +56,6 @@ const Header = () => {
   // Danh sách các link chính với icon
   const mainLinks = [
     { path: "/", name: "Trang chủ", icon: faHome },
-    { path: "/about", name: "Giới thiệu", icon: faInfoCircle },
     { path: "/services", name: "Dịch vụ", icon: faTools },
     { path: "/video", name: "Video", icon: faProjectDiagram },
     { path: "/blog", name: "Blog", icon: faNewspaper },
@@ -130,13 +129,10 @@ const Header = () => {
             className={`${isNavCollapsed ? "collapse" : ""} navbar-collapse`}
             id="ftco-nav"
           >
-            <ul className="navbar-nav ml-auto">
+            <ul className="navbar-nav mx-auto justify-content-center">
               <li className={`nav-item ${isActive('/')}`}>
                 <Link to="/" className="nav-link">Trang chủ</Link>
               </li>
-              {/* <li className={`nav-item ${isActive('/about')}`}>
-                <Link to="/about" className="nav-link">Giới thiệu</Link>
-              </li> */}
               <li className={`nav-item ${isActive('/services')}`}>
                 <Link to="/services" className="nav-link">Dịch vụ</Link>
               </li>
@@ -168,9 +164,9 @@ const Header = () => {
                 </Link>
               </li> */}
 
-              {isCustomer() && (
+              {(isCustomer()) && (
                 <li className={`nav-item ${isActive('/become-tasker')}`}>
-                  <Link to="/become-tasker" className="nav-link">Become a Tasker</Link>
+                  <Link to="/become-tasker" className="nav-link">Đăng kí Tasker</Link>
                 </li>
               )}
 
@@ -246,7 +242,10 @@ const Header = () => {
 
                       <div className="dropdown-divider"></div>
 
-
+                      <Link className="dropdown-item" to="/tasker/dashboard">
+                        <FontAwesomeIcon icon={faNewspaper} className="mr-2" />
+                        Dashboard
+                      </Link>
                       <Link className="dropdown-item" to="/my-blogs">
                         <FontAwesomeIcon icon={faNewspaper} className="mr-2" />
                         Blog của tôi
@@ -352,12 +351,6 @@ const Header = () => {
                       Đăng nhập
                     </Link>
                   </li>
-                  <li className="nav-item">
-                    <Link to="/register" className="nav-link">
-                      <FontAwesomeIcon icon={faUserPlus} className="mr-1" />{" "}
-                      Đăng ký
-                    </Link>
-                  </li>
                 </>
               )}
 
@@ -425,10 +418,6 @@ const Header = () => {
                   <Link to="/login" onClick={() => setIsSidebarOpen(false)}>
                     <FontAwesomeIcon icon={faSignInAlt} className="mr-2" />
                     Đăng nhập
-                  </Link>
-                  <Link to="/register" onClick={() => setIsSidebarOpen(false)}>
-                    <FontAwesomeIcon icon={faUserPlus} className="mr-2" />
-                    Đăng ký
                   </Link>
                 </>
               )}

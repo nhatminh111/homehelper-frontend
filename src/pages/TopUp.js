@@ -91,7 +91,7 @@ const TopUp = () => {
         amount: v,
         startedAt: Date.now(),
       });
-      try { window.open(data.momo.payUrl, '_blank', 'noopener'); } catch {}
+      try { window.open(data.momo.payUrl, '_blank', 'noopener'); } catch { }
       setPolling(true);
     } catch (err) {
       console.error('[TopUp] Lỗi tạo đơn:', err);
@@ -170,14 +170,14 @@ const TopUp = () => {
       {/* ===== Body: layout 1 cột, từ trên xuống ===== */}
       <section className="topup-body one-column">
         <div className="shell single-col">
-          
-          <div 
+
+          <div
             className="glass card-top mb-4"
-            style={{display:'flex', justifyContent:'space-between', alignItems:'center', cursor:'pointer'}}
+            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
             onClick={refresh}
           >
             <h3 className="card-title mb-0">Số dư ví</h3>
-            <strong style={{fontSize:22, color:'#16a34a'}}>
+            <strong style={{ fontSize: 22, color: '#16a34a' }}>
               {balanceError ? 'Lỗi' : (balanceLoading ? '...' : formatVND(balance))}
             </strong>
           </div>
@@ -206,11 +206,11 @@ const TopUp = () => {
                   <button
                     key={v}
                     type="button"
-                    className={`pill ${Number(amount)===v ? 'active' : ''}`}
+                    className={`pill ${Number(amount) === v ? 'active' : ''}`}
                     onClick={() => pickPreset(v)}
                     disabled={disabled}
                   >
-                    {v.toLocaleString()}₫
+                    {formatVND(v / 1000)}
                   </button>
                 ))}
               </div>
@@ -220,11 +220,11 @@ const TopUp = () => {
               <button className={`btn-gradient btn-xl ${disabled ? 'btn-disabled' : ''}`} disabled={disabled}>
                 {loading ? (
                   <>
-                    <FontAwesomeIcon icon={faSpinner} spin/> Đang tạo mã...
+                    <FontAwesomeIcon icon={faSpinner} spin /> Đang tạo mã...
                   </>
                 ) : (
                   <>
-                    <FontAwesomeIcon icon={faQrcode}/> Tạo mã nạp MoMo
+                    <FontAwesomeIcon icon={faQrcode} /> Tạo mã nạp MoMo
                   </>
                 )}
               </button>
@@ -233,11 +233,11 @@ const TopUp = () => {
             {orderInfo && (
               <div className="order-box" aria-live="polite">
                 <div className="order-icon">
-                  <FontAwesomeIcon icon={faCircleCheck}/>
+                  <FontAwesomeIcon icon={faCircleCheck} />
                 </div>
                 <div className="order-meta">
                   <div>Đơn nạp: <b>{orderInfo.orderId}</b></div>
-                  <div>Số tiền: <b>{orderInfo.amount.toLocaleString()}₫</b></div>
+                  <div>Số tiền: <b>{formatVND(orderInfo.amount / 1000)}</b></div>
                 </div>
               </div>
             )}
@@ -249,10 +249,10 @@ const TopUp = () => {
               <h3 className="payment-title">2) Thanh toán MoMo</h3>
               <div className="actions">
                 <button className="btn-icon" onClick={copyLink} disabled={!payUrl} title="Copy link">
-                  <FontAwesomeIcon icon={faCopy}/>
+                  <FontAwesomeIcon icon={faCopy} />
                 </button>
                 <a className={`btn-icon ${!payUrl ? 'disabled' : ''}`} href={payUrl || '#'} target="_blank" rel="noreferrer" title="Mở MoMo">
-                  <FontAwesomeIcon icon={faArrowUpRightFromSquare}/>
+                  <FontAwesomeIcon icon={faArrowUpRightFromSquare} />
                 </a>
               </div>
             </div>
@@ -262,8 +262,8 @@ const TopUp = () => {
                 <iframe title="MoMo Payment" src={payUrl} />
               ) : (
                 <div className="qr-empty">
-                  <div className="ghost-line w-60"/>
-                  <div className="ghost-line w-40"/>
+                  <div className="ghost-line w-60" />
+                  <div className="ghost-line w-40" />
                   <p className="hint">
                     Sau khi tạo, tab MoMo sẽ mở tự động. Nếu không, bấm <b>Mở MoMo</b> ở góc phải.
                   </p>

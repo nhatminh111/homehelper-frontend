@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import CompletionStatus from "../../components/CompletionStatus"
 import { useLocation, useNavigate } from "react-router-dom";
 import blogService from "../../services/blogService";
+import { formatVND } from "../../utils/formatVND";
 import { Container, Row, Col, Card, Button, Nav, Form, InputGroup } from "react-bootstrap";
 
 export default function JobDescription() {
@@ -75,9 +76,16 @@ export default function JobDescription() {
 
   const [priceError, setPriceError] = useState("");
 
-  const minVnd = (chosenVariants?.[0]?.price_min ?? 0) * 1000;
-  const maxVnd = (chosenVariants?.[0]?.price_max ?? 0) * 1000;
-  const priceVnd = (Number(expectedPrice) || 0) * 1000;
+  let minVnd = (chosenVariants?.[0]?.price_min ?? 0);
+  let maxVnd = (chosenVariants?.[0]?.price_max ?? 0);
+  const unit = chosenVariants?.[0]?.unit || "";
+
+  if ((unit === "Tuần" || unit === "Tháng") && selection.workHours === "Toàn thời gian") {
+    minVnd += 500;
+    maxVnd += 500;
+  }
+
+  const priceVnd = (Number(expectedPrice) || 0);
 
   const checkOutPrice = () => {
     if (!expectedPrice) {
@@ -85,8 +93,9 @@ export default function JobDescription() {
       setPriceConfirmed(false);
       return false;
     }
+    // logic: range [minVnd, maxVnd]
     if (priceVnd < minVnd || priceVnd > maxVnd) {
-      setPriceError(`Giá mong muốn phải nằm trong khoảng từ ${minVnd.toLocaleString("vi-VN")}đ đến ${maxVnd.toLocaleString("vi-VN")}đ`);
+      setPriceError(`Giá mong muốn phải nằm trong khoảng từ ${formatVND(minVnd)} đến ${formatVND(maxVnd)}`);
       setPriceConfirmed(false);
       return false;
     }
@@ -125,11 +134,14 @@ export default function JobDescription() {
         quantity: selection.quantity ?? 1,
         unit: selection.unit || "",
         total_hours: selection.totalHours || null,
+        total_sessions: bookingData.total_sessions || 1,
 
         status: "Pending",
-        created_at: new Date().toISOString(),
+        // 🔹 Thông tin phân loại (lưu vào Bookings.description)
+        description: selection.workHours === "Toàn thời gian" ? "Làm qua đêm" : "Làm bình thường",
 
         // 🔹 Thông tin cho bảng Tasks
+        dates: selection.dates || [],
         task: {
           description: jobTitle.trim(),  // Tiêu đề công việc → lưu vào `Tasks.description`
           checklist: description.trim(), // Nội dung mô tả chi tiết → lưu vào `Tasks.checklist`
@@ -140,12 +152,13 @@ export default function JobDescription() {
       console.log("📦 [JobDescription] Payload gửi BE:", payload);
       console.log("🔢 [JobDescription] Quantity:", selection.quantity);
       console.log("🔢 [JobDescription] Unit:", selection.unit);
+      console.log("🔢 [JobDescription] Total Sessions:", bookingData.total_sessions);
       console.log("⏱️ [JobDescription] TotalHours:", selection.totalHours);
       console.log("📅 [JobDescription] Dates length:", selection.dates?.length);
 
       // ✅ Gửi request POST tạo Booking + Task
       const token = user.token;
-      const res = await fetch("http://localhost:3001/api/bookings", {
+      const res = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/bookings`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -395,7 +408,7 @@ export default function JobDescription() {
             <Col xs={4}>
               <button
                 onClick={() =>
-                  navigate("/booking", {
+                  navigate("/booking/:id", {
                     state: {
                       ...bookingData,
                       selection,
@@ -478,10 +491,18 @@ export default function JobDescription() {
                         <div className="fw-bold text-primary">
                           {chosenVariants.length > 0
                             ? chosenVariants.map((v) => {
-                              const min = v.price_min || 0;
-                              const max = v.price_max || 0;
+                              let min = v.price_min || 0;
+                              let max = v.price_max || 0;
                               const unit = v.unit || "";
-                              return `${(min * 1000).toLocaleString("vi-VN")}đ – ${(max * 1000).toLocaleString("vi-VN")}đ/${unit}`;
+
+                              // Cộng thêm phí qua đêm 500k nếu đơn vị là Tuần/Tháng và chọn làm qua đêm
+                              if ((unit === "Tuần" || unit === "Tháng") && selection.workHours === "Toàn thời gian") {
+                                min += 500;
+                                max += 500;
+                              }
+
+                              if (min === max) return `${formatVND(min)}/${unit}`;
+                              return `${formatVND(min)} – ${formatVND(max)}/${unit}`;
                             }).join(", ")
                             : "—"}
                         </div>
@@ -553,51 +574,42 @@ export default function JobDescription() {
 
                       <Form.Group className="mb-3 d-flex flex-column align-items-start">
                         <Form.Label className="fw-semibold">Giá mong muốn (VNĐ)</Form.Label>
-                        <InputGroup
-                          style={{
-                            width: "180px",
-                            borderRadius: "0px",
-                            overflow: "hidden",
-                            boxShadow: "0 2px 6px rgba(0, 0, 0, 0.08)",
-                          }}
-                        >
-                          <InputGroup style={{ width: "180px", borderRadius: "12px", overflow: "hidden" }}>
-                            <Form.Control
-                              type="text"
-                              placeholder="0"
-                              value={expectedPrice}
-                              onChange={(e) => {
-                                const val = e.target.value.replace(/\D/g, ""); // chỉ giữ số
-                                setExpectedPrice(val);
-                                if (priceError) setPriceError(""); // xóa lỗi cũ khi người dùng đang nhập lại
-                              }}
-                              onKeyDown={(e) => { if (e.key === "Enter") checkOutPrice(); }}
-                              onBlur={() => { if (expectedPrice !== "") checkOutPrice(); }}
-                              style={{ textAlign: "center", fontWeight: 600 }}
-                              readOnly={Boolean(bookingData.fromQuote)}
-                            />
-                            <InputGroup.Text>.000đ</InputGroup.Text>
-                          </InputGroup>
-
-                          {priceError && <div className="text-danger mt-1">{priceError}</div>}
-
-                          <Button
-                            className={`mt-2 ${priceConfirmed ? "btn-confirmed" : ""}`}
-                            variant="primary"
-                            onClick={checkOutPrice}
-                          >
-                            {priceConfirmed ? (
-                              <>
-                                <i className="bi bi-check-circle-fill me-2"></i>Đã xác nhận
-                              </>
-                            ) : (
-                              "Xác nhận giá"
-                            )}
-                          </Button>
-                          {priceConfirmed && (
-                            <span className="text-success mt-1" style={{ fontWeight: 500, marginLeft: "10px", fontSize: "18px" }}>✅ Giá mong muốn đã được xác nhận!</span>
-                          )}
+                        <InputGroup style={{ width: "210px", borderRadius: "12px", overflow: "hidden", boxShadow: "0 2px 6px rgba(0, 0, 0, 0.08)" }}>
+                          <Form.Control
+                            type="text"
+                            placeholder="0"
+                            value={expectedPrice}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/\D/g, ""); // chỉ giữ số
+                              setExpectedPrice(val);
+                              if (priceError) setPriceError(""); // xóa lỗi cũ khi người dùng đang nhập lại
+                            }}
+                            onKeyDown={(e) => { if (e.key === "Enter") checkOutPrice(); }}
+                            onBlur={() => { if (expectedPrice !== "") checkOutPrice(); }}
+                            style={{ textAlign: "center", fontWeight: 600 }}
+                            readOnly={Boolean(bookingData.fromQuote)}
+                          />
+                          <InputGroup.Text>.000đ</InputGroup.Text>
                         </InputGroup>
+
+                        {priceError && <div className="text-danger mt-1">{priceError}</div>}
+
+                        <Button
+                          className={`mt-2 ${priceConfirmed ? "btn-confirmed" : ""}`}
+                          variant="primary"
+                          onClick={checkOutPrice}
+                        >
+                          {priceConfirmed ? (
+                            <>
+                              <i className="bi bi-check-circle-fill me-2"></i>Đã xác nhận
+                            </>
+                          ) : (
+                            "Xác nhận giá"
+                          )}
+                        </Button>
+                        {priceConfirmed && (
+                          <span className="text-success mt-1" style={{ fontWeight: 500, marginLeft: "10px", fontSize: "18px" }}>✅ Giá mong muốn đã được xác nhận!</span>
+                        )}
                       </Form.Group>
                     </Card.Body>
                   </Card>
@@ -675,7 +687,7 @@ export default function JobDescription() {
                                 try {
                                   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
-                                  const res = await fetch("http://localhost:3001/api/uploads/post-images", {
+                                  const res = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/uploads/post-images`, {
                                     method: "POST",
                                     headers: {
                                       'Authorization': `Bearer ${user.token}`
@@ -776,7 +788,7 @@ export default function JobDescription() {
             </Row>
           </div>
         </Container>
-      </main>
+      </main >
 
       {showSuccess && (
         <div className="overlay">
@@ -787,18 +799,21 @@ export default function JobDescription() {
             <Button variant="success" onClick={() => navigate("/")}>Về Trang Chủ</Button>
           </div>
         </div>
-      )}
+      )
+      }
 
-      {showError && (
-        <div className="overlay">
-          <div className="popup">
-            <i className="bi bi-x-circle-fill text-danger" style={{ fontSize: "4rem" }}></i>
-            <h4 className="mt-3 fw-bold text-danger">Gửi yêu cầu thất bại</h4>
-            <p className="text-muted mb-3">Vui lòng thử lại sau.</p>
-            <Button variant="outline-danger" onClick={() => setShowError(false)}>Đóng</Button>
+      {
+        showError && (
+          <div className="overlay">
+            <div className="popup">
+              <i className="bi bi-x-circle-fill text-danger" style={{ fontSize: "4rem" }}></i>
+              <h4 className="mt-3 fw-bold text-danger">Gửi yêu cầu thất bại</h4>
+              <p className="text-muted mb-3">Vui lòng thử lại sau.</p>
+              <Button variant="outline-danger" onClick={() => setShowError(false)}>Đóng</Button>
+            </div>
           </div>
-        </div>
-      )}
+        )
+      }
     </>
   );
 }

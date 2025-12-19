@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Button, Badge, Spinner, Alert, Toast } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
-import socketService from '../../services/socketService';
 import api from '../../services/api';
+import { formatVND } from '../../utils/formatVND';
+import socketService from '../../services/socketService';
 
 
 export default function TaskerBookings() {
@@ -122,13 +123,13 @@ export default function TaskerBookings() {
 
       // Fetch both regular bookings and active SOS jobs
       const [regularResponse, sosResponse] = await Promise.all([
-        fetch(`http://localhost:3001/api/bookings/tasker/my`, {
+        fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/bookings/tasker/my`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           }
         }),
-        fetch(`http://localhost:3001/api/bookings/tasker/active-sos`, {
+        fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/bookings/tasker/active-sos`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -163,7 +164,7 @@ export default function TaskerBookings() {
   const handleStatusUpdate = async (bookingId, newStatus) => {
     try {
       const token = api.getStoredToken();
-      const response = await fetch(`http://localhost:3001/api/bookings/${bookingId}/status`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/bookings/${bookingId}/status`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -273,7 +274,7 @@ export default function TaskerBookings() {
 
   const formatPrice = (price) => {
     if (!price) return '—';
-    return new Intl.NumberFormat('vi-VN').format(price) + 'đ';
+    return formatVND(price);
   };
 
   if (loading) {
@@ -513,13 +514,17 @@ export default function TaskerBookings() {
                     <div className="mb-3">
                       <div className="bg-success bg-opacity-10 rounded-3 p-2 text-center">
                         <h5 className="fw-bold text-success mb-0">
-                          {formatPrice(
-                            booking.paid_amount > 0
-                              ? booking.paid_amount
-                              : booking.final_price > 0
-                                ? booking.final_price
-                                : booking.expected_price
-                          )}
+                          {(() => {
+                            const price = booking.final_price && Number(booking.final_price) > 0
+                              ? Number(booking.final_price)
+                              : Number(booking.expected_price || 0);
+
+                            const isFinalized = ["Đã chấp nhận", "Đã thanh toán", "Đang tiến hành", "Hoàn thành", "Chờ xác nhận", "Chờ duyệt báo cáo", "Báo cáo được duyệt", "Báo cáo bị từ chối"].includes(booking.status);
+                            const quantity = Number(booking.quantity || 1);
+                            const mult = (isFinalized && quantity > 1) ? quantity : 1;
+
+                            return formatPrice(price * mult);
+                          })()}
                         </h5>
                         <small className="text-muted">Giá</small>
                       </div>

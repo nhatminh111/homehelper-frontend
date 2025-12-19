@@ -89,7 +89,7 @@ const Services = () => {
   return (
     <>
       {/* Hero Section */}
-      <section className="hero-wrap hero-wrap-2" style={{ backgroundImage: "url('/images/bg_2.jpg')" }} data-stellar-background-ratio="0.5">
+      <section className="hero-wrap hero-wrap-2" style={{ backgroundImage: "url('/images/home.jpg')" }} data-stellar-background-ratio="0.5">
         <div className="overlay"></div>
         <div className="container">
           <div className="row no-gutters slider-text align-items-end">
@@ -148,7 +148,7 @@ const Services = () => {
         <div className="container">
           <div className="row justify-content-center">
             <div className="col-md-8 text-center">
-              <h2>Together we will explore new things</h2>
+              <h2>Khám Phá Ngay</h2>
               <a href="#" className="icon-video d-flex align-items-center justify-content-center">
                 <FontAwesomeIcon icon={faPlay} />
               </a>

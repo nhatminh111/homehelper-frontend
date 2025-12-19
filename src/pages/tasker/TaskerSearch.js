@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { addressAPI, servicesAPI } from '../../services/api';
+import { formatVND } from '../../utils/formatVND';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faSearch,
@@ -67,7 +68,7 @@ const TaskerSearch = () => {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await fetch('http://localhost:3001/api/bookings/customer/active-sos', {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/bookings/customer/active-sos`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -87,7 +88,7 @@ const TaskerSearch = () => {
             setAcceptedTasker({ tasker_id: booking.tasker_id, tasker_name: nameFromBooking });
           } else {
             // Fetch tasker info if booking doesn't include name
-            const taskerRes = await fetch(`http://localhost:3001/api/tasker/${booking.tasker_id}`, {
+            const taskerRes = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/tasker/${booking.tasker_id}`, {
               headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
@@ -138,7 +139,7 @@ const TaskerSearch = () => {
     const pollInterval = setInterval(async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`http://localhost:3001/api/bookings/${sosBookingId}`, {
+        const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/bookings/${sosBookingId}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -162,7 +163,7 @@ const TaskerSearch = () => {
           }
 
           // Fetch tasker info
-          const taskerRes = await fetch(`http://localhost:3001/api/tasker/${data.data.tasker_id}`, {
+          const taskerRes = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/tasker/${data.data.tasker_id}`, {
             headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json'
@@ -221,7 +222,7 @@ const TaskerSearch = () => {
           throw new Error('Missing tasker ID in event data');
         }
 
-        const taskerRes = await fetch(`http://localhost:3001/api/tasker/${taskerId}`, {
+        const taskerRes = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/tasker/${taskerId}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -610,7 +611,7 @@ const TaskerSearch = () => {
       const user = JSON.parse(localStorage.getItem('user') || '{}');
       const formData = new FormData();
       formData.append('images', file);
-      const res = await fetch('http://localhost:3001/api/uploads/post-images', {
+      const res = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/uploads/post-images`, {
         method: 'POST',
         headers: {
           Authorization: user?.token ? `Bearer ${user.token}` : undefined,
@@ -1086,7 +1087,7 @@ const TaskerSearch = () => {
                                     const multiplier = Number(durationHours || 1);
                                     preview = Math.round(priceMax * multiplier * 1.3);
                                   }
-                                  return `${preview.toLocaleString('vi-VN')}đ`;
+                                  return formatVND(preview);
                                 })() : '—'}
                               </h4>
                             </div>

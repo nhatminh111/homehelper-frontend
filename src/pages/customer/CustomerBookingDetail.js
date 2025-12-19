@@ -10,8 +10,11 @@ import {
     Spinner,
     Alert,
     Modal,
-    Image
+    Image,
+    Tabs,
+    Tab
 } from "react-bootstrap";
+import { formatVND } from "../../utils/formatVND";
 import api from "../../services/api";
 import { showToast } from "../../components/common/CustomToast";
 
@@ -32,6 +35,113 @@ export default function CustomerBookingDetail() {
     const [selectedBooking, setSelectedBooking] = useState(null);
     const [isCancelling, setIsCancelling] = useState(false);
     const [timers, setTimers] = useState({});
+
+    // New State for Sessions logic
+    const [sessions, setSessions] = useState({});
+    const [activeTab, setActiveTab] = useState("");
+
+    // Helper to parse dates safely (copied from TaskerJobDone)
+    const safeParseDate = (value) => {
+        if (!value) return null;
+        const str = String(value).trim();
+        if (!str) return null;
+        const sqlMatch = /^(\d{4})-(\d{2})-(\d{2})[\sT](\d{2}):(\d{2})(?::(\d{2}))?(?:\.(\d{1,3}))?/u.exec(str);
+        if (sqlMatch) {
+            const [, year, month, day, hour, minute, second = "0", milli = "0"] = sqlMatch;
+            return new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second), Number(milli.padEnd(3, "0")));
+        }
+        const date = new Date(str);
+        if (Number.isNaN(date.getTime())) return null;
+        return date;
+    };
+
+    const startDate = booking?.start_time ? safeParseDate(booking.start_time) : null;
+    const endDate = booking?.end_time ? safeParseDate(booking.end_time) : null;
+
+    const isMultiDay = booking && (
+        (booking.total_sessions && Number(booking.total_sessions) > 1) ||
+        (String(booking.unit || "").toLowerCase().match(/tuần|tháng|week|month/)) ||
+        (startDate && endDate && (endDate.getTime() - startDate.getTime() >= 24 * 60 * 60 * 1000))
+    );
+
+    const formatDateTimeForDay = new Intl.DateTimeFormat("vi-VN", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" });
+
+    const daysList = (() => {
+        if (!isMultiDay || !startDate) return [];
+        const limit = booking?.total_sessions ? Number(booking.total_sessions) : 0;
+        const days = [];
+        const current = new Date(startDate);
+        current.setHours(0, 0, 0, 0);
+
+        if (limit > 1) {
+            for (let i = 0; i < limit; i++) {
+                const y = current.getFullYear();
+                const m = String(current.getMonth() + 1).padStart(2, "0");
+                const d = String(current.getDate()).padStart(2, "0");
+                const dayKey = `${y}-${m}-${d}`;
+                days.push({ date: new Date(current), dayKey, label: formatDateTimeForDay.format(current) });
+                current.setDate(current.getDate() + 1);
+            }
+        } else if (endDate) {
+            const end = new Date(endDate);
+            end.setHours(23, 59, 59, 999);
+            while (current <= end) {
+                const y = current.getFullYear();
+                const m = String(current.getMonth() + 1).padStart(2, "0");
+                const d = String(current.getDate()).padStart(2, "0");
+                const dayKey = `${y}-${m}-${d}`;
+                days.push({ date: new Date(current), dayKey, label: formatDateTimeForDay.format(current) });
+                current.setDate(current.getDate() + 1);
+            }
+        }
+        return days;
+    })();
+
+    // Parse main checklist to be used as default
+    const parseChecklist = (rawChecklist) => {
+        if (!rawChecklist) return [];
+        if (Array.isArray(rawChecklist)) {
+            return rawChecklist.map((item, index) => ({
+                id: item?.id || `task-${index}`,
+                label: typeof item === "string" ? item : item?.label || `Task ${index + 1}`,
+                status: "completed",
+            }));
+        }
+        if (typeof rawChecklist === "string") {
+            try {
+                const parsed = JSON.parse(rawChecklist);
+                if (Array.isArray(parsed)) return parsed.map((item, index) => ({ id: item?.id || `task-${index}`, label: typeof item === "string" ? item : item?.label || `Task ${index + 1}`, status: "completed" }));
+            } catch (e) { }
+            return rawChecklist.split(/\n|\r|\./).map(s => s.trim()).filter(Boolean).map((l, i) => ({ id: `task-${i}`, label: l, status: "completed" }));
+        }
+        return [];
+    };
+
+    // We can memorize this, but for now simple variable is fine as it depends on booking
+    const defaultTasks = parseChecklist(booking?.task_checklist);
+
+    const tasksByDay = (() => {
+        if (!isMultiDay || !daysList.length) return null;
+        const grouped = {};
+        daysList.forEach((day) => {
+            grouped[day.dayKey] = { day, tasks: defaultTasks };
+        });
+        return grouped;
+    })();
+
+    useEffect(() => {
+        if (isMultiDay && daysList.length > 0 && !activeTab) {
+            setActiveTab(daysList[0].dayKey);
+        }
+    }, [isMultiDay, daysList]);
+
+    const formatTimeHHMM = (timestamp) => {
+        if (!timestamp) return "—";
+        const date = new Date(timestamp);
+        const hours = String(date.getHours()).padStart(2, "0");
+        const minutes = String(date.getMinutes()).padStart(2, "0");
+        return `${hours}:${minutes}`;
+    };
 
     const photos = booking?.task_photos ? JSON.parse(booking.task_photos) : [];
     const [previewImages, setPreviewImages] = useState([]);
@@ -170,6 +280,43 @@ export default function CustomerBookingDetail() {
         }
     };
 
+    // Fetch sessions
+    useEffect(() => {
+        if (!id) return;
+        const fetchSessions = async () => {
+            try {
+                // Use the new endpoint we exposed
+                const res = await api.get(`/bookings/${id}/sessions`);
+                if (res.data && res.data.success) {
+                    const sessionData = res.data.data;
+                    const newSessionsMap = {};
+                    sessionData.forEach(s => {
+                        if (!s.session_date) return;
+                        const d = new Date(s.session_date);
+                        const y = d.getFullYear();
+                        const m = String(d.getMonth() + 1).padStart(2, "0");
+                        const day = String(d.getDate()).padStart(2, "0");
+                        const key = `${y}-${m}-${day}`;
+
+                        newSessionsMap[key] = {
+                            checkIn: s.checkin_time,
+                            checkOut: s.checkout_time,
+                            timers: s.checklist_timers,
+                            checklist: s.checklist,
+                            status: s.status,
+                            notes: s.notes,
+                            photos: s.photos || { before: [], after: [] }
+                        };
+                    });
+                    setSessions(newSessionsMap);
+                }
+            } catch (err) {
+                console.error("Failed to load sessions", err);
+            }
+        };
+        fetchSessions();
+    }, [id]);
+
     useEffect(() => {
         if (showModal || showPopup) {
             document.body.classList.add("no-scroll");
@@ -228,7 +375,23 @@ export default function CustomerBookingDetail() {
         duration_days,
         customer_id,
         task_checklist,
+        quantity,
+        unit,
+        paid_amount,
     } = booking;
+
+    const getDisplayUnit = (u) => {
+        if (!u) return "Lượt";
+        const lower = u.toLowerCase();
+        if (lower.includes("m2") || lower.includes("m²") || lower.includes("mét")) return "Mét vuông";
+        if (lower.includes("giờ") || lower.includes("hour")) return "Giờ";
+        if (lower.includes("ngày") || lower.includes("day")) return "Ngày";
+        if (lower.includes("tuần") || lower.includes("week")) return "Tuần";
+        if (lower.includes("tháng") || lower.includes("month")) return "Tháng";
+        if (lower.includes("buổi")) return "Buổi";
+        if (lower.includes("chiếc") || lower.includes("item")) return "Chiếc";
+        return u;
+    };
 
     const checklist = Array.isArray(booking?.task_checklist)
         ? booking.task_checklist
@@ -250,8 +413,7 @@ export default function CustomerBookingDetail() {
         return `Lúc ${hh}:${mi} ${dd} tháng ${mm},${yyyy}`;
     };
 
-    const formatPrice = (p) =>
-        p ? Number(p).toLocaleString("vi-VN") + "đ" : "—";
+    const formatPrice = (p) => (p ? formatVND(p) : "—");
 
     const openCancelModal = (booking) => {
         setSelectedBooking(booking);
@@ -284,7 +446,7 @@ export default function CustomerBookingDetail() {
             const data = await res.json();
             if (data.success) {
                 showToast.success(
-                    `Hủy thành công. Hoàn: ${Number(data.refundAmount).toLocaleString("vi-VN")}₫ (Rule: ${data.rule})`
+                    `Hủy thành công. Hoàn: ${formatVND(data.refundAmount)} (Rule: ${data.rule})`
                 );
                 navigate("/customer/bookings");
             } else {
@@ -308,6 +470,19 @@ export default function CustomerBookingDetail() {
     overflow: hidden !important;
     height: 100vh !important;
 }
+        .custom-scroll-tabs {
+          flex-wrap: nowrap;
+          overflow-x: auto;
+          overflow-y: hidden;
+          white-space: nowrap;
+          scrollbar-width: thin;
+        }
+        .custom-scroll-tabs .nav-item {
+          display: inline-block;
+        }
+        .custom-scroll-tabs .nav-link {
+          white-space: nowrap;
+        }
       .history-header {
           background: white;
           border-radius: 16px;
@@ -395,211 +570,375 @@ export default function CustomerBookingDetail() {
             margin-bottom: 16px;
         }
       `}</style>
-            {booking?.status === "Chờ xác nhận" ? (
+            {(booking?.status === "Chờ xác nhận" || booking?.status === "Đang tiến hành") ? (
                 <Container className="py-4">
 
                     {/* ===================== TITLE ===================== */}
                     <div className="mb-4">
                         <h2 className="fw-bold text-dark" style={{ letterSpacing: "-0.5px" }}>
-                            Xác nhận công việc Tasker đã hoàn thành
+                            {booking?.status === "Chờ xác nhận" ? "Xác nhận công việc hoàn thành" : "Tiến độ công việc thực tế"}
                         </h2>
                         <p className="text-muted mt-1" style={{ fontSize: "0.95rem" }}>
-                            Vui lòng xem hình ảnh – checklist – ghi chú trước khi xác nhận.
+                            {booking?.status === "Chờ xác nhận"
+                                ? "Vui lòng xem hình ảnh – checklist – ghi chú trước khi xác nhận."
+                                : "Theo dõi sát sao tiến độ làm việc của người giúp việc theo từng mốc thời gian."}
                         </p>
                     </div>
 
 
-                    <Row className="gy-4">
-
-                        {/* ================= LEFT COLUMN ================= */}
+                    <Row className="g-4">
                         <Col lg={8}>
+                            {/* === WORK DETAIL CARD === */}
+                            <Card className="shadow-sm border-0 rounded-4 mb-4">
+                                <Card.Body className="p-4">
+                                    <div className="d-flex justify-content-between align-items-center mb-4">
+                                        <div>
+                                            <h5 className="mb-0 fw-bold">Chi tiết công việc</h5>
+                                            <small className="text-muted">Các nhiệm vụ đã hoàn thành theo phiên</small>
+                                        </div>
+                                        <Badge bg="success" className="px-3 py-2 d-inline-flex align-items-center gap-2">
+                                            <i className="bi bi-check2-circle"></i> 100% Done
+                                        </Badge>
+                                    </div>
 
-                            {/* === CHECKLIST === */}
-                            <Card className="shadow-sm border-0 rounded-4 p-2 mb-4">
-                                <Card.Body>
-                                    <h5 className="fw-bold mb-3">Công việc đã hoàn thành</h5>
+                                    <div className="d-flex flex-column gap-4">
+                                        {isMultiDay && tasksByDay ? (
+                                            <Tabs
+                                                activeKey={activeTab}
+                                                onSelect={(k) => setActiveTab(k)}
+                                                variant="pills"
+                                                className="mb-3 custom-scroll-tabs pb-2"
+                                            >
+                                                {Object.values(tasksByDay).map(({ day, tasks: dayTasks }) => {
+                                                    const safeDayKey = day.dayKey || "default";
+                                                    const session = sessions?.[safeDayKey] || { status: "completed" };
+                                                    const tasksToRender = (session.checklist && session.checklist.length > 0) ? parseChecklist(session.checklist) : dayTasks;
 
-                                    {checklist.length > 0 ? (
-                                        <div className="mt-2">
-                                            {checklist.map((item, index) => {
-                                                const taskId = `task-${index}`;
-                                                const elapsed = timers?.[taskId] || 0;
+                                                    const tabTitle = (
+                                                        <div className="d-flex align-items-center gap-2">
+                                                            <span>{day.label}</span>
+                                                            <small>✔</small>
+                                                        </div>
+                                                    );
 
-                                                const formatTime = (ms) => {
-                                                    if (!ms) return "0s";
-                                                    const sec = Math.floor(ms / 1000);
-                                                    const m = Math.floor(sec / 60);
-                                                    const s = sec % 60;
-                                                    return `${m}m ${s}s`;
-                                                };
+                                                    return (
+                                                        <Tab eventKey={safeDayKey} title={tabTitle} key={safeDayKey}>
+                                                            <Card className="mb-3 border-0 bg-light">
+                                                                <Card.Body>
+                                                                    <div className="d-flex align-items-center justify-content-between mb-2">
+                                                                        <div className="fw-bold fs-5">{day.label}</div>
+                                                                        <Badge bg="success">Đã hoàn thành</Badge>
+                                                                    </div>
+                                                                    <div className="d-flex gap-4 text-muted small">
+                                                                        <div><i className="bi bi-box-arrow-in-right me-1"></i> Check-in: <strong>{formatTimeHHMM(session?.checkIn)}</strong></div>
+                                                                        <div><i className="bi bi-box-arrow-left me-1"></i> Check-out: <strong>{formatTimeHHMM(session?.checkOut)}</strong></div>
+                                                                    </div>
+                                                                </Card.Body>
+                                                            </Card>
+
+                                                            {/* CHECKLIST */}
+                                                            <div className="d-flex flex-column gap-3 mb-4">
+                                                                <h6 className="fw-bold text-muted text-uppercase mb-0">Checklist công việc</h6>
+                                                                {tasksToRender.map((task, idx) => {
+                                                                    const tmr = session.timers?.[task.id];
+                                                                    // Format elapsed time
+                                                                    let timeStr = "";
+                                                                    if (tmr) {
+                                                                        const sec = Math.floor((tmr.elapsedMs || 0) / 1000);
+                                                                        const h = Math.floor(sec / 3600);
+                                                                        const m = Math.floor((sec % 3600) / 60);
+                                                                        const s = sec % 60;
+                                                                        timeStr = `⏱ ${h}h ${m}m ${s}s`;
+                                                                    }
+                                                                    return (
+                                                                        <div key={idx} className="d-flex justify-content-between align-items-center p-3 border rounded-3 bg-white shadow-sm">
+                                                                            <div className="d-flex align-items-center gap-3">
+                                                                                <i className="bi bi-check-circle-fill text-success fs-5"></i>
+                                                                                <span className="fw-semibold">{task.label}</span>
+                                                                            </div>
+                                                                            <small className="text-primary fw-bold">{timeStr}</small>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+
+                                                            {/* NOTES */}
+                                                            <Card className="border-0 bg-light mb-4">
+                                                                <Card.Body>
+                                                                    <h6 className="fw-bold mb-2"><i className="bi bi-journal-text me-2"></i> Ghi chú của Tasker</h6>
+                                                                    <p className="mb-0" style={{ whiteSpace: "pre-line" }}>{session.notes || "Không có ghi chú."}</p>
+                                                                </Card.Body>
+                                                            </Card>
+
+                                                            {/* PHOTOS */}
+                                                            {(session.photos?.before?.length > 0 || session.photos?.after?.length > 0) && (
+                                                                <div className="mb-4">
+                                                                    <h6 className="fw-bold text-muted text-uppercase mb-3">Hình ảnh thực hiện</h6>
+                                                                    {session.photos.before?.length > 0 && (
+                                                                        <div className="mb-3">
+                                                                            <small className="text-secondary fw-semibold d-block mb-2">BEFORE</small>
+                                                                            <div className="d-flex gap-2" style={{ overflowX: 'auto' }}>
+                                                                                {session.photos.before.map((url, i) => (
+                                                                                    <Image key={i} src={url} style={{ height: 160, borderRadius: 8, objectFit: 'cover', cursor: 'pointer' }} onClick={() => { setActiveImage(url); setShowModal(true); }} />
+                                                                                ))}
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                    {session.photos.after?.length > 0 && (
+                                                                        <div>
+                                                                            <small className="text-secondary fw-semibold d-block mb-2">AFTER</small>
+                                                                            <div className="d-flex gap-2" style={{ overflowX: 'auto' }}>
+                                                                                {session.photos.after.map((url, i) => (
+                                                                                    <Image key={i} src={url} style={{ height: 160, borderRadius: 8, objectFit: 'cover', cursor: 'pointer' }} onClick={() => { setActiveImage(url); setShowModal(true); }} />
+                                                                                ))}
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </Tab>
+                                                    );
+                                                })}
+                                            </Tabs>
+                                        ) : (
+                                            // SINGLE DAY
+                                            (() => {
+                                                const sessionValues = Object.values(sessions);
+                                                const singleSession = sessionValues.length > 0 ? sessionValues[0] : null;
+                                                // Fallback to booking data if session not found (rare)
 
                                                 return (
-                                                    <div
-                                                        key={index}
-                                                        className="d-flex justify-content-between align-items-center p-3 mb-2"
-                                                        style={{
-                                                            background: "#f9fafb",
-                                                            borderRadius: "12px",
-                                                            border: "1px solid #e5e7eb",
-                                                            boxShadow: "0 1px 3px rgba(0,0,0,0.05)"
-                                                        }}
-                                                    >
-                                                        <div className="d-flex align-items-center">
-                                                            <i className="bi bi-check-circle-fill text-success me-3 fs-5"></i>
-                                                            <span className="fw-semibold" style={{ fontSize: "1rem" }}>
-                                                                {item}
-                                                            </span>
+                                                    <div>
+                                                        {(singleSession || startDate) && (
+                                                            <Card className="mb-3 border-0 bg-light">
+                                                                <Card.Body>
+                                                                    {startDate && (
+                                                                        <div className="fw-bold fs-5 mb-2">
+                                                                            {formatDateTimeForDay.format(startDate)}
+                                                                        </div>
+                                                                    )}
+                                                                    <div className="d-flex gap-4 text-muted small">
+                                                                        <div><i className="bi bi-box-arrow-in-right me-1"></i> Check-in: <strong>{formatTimeHHMM(singleSession?.checkIn)}</strong></div>
+                                                                        <div><i className="bi bi-box-arrow-left me-1"></i> Check-out: <strong>{formatTimeHHMM(singleSession?.checkOut)}</strong></div>
+                                                                    </div>
+                                                                </Card.Body>
+                                                            </Card>
+                                                        )}
+
+                                                        <div className="d-flex flex-column gap-3 mb-4">
+                                                            {checklist.map((item, idx) => {
+                                                                const taskId = item.id || `task-${idx}`;
+                                                                const tmr = singleSession?.timers?.[taskId] || timers?.[taskId]; // Fallback to timers state
+                                                                let timeStr = "";
+                                                                if (tmr) {
+                                                                    const val = typeof tmr === 'object' ? tmr.elapsedMs : tmr;
+                                                                    const sec = Math.floor((val || 0) / 1000);
+                                                                    const h = Math.floor(sec / 3600);
+                                                                    const m = Math.floor((sec % 3600) / 60);
+                                                                    const s = sec % 60;
+                                                                    timeStr = `⏱ ${h}h ${m}m ${s}s`;
+                                                                }
+
+                                                                const label = typeof item === 'string' ? item : item.label;
+
+                                                                return (
+                                                                    <div key={idx} className="d-flex justify-content-between align-items-center p-3 border rounded-3 bg-white shadow-sm">
+                                                                        <div className="d-flex align-items-center gap-3">
+                                                                            <i className="bi bi-check-circle-fill text-success fs-5"></i>
+                                                                            <span className="fw-semibold">{label}</span>
+                                                                        </div>
+                                                                        <small className="text-primary fw-bold">{timeStr}</small>
+                                                                    </div>
+                                                                );
+                                                            })}
                                                         </div>
 
-                                                        <span
-                                                            className="fw-bold text-primary"
-                                                            style={{ fontSize: "0.95rem", whiteSpace: "nowrap" }}
-                                                        >
-                                                            {formatTime(elapsed)}
-                                                        </span>
+                                                        {/* NOTES */}
+                                                        <Card className="border-0 bg-light mb-4">
+                                                            <Card.Body>
+                                                                <h6 className="fw-bold mb-2"><i className="bi bi-journal-text me-2"></i> Ghi chú của Tasker</h6>
+                                                                <p className="mb-0" style={{ whiteSpace: "pre-line" }}>{(singleSession?.notes || booking.notes) || "Không có ghi chú."}</p>
+                                                            </Card.Body>
+                                                        </Card>
+
+                                                        {/* PHOTOS */}
+                                                        {((singleSession?.photos?.before?.length > 0) || (beforePhotos.length > 0)) && (
+                                                            <div className="mb-3">
+                                                                <h6 className="fw-bold text-secondary text-uppercase mb-2">Before</h6>
+                                                                <div className="d-flex gap-2" style={{ overflowX: 'auto' }}>
+                                                                    {(singleSession?.photos?.before?.length > 0 ? singleSession.photos.before : beforePhotos).map((url, i) => (
+                                                                        <Image key={i} src={url} style={{ height: 160, borderRadius: 8, objectFit: 'cover', cursor: 'pointer' }} onClick={() => { setActiveImage(url); setShowModal(true); }} />
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                        {((singleSession?.photos?.after?.length > 0) || (afterPhotos.length > 0)) && (
+                                                            <div className="mb-3">
+                                                                <h6 className="fw-bold text-secondary text-uppercase mb-2">After</h6>
+                                                                <div className="d-flex gap-2" style={{ overflowX: 'auto' }}>
+                                                                    {(singleSession?.photos?.after?.length > 0 ? singleSession.photos.after : afterPhotos).map((url, i) => (
+                                                                        <Image key={i} src={url} style={{ height: 160, borderRadius: 8, objectFit: 'cover', cursor: 'pointer' }} onClick={() => { setActiveImage(url); setShowModal(true); }} />
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 );
-                                            })}
+                                            })()
+                                        )}
+                                    </div>
+
+                                    {/* === ACTION BUTTONS (Only for Confirmation) === */}
+                                    {booking?.status === "Chờ xác nhận" && (
+                                        <div className="d-flex justify-content-center gap-3 mt-5">
+                                            <Button variant="success" size="lg" className="px-5 rounded-pill fw-bold" onClick={handleConfirmComplete}>
+                                                ✔ Xác nhận hoàn thành
+                                            </Button>
+                                            <Button variant="outline-danger" size="lg" className="px-5 rounded-pill fw-bold" onClick={() => setShowPopup(true)}>
+                                                ❌ Báo cáo / Khiếu nại
+                                            </Button>
                                         </div>
-                                    ) : (
-                                        <p className="text-muted mb-0">Không có checklist.</p>
+                                    )}
+
+                                    {booking?.status === "Đang tiến hành" && (
+                                        <div className="d-flex justify-content-center gap-3 mt-5">
+                                            <Button variant="outline-danger" size="lg" className="px-5 rounded-pill fw-bold" onClick={() => setShowPopup(true)}>
+                                                ❌ Báo cáo / Khiếu nại
+                                            </Button>
+                                        </div>
                                     )}
                                 </Card.Body>
                             </Card>
+                        </Col>
 
+                        {/* === SIDEBAR (Like Admin) === */}
+                        <Col lg={4}>
+                            <div className="sticky-top" style={{ top: "2rem" }}>
+                                <Card className="border-0 shadow-sm mb-4 rounded-4 overflow-hidden">
+                                    <Card.Body className="p-4">
+                                        <h5 className="fw-bold mb-3">Tóm tắt đơn hàng</h5>
+                                        <hr />
 
-                            {/* === BEFORE & AFTER === */}
-                            <Card className="shadow-sm border-0 rounded-4 p-2 mb-4">
-                                <Card.Body>
+                                        <div className="mb-3">
+                                            <label className="text-muted small mb-1">Trạng thái booking</label>
+                                            <div>
+                                                <Badge bg={status === "Đang tiến hành" ? "primary" : "success"} className="px-3 py-2 text-uppercase">
+                                                    {status}
+                                                </Badge>
+                                            </div>
+                                        </div>
 
-                                    <h5 className="fw-bold mb-4">Before & After Photos</h5>
+                                        <div className="mb-3">
+                                            <label className="text-muted small fw-bold text-uppercase mb-1 border-start border-primary border-3 ps-2">Vị trí công việc</label>
+                                            <p className="mb-0 small fw-medium mt-1">{booking.location}</p>
+                                        </div>
 
-                                    {/* BEFORE SECTION */}
-                                    <div className="text-center mb-3">
-                                        <h6 className="fw-bold text-uppercase text-secondary" style={{ fontSize: "1.1rem" }}>
-                                            Before
-                                        </h6>
-                                        <div className="border-bottom mb-3" style={{ opacity: 0.3 }}></div>
-                                    </div>
+                                        <div className="mb-3">
+                                            <label className="text-muted small fw-bold text-uppercase mb-1 border-start border-primary border-3 ps-2">Thời gian dự kiến</label>
+                                            <div className="mt-1">
+                                                {startDate ? (
+                                                    <div className="small fw-medium">
+                                                        <div className="d-flex align-items-center gap-2 mb-1">
+                                                            <i className="bi bi-clock text-primary"></i>
+                                                            {startDate.toLocaleTimeString("vi-VN", { hour: '2-digit', minute: '2-digit' })} - {endDate ? endDate.toLocaleTimeString("vi-VN", { hour: '2-digit', minute: '2-digit' }) : "—"}
+                                                        </div>
+                                                        <div className="d-flex align-items-center gap-2 text-muted">
+                                                            <i className="bi bi-calendar-event"></i>
+                                                            {isMultiDay ? (
+                                                                <>
+                                                                    {startDate.toLocaleDateString("vi-VN")} - {endDate ? endDate.toLocaleDateString("vi-VN") : "—"}
+                                                                    <Badge bg="secondary" className="ms-2" style={{ fontSize: '0.7rem' }}>
+                                                                        {booking.total_sessions} ngày
+                                                                    </Badge>
+                                                                </>
+                                                            ) : (
+                                                                startDate.toLocaleDateString("vi-VN")
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ) : "—"}
+                                            </div>
+                                        </div>
 
-                                    <Row className="g-3 justify-content-start">
-                                        {beforePhotos.length === 0 && (
-                                            <p className="text-muted mx-3">Không có ảnh trước khi làm.</p>
+                                        {booking.description && (
+                                            <div className="mb-3">
+                                                <label className="text-muted small fw-bold text-uppercase mb-1 border-start border-primary border-3 ps-2">Ghi chú từ bạn</label>
+                                                <p className="mb-0 small text-muted mt-1" style={{ fontSize: '0.85rem', whiteSpace: 'pre-wrap' }}>{booking.description}</p>
+                                            </div>
                                         )}
 
-                                        {beforePhotos.map((img, index) => (
-                                            <Col xs={6} md={4} lg={3} key={index}>
-                                                <Card
-                                                    className="shadow-sm border-0"
-                                                    style={{ cursor: "pointer", borderRadius: "16px" }}
-                                                    onClick={() => openImageModal(index)}
-                                                >
-                                                    <Card.Img
-                                                        src={img}
-                                                        style={{
-                                                            height: "150px",
-                                                            objectFit: "cover",
-                                                            borderRadius: "16px"
-                                                        }}
-                                                    />
-                                                </Card>
-                                            </Col>
-                                        ))}
-                                    </Row>
+                                        <hr />
+                                        <h6 className="fw-bold mb-3">Chi tiết thanh toán</h6>
+                                        <div className="bg-light p-3 rounded-3 shadow-sm border">
+                                            {(() => {
+                                                const qty = Number(booking?.quantity || 1);
+                                                let unitPrice = 0;
+                                                let rawTotal = 0;
 
-                                    {/* AFTER SECTION */}
-                                    <div className="text-center mt-4 mb-3">
-                                        <h6 className="fw-bold text-uppercase text-secondary" style={{ fontSize: "1.1rem" }}>
-                                            After
-                                        </h6>
-                                        <div className="border-bottom mb-3" style={{ opacity: 0.3 }}></div>
-                                    </div>
+                                                if (booking?.final_price && Number(booking.final_price) > 0) {
+                                                    unitPrice = Number(booking.final_price);
+                                                } else {
+                                                    unitPrice = Number(booking?.expected_price || 0);
+                                                }
+                                                rawTotal = unitPrice * qty;
 
-                                    <Row className="g-3 justify-content-start">
-                                        {afterPhotos.length === 0 && (
-                                            <p className="text-muted mx-3">Không có ảnh sau khi làm.</p>
-                                        )}
+                                                return (
+                                                    <>
+                                                        <div className="mb-2">
+                                                            <div className="d-flex justify-content-between small text-muted mb-1">
+                                                                <span>Đơn giá:</span>
+                                                                <span>{formatVND(unitPrice)} / {getDisplayUnit(booking?.unit)}</span>
+                                                            </div>
+                                                            {qty > 1 && (
+                                                                <div className="d-flex justify-content-between small text-muted mb-1">
+                                                                    <span>Số lượng:</span>
+                                                                    <span>{qty} {getDisplayUnit(booking?.unit)}</span>
+                                                                </div>
+                                                            )}
+                                                            <div className="d-flex justify-content-between small fw-bold text-dark mb-1">
+                                                                <span>Tổng tiền:</span>
+                                                                <span>{formatVND(rawTotal)}</span>
+                                                            </div>
+                                                        </div>
 
-                                        {afterPhotos.map((img, index) => {
-                                            const globalIdx = beforePhotos.length + index;
+                                                        {booking.paid_amount < rawTotal && booking.paid_amount > 0 && (
+                                                            <div className="d-flex justify-content-between small text-success mb-1">
+                                                                <span>Đã giảm giá:</span>
+                                                                <span>-{formatVND(rawTotal - booking.paid_amount)}</span>
+                                                            </div>
+                                                        )}
 
-                                            return (
-                                                <Col xs={6} md={4} lg={3} key={globalIdx}>
-                                                    <Card
-                                                        className="shadow-sm border-0"
-                                                        style={{ cursor: "pointer", borderRadius: "16px" }}
-                                                        onClick={() => openImageModal(globalIdx)}
-                                                    >
-                                                        <Card.Img
-                                                            src={img}
-                                                            style={{
-                                                                height: "150px",
-                                                                objectFit: "cover",
-                                                                borderRadius: "16px"
-                                                            }}
-                                                        />
-                                                    </Card>
-                                                </Col>
-                                            );
-                                        })}
-                                    </Row>
+                                                        <hr className="my-2" />
+                                                        <div className="d-flex justify-content-between align-items-center">
+                                                            <span className="fw-bold text-uppercase small" style={{ fontSize: '0.7rem' }}>Giá cuối cùng:</span>
+                                                            <span className="fs-5 fw-bold text-danger">
+                                                                {formatVND(booking.paid_amount || rawTotal)}
+                                                            </span>
+                                                        </div>
 
-                                </Card.Body>
-                            </Card>
-
-
-                            {/* === ACTION BUTTONS === */}
-                            <div className="d-flex gap-3 mt-3">
-                                <Button
-                                    variant="success"
-                                    className="px-4 py-2 rounded-3"
-                                    style={{ fontSize: "1.05rem", fontWeight: 600 }}
-                                    onClick={handleConfirmComplete}
-                                >
-                                    ✔ Xác nhận hoàn thành
-                                </Button>
+                                                        {booking.paid_amount > 0 && (
+                                                            <div className="text-end mt-1">
+                                                                <Badge bg="success" className="px-2 py-1" style={{ fontSize: '0.7rem' }}>
+                                                                    <i className="bi bi-check-circle-fill me-1"></i> ĐÃ THANH TOÁN
+                                                                </Badge>
+                                                            </div>
+                                                        )}
+                                                    </>
+                                                );
+                                            })()}
+                                        </div>
+                                    </Card.Body>
+                                </Card>
 
                                 <Button
-                                    variant="outline-danger"
-                                    className="px-4 py-2 rounded-3"
-                                    style={{ fontSize: "1.05rem", fontWeight: 600 }}
-                                    onClick={() => setShowPopup(true)}
+                                    variant="outline-secondary"
+                                    className="w-100 py-3 rounded-4 fw-bold shadow-sm bg-white"
+                                    onClick={() => navigate("/customer/bookings")}
                                 >
-                                    ❌ Báo cáo / Khiếu nại
+                                    ← Quay lại danh sách
                                 </Button>
                             </div>
-
                         </Col>
-
-
-
-
-                        {/* ================= RIGHT COLUMN ================= */}
-                        <Col lg={4}>
-                            <Card className="shadow-sm border-0 rounded-4 mb-4">
-                                <Card.Body>
-
-                                    <h5 className="fw-bold mb-3">Ghi chú của Tasker</h5>
-
-                                    <div
-                                        className="p-3 rounded-3"
-                                        style={{
-                                            background: "#f8f9fa",
-                                            fontSize: "1rem",
-                                            lineHeight: "1.5",
-                                            whiteSpace: "pre-line",
-                                            border: "1px solid #eee"
-                                        }}
-                                    >
-                                        {booking.notes && booking.notes.trim() !== ""
-                                            ? booking.notes
-                                            : "Không có ghi chú từ tasker."}
-                                    </div>
-
-                                </Card.Body>
-                            </Card>
-                        </Col>
-
                     </Row>
 
 
@@ -648,7 +987,9 @@ export default function CustomerBookingDetail() {
                                                                         ? "info"
                                                                         : status === "Báo cáo bị từ chối"
                                                                             ? "dark"
-                                                                            : "secondary"
+                                                                            : status === "Đã ký hợp đồng"
+                                                                                ? "info"
+                                                                                : "secondary"
                                     }
                                     className="px-3 py-2 fs-6"
                                 >
@@ -728,12 +1069,28 @@ export default function CustomerBookingDetail() {
                                                 Thời lượng: {duration_days} ngày
                                             </div>
                                         ) : null}
+
+                                        {/* ⭐ HIỂN THỊ QUANTITY */}
+                                        {quantity && quantity > 1 && (
+                                            <div>
+                                                <i className="bi bi-boxes text-primary me-2"></i>
+                                                Số lượng: <strong>{quantity} {getDisplayUnit(unit)}</strong>
+                                            </div>
+                                        )}
+
                                         {type ? (
                                             <div>
                                                 <i className="bi bi-house-door text-primary me-2"></i>
                                                 Loại: {type}
                                             </div>
                                         ) : null}
+
+                                        {booking.description && (
+                                            <div>
+                                                <i className="bi bi-info-circle text-primary me-2"></i>
+                                                Lưu ý: <strong>{booking.description}</strong>
+                                            </div>
+                                        )}
 
                                         {start_time && (
                                             <div>
@@ -750,9 +1107,22 @@ export default function CustomerBookingDetail() {
                                     <hr className="mt-4 mb-3" />
 
                                     <div>
-                                        <span className="fw-medium text-muted">Giá mong muốn</span>
+                                        <span className="fw-medium text-muted">
+                                            {status !== "Chờ xử lý" && quantity > 1 ? "Tổng tiền" : "Giá mong muốn"}
+                                        </span>
                                         <span className="fw-bold text-success fs-5 ms-2">
-                                            {formatPrice(expected_price || final_price)}
+                                            {(() => {
+                                                // Nếu đã thanh toán (có paid_amount), hiển thị số tiền thực trả (đã trừ voucher)
+                                                if (paid_amount && Number(paid_amount) > 0) {
+                                                    return formatPrice(paid_amount);
+                                                }
+
+                                                // Các trạng thái được xem là "đã chốt" giá cuối
+                                                const isFinalized = ["Đã chấp nhận", "Đã thanh toán", "Đang tiến hành", "Hoàn thành", "Chờ xác nhận", "Chờ duyệt báo cáo", "Báo cáo được duyệt", "Báo cáo bị từ chối"].includes(status);
+                                                const mult = (isFinalized && quantity > 1) ? Number(quantity) : 1;
+                                                const priceToShow = (expected_price || final_price);
+                                                return formatPrice(priceToShow * mult);
+                                            })()}
                                         </span>
                                     </div>
 
@@ -760,9 +1130,19 @@ export default function CustomerBookingDetail() {
                                         final_price !== "" &&
                                         Number(final_price) !== 0 && (
                                             <div className="mt-2">
-                                                <span className="fw-medium text-muted">Giá sau thương lượng</span>
+                                                <span className="fw-medium text-muted">
+                                                    {status !== "Chờ xử lý" && quantity > 1 ? "Tổng giá sau thương lượng" : "Giá sau thương lượng"}
+                                                </span>
                                                 <span className="fw-bold text-primary fs-5 ms-2">
-                                                    {`${(Number(final_price)).toLocaleString("vi-VN")}đ`}
+                                                    {(() => {
+                                                        if (paid_amount && Number(paid_amount) > 0) {
+                                                            return formatPrice(paid_amount);
+                                                        }
+
+                                                        const isFinalized = ["Đã chấp nhận", "Đã thanh toán", "Đang tiến hành", "Hoàn thành", "Chờ xác nhận", "Chờ duyệt báo cáo", "Báo cáo được duyệt", "Báo cáo bị từ chối"].includes(status);
+                                                        const mult = (isFinalized && quantity > 1) ? Number(quantity) : 1;
+                                                        return formatVND(Number(final_price) * mult);
+                                                    })()}
                                                 </span>
                                             </div>
                                         )}
@@ -827,7 +1207,7 @@ export default function CustomerBookingDetail() {
                     <div className="d-flex justify-content-center gap-4 mt-5 flex-wrap flex-column align-items-center">
 
                         <div className="d-flex justify-content-center gap-4 flex-wrap">
-                            {(status === "Chờ xử lý" || status === "Đã chấp nhận" || status === "Đã thanh toán") && (
+                            {(status === "Chờ xử lý" || status === "Đã chấp nhận" || status === "Đã thanh toán" || status === "Đã ký hợp đồng") && (
                                 <>
                                     <Button
                                         variant="danger"
@@ -839,33 +1219,43 @@ export default function CustomerBookingDetail() {
                                         ❌ Hủy công việc
                                     </Button>
 
-                                    {status === "Đã chấp nhận" && (
-                                        <Button
-                                            variant="success"
-                                            size="lg"
-                                            className="px-4"
-                                            onClick={() => navigate(`/payment/${booking_id}`)}
-                                        >
-                                            💳 Thanh toán
-                                        </Button>
-                                    )}
+                                    {(() => {
+                                        const isWeekOrMonth = unit && ["tuần", "tháng", "week", "month"].some(k => unit.toLowerCase().includes(k));
+
+                                        // Nút Thanh toán
+                                        if (status === "Đã ký hợp đồng" || (status === "Đã chấp nhận" && !isWeekOrMonth)) {
+                                            return (
+                                                <Button
+                                                    variant="success"
+                                                    size="lg"
+                                                    className="px-4"
+                                                    onClick={() => navigate(`/payment/${booking_id}`)}
+                                                >
+                                                    💳 Thanh toán
+                                                </Button>
+                                            );
+                                        }
+
+                                        // Nút Ký hợp đồng
+                                        if (status === "Đã chấp nhận" && isWeekOrMonth) {
+                                            return (
+                                                <Button
+                                                    variant="warning"
+                                                    size="lg"
+                                                    className="px-4 text-dark fw-bold"
+                                                    onClick={() => navigate(`/contract/${booking_id}`)}
+                                                >
+                                                    📄 Ký hợp đồng
+                                                </Button>
+                                            );
+                                        }
+
+                                        return null;
+                                    })()}
 
                                 </>
                             )}
 
-                            {(status === "Chờ xử lý" || status === "Đã chấp nhận" || type === "SOS") && (
-                                <Button
-                                    variant="primary"
-                                    size="lg"
-                                    className="px-5 fw-semibold"
-                                    style={{ borderRadius: "10px", minWidth: "160px" }}
-                                    onClick={() => {
-                                        window.location.href = `/chat?bookingId=${booking_id}&peer=${booking.tasker_id}`;
-                                    }}
-                                >
-                                    💬 Chat với người giúp việc
-                                </Button>
-                            )}
 
                             {status === "Hoàn thành" && (
                                 <Button

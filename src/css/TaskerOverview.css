@@ -1,0 +1,106 @@
+.tasker-overview {
+  padding: 1.5rem;
+  font-family: 'Inter', sans-serif;
+  color: #333;
+  background-color: #f9f9fb;
+}
+
+/* Card chung */
+.tasker-overview .card {
+  border-radius: 1rem;
+  background: #fff;
+  box-shadow: 0 0.25rem 0.5rem rgba(0,0,0,0.08);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  cursor: pointer;
+}
+
+.tasker-overview .card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 0.75rem 1.5rem rgba(0,0,0,0.2);
+}
+
+/* Card body padding */
+.tasker-overview .card-body {
+  padding: 1.25rem 1rem;
+  transition: background 0.3s ease;
+}
+
+/* Card title */
+.tasker-overview .fw-bold {
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin-bottom: 0.5rem;
+  color: #555;
+}
+
+/* Number / main data */
+.tasker-overview .display-6,
+.tasker-overview .h2 {
+  font-weight: 700;
+  font-size: 1.75rem;
+  color: #222;
+  transition: color 0.3s ease;
+}
+
+/* Hover effect: change color on card hover */
+.tasker-overview .card:hover .display-6,
+.tasker-overview .card:hover .h2 {
+  color: #1d72b8;
+}
+
+/* Pie chart container */
+.tasker-overview .pie-container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+/* Legend item */
+.tasker-overview .pie-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.tasker-overview .pie-legend-color {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+/* Table recent bookings */
+.tasker-overview .table {
+  margin-bottom: 0;
+  font-size: 0.875rem;
+}
+
+.tasker-overview .table th {
+  font-weight: 600;
+  color: #555;
+}
+
+.tasker-overview .table td,
+.tasker-overview .table th {
+  padding: 0.65rem;
+  vertical-align: middle;
+}
+
+/* Table row hover */
+.tasker-overview .table tbody tr:hover {
+  background-color: #f0f4ff;
+  transition: background 0.2s ease;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .tasker-overview .row.g-3 {
+    row-gap: 1rem;
+  }
+  .tasker-overview .pie-container {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

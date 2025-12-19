@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Container, Card, Button, Spinner, Alert } from "react-bootstrap";
+import { formatVND } from "../utils/formatVND";
+import api from "../services/api";
 
 export default function PaymentPage() {
   const { bookingId } = useParams();
@@ -38,7 +40,15 @@ export default function PaymentPage() {
         const walletData = await wRes.json();
         const voucherData = await vRes.json();
 
-        setBooking(bookingData.data || bookingData.booking);
+        console.log("📦 [PaymentPage] Raw bookingData:", bookingData);
+
+        // Ensure we get the object whether it's wrapped or flat
+        const bookingObj = bookingData.data || bookingData.booking || bookingData;
+
+        console.log("📦 [PaymentPage] Extracted bookingObj:", bookingObj);
+        console.log("🔢 [PaymentPage] Quantity:", bookingObj?.quantity);
+
+        setBooking(bookingObj);
         setWallet(walletData);
         setVouchers(voucherData.vouchers || []);
       } finally {
@@ -70,11 +80,34 @@ export default function PaymentPage() {
     return () => clearInterval(timer);
   }, [booking]);
 
-  const rawPrice = Number(booking?.final_price || booking?.expected_price || 0);
+  const getDisplayUnit = (u) => {
+    if (!u) return "Lượt";
+    const lower = u.toLowerCase();
+    if (lower.includes("m2") || lower.includes("m²") || lower.includes("mét")) return "Mét vuông";
+    if (lower.includes("giờ") || lower.includes("hour")) return "Giờ";
+    if (lower.includes("ngày") || lower.includes("day")) return "Ngày";
+    if (lower.includes("tuần") || lower.includes("week")) return "Tuần";
+    if (lower.includes("tháng") || lower.includes("month")) return "Tháng";
+    if (lower.includes("buổi")) return "Buổi";
+    if (lower.includes("chiếc") || lower.includes("item")) return "Chiếc";
+    return u;
+  };
+
+  const quantity = Number(booking?.quantity || 1);
+  let unitPrice = 0;
+  let rawTotal = 0;
+
+  if (booking?.final_price && Number(booking.final_price) > 0) {
+    unitPrice = Number(booking.final_price);
+    rawTotal = unitPrice * quantity;
+  } else {
+    unitPrice = Number(booking?.expected_price || 0);
+    rawTotal = unitPrice * quantity;
+  }
 
   const total = selectedVoucher
-    ? Math.round(rawPrice * (1 - selectedVoucher.discount))
-    : rawPrice;
+    ? Math.round(rawTotal * (1 - selectedVoucher.discount))
+    : rawTotal;
 
   const handlePay = async () => {
     if (!wallet || !booking) return;
@@ -270,16 +303,29 @@ export default function PaymentPage() {
 
           <p><strong>Dịch vụ:</strong> {booking?.service_name}</p>
           <p><strong>Gói:</strong> {booking?.variant_name || "-"}</p>
+          {booking?.description && (
+            <p><strong>Lưu ý:</strong> <span className="text-primary fw-bold">{booking.description}</span></p>
+          )}
 
           {/* HIỂN THỊ GIÁ THEO 3 DÒNG */}
+          <p className="mb-1 text-muted">
+            - Đơn giá: {formatVND(unitPrice)} / {getDisplayUnit(booking?.unit)}
+          </p>
+
+          {quantity > 1 && (
+            <p className="mb-1 text-muted">
+              - Số lượng: {quantity} {getDisplayUnit(booking?.unit)}
+            </p>
+          )}
+
           <p className="mb-1 price-origin">
-            - Giá gốc: {rawPrice.toLocaleString("vi-VN")} ₫
+            - Tổng tiền: {formatVND(rawTotal)}
           </p>
 
           {selectedVoucher ? (
             <p className="mb-1 price-discount mt-2">
               - Giảm {selectedVoucher.discount * 100}%
-              {" "}(-{Math.round(rawPrice * selectedVoucher.discount).toLocaleString("vi-VN")} ₫)
+              {" "}(-{formatVND(Math.round(rawTotal * selectedVoucher.discount))})
             </p>
           ) : (
             <p className="mb-1 text-muted mt-2">
@@ -289,7 +335,7 @@ export default function PaymentPage() {
 
           <p className="mt-2">
             <span className="price-total">
-              - Giá tiền phải trả: {total.toLocaleString("vi-VN")} ₫
+              - Giá tiền phải trả: {formatVND(total)}
             </span>
           </p>
 

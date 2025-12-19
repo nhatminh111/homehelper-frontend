@@ -9,6 +9,7 @@ import NegotiatePriceButton from '../components/negotiation/NegotiatePriceButton
 import { FaArrowLeft, FaCheckCircle, FaTimesCircle, FaHandshake } from 'react-icons/fa';
 import '../css/QuotesPage.css';
 import { showToast } from '../components/common/CustomToast'; // Thông báo toast
+import { formatVND } from '../utils/formatVND';
 
 const QuotesPage = () => {
   const { postId } = useParams();
@@ -181,7 +182,7 @@ const QuotesPage = () => {
             <div>
               <span className="quote-price-label">Giá đề xuất:</span>
               <span className="quote-price-value">
-                {quote.proposed_price.toLocaleString()} ₫
+                {formatVND(quote.proposed_price)}
               </span>
             </div>
             <div>
@@ -240,7 +241,7 @@ const QuotesPage = () => {
               <div>
                 <p><strong>Tasker:</strong> {selectedQuote.tasker_name}</p>
                 <p><strong>Dịch vụ:</strong> {selectedQuote.variant_name}</p>
-                <p><strong>Giá đề xuất:</strong> {selectedQuote.proposed_price.toLocaleString()} VND</p>
+                <p><strong>Giá đề xuất:</strong> {formatVND(selectedQuote.proposed_price)}</p>
                 <p><strong>Đề xuất:</strong> {selectedQuote.proposal || 'Không có đề xuất'}</p>
               </div>
             )}
