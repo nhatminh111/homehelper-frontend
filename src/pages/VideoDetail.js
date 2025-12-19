@@ -88,7 +88,7 @@ const VideoDetail = () => {
           // Check wishlist status
           if (videoData.user_id) {
             try {
-              const response = await fetch('http://localhost:3001/api/wishlists/', {
+              const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/wishlists/`, {
                 headers: {
                   'Authorization': `Bearer ${localStorage.getItem('token')}`
                 }
@@ -215,7 +215,8 @@ const VideoDetail = () => {
     }
 
     try {
-      const endpoint = isInWishlist ? 'http://localhost:3001/api/wishlists/remove' : 'http://localhost:3001/api/wishlists/';
+      const api_base = (process.env.REACT_APP_API_URL || 'http://localhost:3001/api');
+      const endpoint = isInWishlist ? `${api_base}/wishlists/remove` : `${api_base}/wishlists/`;
       const method = 'POST';
 
       const response = await fetch(endpoint, {

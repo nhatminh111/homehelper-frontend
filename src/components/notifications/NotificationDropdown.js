@@ -179,7 +179,7 @@ const NotificationDropdown = ({
                     const token = localStorage.getItem('token') || localStorage.getItem('access_token');
                     if (token) {
                         try {
-                            fetch(`/api/notifications/${notification.notification_id}/read`, {
+                            fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/notifications/${notification.notification_id}/read`, {
                                 method: 'POST',
                                 headers: { 'Authorization': `Bearer ${token}` }
                             });

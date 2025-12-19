@@ -70,7 +70,7 @@ const Home = () => {
       return;
     }
     try {
-      const res = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/api/wishlists/`, {
+      const res = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/wishlists/`, {
         method: "POST",
         headers: createHeaders(token),
         body: JSON.stringify({
@@ -93,7 +93,7 @@ const Home = () => {
 
   const removeTasker = async (taskerId) => {
     try {
-      const res = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/api/wishlists/remove`, {
+      const res = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/wishlists/remove`, {
         method: "POST",
         headers: createHeaders(token),
         body: JSON.stringify({ customer_id: user.user_id, taskerId }),
@@ -113,7 +113,7 @@ const Home = () => {
   };
 
   useEffect(() => {
-    fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/api/services/servicebasic`)
+    fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/services/servicebasic`)
       .then((res) => res.json())
       .then((resData) => {
         setServices(resData.data || []);

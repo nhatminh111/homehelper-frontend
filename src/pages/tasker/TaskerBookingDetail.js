@@ -352,7 +352,7 @@ export default function TaskerBookingDetail() {
     try {
       const token = api.getStoredToken();
       const res = await fetch(
-        `http://localhost:3001/api/bookings/${booking_id}/cancel`,
+        `${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/bookings/${booking_id}/cancel`,
         {
           method: "POST",
           headers: {
@@ -380,7 +380,7 @@ export default function TaskerBookingDetail() {
       const token = api.getStoredToken();
 
       const res = await fetch(
-        `http://localhost:3001/api/bookings/${booking.booking_id}/cancel`,
+        `${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/bookings/${booking.booking_id}/cancel`,
         {
           method: "POST",
           headers: {
