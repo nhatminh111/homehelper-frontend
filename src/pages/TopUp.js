@@ -32,6 +32,12 @@ const TopUp = () => {
   const [orderInfo, setOrderInfo] = useState(null);
   const [error, setError] = useState('');
   const [polling, setPolling] = useState(false);
+  const [debugLogs, setDebugLogs] = useState([]);
+
+  const addLog = (msg) => {
+    setDebugLogs(prev => [...prev.slice(-19), String(msg)]);
+    console.log(`[TopUp-Debug] ${msg}`);
+  };
 
   const disabled = useMemo(() => loading || polling, [loading, polling]);
 
@@ -40,20 +46,25 @@ const TopUp = () => {
   const createOrder = async (e) => {
     e?.preventDefault?.();
     setError('');
+    addLog(`Bắt đầu tạo đơn MoMo: amount=${amount}`);
 
     const v = Number(amount);
     if (!Number.isFinite(v) || v < 1000) {
       setError('Số tiền không hợp lệ (>= 1.000đ).');
+      addLog(`Validation failed: amount=${amount}`);
       return;
     }
 
     try {
       setLoading(true);
+      addLog(`Đang gọi POST /momo/create ...`);
       const res = await api.post('/momo/create', { amount: v });
       const data = res.data;
+      addLog(`Response Success: orderId=${data?.momo?.orderId}`);
 
       // Trường hợp tạo đơn mới bình thường (có payUrl)
       if (!data?.momo?.payUrl) {
+        addLog(`Error: Lack of payUrl in response`);
         throw new Error(data?.error?.message || data?.detail?.message || data?.error || 'Tạo đơn thất bại');
       }
       setPayUrl(data.momo.payUrl);
@@ -63,12 +74,14 @@ const TopUp = () => {
         amount: v,
         startedAt: Date.now(),
       });
+      addLog(`Mở link MoMo: ${data.momo.payUrl.substring(0, 50)}...`);
       try { window.open(data.momo.payUrl, '_blank', 'noopener'); } catch { }
       setPolling(true);
     } catch (err) {
       // Nếu BE báo đã có đơn pending (409) → khởi động poll đơn cũ
       if (err.status === 409 && (err.data?.error === 'pending_exists' || err.data?.momo?.status === 'pending')) {
         const data = err.data;
+        addLog(`Phát hiện đơn cũ đang đợi (409): orderId=${data?.momo?.orderId}`);
         setPayUrl('');
         setOrderInfo({
           orderId: data.momo.orderId,
@@ -80,8 +93,10 @@ const TopUp = () => {
         return;
       }
 
+      const errMsg = err.message || 'Có lỗi xảy ra';
+      addLog(`Lỗi tạo đơn: ${errMsg} (Status: ${err.status || 'unknown'})`);
       console.error('[TopUp] Lỗi tạo đơn:', err);
-      setError(err.message || 'Có lỗi xảy ra');
+      setError(errMsg);
       setPayUrl('');
       setOrderInfo(null);
       setPolling(false);
@@ -94,11 +109,13 @@ const TopUp = () => {
   useEffect(() => {
     if (!polling || !orderInfo?.orderId) return;
 
+    addLog(`Bắt đầu Polling đơn: ${orderInfo.orderId}`);
     const interval = setInterval(async () => {
       const exceeded =
         orderInfo?.startedAt && Date.now() - orderInfo.startedAt > 5 * 60 * 1000;
 
       if (exceeded) {
+        addLog(`Polling timeout (5 mins exceeded)`);
         clearInterval(interval);
         setPolling(false);
         return;
@@ -107,13 +124,15 @@ const TopUp = () => {
       try {
         const res = await api.get(`/momo/order/${orderInfo.orderId}`);
         const d = res.data;
+        addLog(`Poll Status: ${d?.status || 'checking'}`);
         if (d?.status === 'success' || d?.status === 'failed') {
+          addLog(`Giao dịch kết thúc với trạng thái: ${d.status}`);
           clearInterval(interval);
           setPolling(false);
           navigate(`/payment-result?orderId=${orderInfo.orderId}`);
         }
-      } catch {
-        // bỏ qua lỗi lẻ
+      } catch (pollErr) {
+        addLog(`Poll request error (silently skipping)`);
       }
     }, 3000);
 
@@ -154,6 +173,49 @@ const TopUp = () => {
       {/* ===== Body: layout 1 cột, từ trên xuống ===== */}
       <section className="topup-body one-column">
         <div className="shell single-col">
+
+          {/* ===== DEBUG SECTION (Dễ dàng kiểm tra trên Deploy) ===== */}
+          {process.env.NODE_ENV !== 'production' || error || debugLogs.length > 0 ? (
+            <div className="glass card-top mb-4" style={{ backgroundColor: '#fff5f5' }}>
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <h3 className="card-title mb-0" style={{ color: '#c53030', fontSize: 16 }}>Debug Console</h3>
+                <button
+                  className="btn btn-sm btn-outline-danger"
+                  onClick={() => setDebugLogs([])}
+                  style={{ fontSize: 11 }}
+                >
+                  Clear Logs
+                </button>
+              </div>
+              <div
+                style={{
+                  backgroundColor: '#1a202c',
+                  color: '#a0aec0',
+                  padding: '12px',
+                  borderRadius: '8px',
+                  fontFamily: 'monospace',
+                  fontSize: '12px',
+                  maxHeight: '200px',
+                  overflowY: 'auto'
+                }}
+              >
+                <div>[ENV] REACT_APP_API_URL: {process.env.REACT_APP_API_URL || '(not set)'}</div>
+                <div>[ENV] NODE_ENV: {process.env.NODE_ENV}</div>
+                <hr style={{ borderColor: '#4a5568' }} />
+                {debugLogs.map((log, i) => (
+                  <div key={i} style={{ marginBottom: 4 }}>
+                    <span style={{ color: '#48bb78' }}>[{new Date().toLocaleTimeString()}]</span> {log}
+                  </div>
+                ))}
+                {debugLogs.length === 0 && <div className="text-muted">No logs recorded yet.</div>}
+              </div>
+              {error && (
+                <div className="mt-2 small text-danger fw-bold">
+                  Last Error: {error}
+                </div>
+              )}
+            </div>
+          ) : null}
 
           <div
             className="glass card-top mb-4"
