@@ -38,12 +38,6 @@ const TopUp = () => {
   const [orderInfo, setOrderInfo] = useState(null);
   const [error, setError] = useState('');
   const [polling, setPolling] = useState(false);
-  const [debugLogs, setDebugLogs] = useState([]);
-
-  const addLog = (msg) => {
-    setDebugLogs(prev => [...prev.slice(-19), String(msg)]);
-    console.log(`[TopUp-Debug] ${msg}`);
-  };
 
   const disabled = useMemo(() => loading || polling, [loading, polling]);
 
@@ -52,26 +46,20 @@ const TopUp = () => {
   const createOrder = async (e) => {
     e?.preventDefault?.();
     setError('');
-    addLog(`Bắt đầu tạo đơn MoMo: amount=${amount}`);
 
     const v = Number(amount);
     if (!Number.isFinite(v) || v < 1000) {
-      setError('Số tiền không hợp lệ (>= 1.000đ).');
-      addLog(`Validation failed: amount=${amount}`);
+      setError('Số tiền không hợp lệ (tối thiểu 1.000đ).');
       return;
     }
 
     try {
       setLoading(true);
-      addLog(`Đang gọi POST /momo/create ...`);
       const res = await api.post('/momo/create', { amount: v });
       const data = res.data;
-      addLog(`Tạo đơn mới thành công: #${data.momo.orderId}`);
 
-      // Trường hợp tạo đơn mới bình thường (có payUrl)
       if (!data?.momo?.payUrl) {
-        addLog(`Lỗi: Backend không trả về link MoMo (payUrl)`);
-        throw new Error(data?.error?.message || data?.detail?.message || data?.error || 'Tạo đơn thất bại');
+        throw new Error(data?.error?.message || data?.detail?.message || data?.error || 'Tạo đơn thanh toán thất bại');
       }
       setPayUrl(data.momo.payUrl);
       setOrderInfo({
@@ -80,15 +68,12 @@ const TopUp = () => {
         amount: v,
         startedAt: Date.now(),
       });
-      addLog(`👉 Đang mở tab MoMo... (Nếu không thấy, hãy bấm nút "Mở MoMo")`);
+
       try { window.open(data.momo.payUrl, '_blank', 'noopener'); } catch { }
       setPolling(true);
     } catch (err) {
-      // 409 Conflict giờ đây sẽ ít xảy ra hơn do Backend đã bỏ chặn, 
-      // nhưng vẫn giữ để đề phòng trường hợp trùng OrderId cực hiếm hoặc Logic khác.
       if (err.status === 409 && (err.data?.error === 'pending_exists' || err.data?.momo?.status === 'pending')) {
         const data = err.data;
-        addLog(`⚠️ Bạn đang có một đơn hàng chưa hoàn tất: #${data?.momo?.orderId}`);
         setPayUrl('');
         setOrderInfo({
           orderId: data.momo.orderId,
@@ -100,9 +85,7 @@ const TopUp = () => {
         return;
       }
 
-      const errMsg = err.message || 'Có lỗi xảy ra';
-      addLog(`❌ Thất bại: ${errMsg} (Mã lỗi: ${err.status || 'unknown'})`);
-      console.error('[TopUp] Lỗi tạo đơn:', err);
+      const errMsg = err.message || 'Có lỗi xảy ra khi tạo đơn hàng';
       setError(errMsg);
       setPayUrl('');
       setOrderInfo(null);
@@ -112,17 +95,14 @@ const TopUp = () => {
     }
   };
 
-  // Poll trạng thái đơn mỗi 3s trong tối đa 5 phút, xong thì điều hướng
   useEffect(() => {
     if (!polling || !orderInfo?.orderId) return;
 
-    addLog(`🔍 Đang kiểm tra trạng thái thanh toán đơn #${orderInfo.orderId}...`);
     const interval = setInterval(async () => {
       const exceeded =
         orderInfo?.startedAt && Date.now() - orderInfo.startedAt > 5 * 60 * 1000;
 
       if (exceeded) {
-        addLog(`⏰ Đã quá 5 phút, dừng kiểm tra (Timeout).`);
         clearInterval(interval);
         setPolling(false);
         return;
@@ -131,20 +111,17 @@ const TopUp = () => {
       try {
         const res = await api.get(`/momo/order/${orderInfo.orderId}`);
         const d = res.data;
-        // addLog(`Trạng thái: ${d?.status || 'đang xử lý'}`);
         if (d?.status === 'success') {
-          addLog(`✅ Thành công! Tiền đã vào ví.`);
           clearInterval(interval);
           setPolling(false);
           navigate(`/payment-result?orderId=${orderInfo.orderId}`);
         } else if (d?.status === 'failed') {
-          addLog(`❌ Giao dịch thất bại.`);
           clearInterval(interval);
           setPolling(false);
           navigate(`/payment-result?orderId=${orderInfo.orderId}`);
         }
       } catch (pollErr) {
-        // addLog(`Lỗi poll (đang thử lại...)`);
+        // Silently retry polling
       }
     }, 3000);
 
@@ -154,24 +131,23 @@ const TopUp = () => {
   const copyLink = async () => {
     if (!payUrl) return;
     await navigator.clipboard.writeText(payUrl);
-    alert('Đã copy liên kết thanh toán.');
+    alert('Đã sao chép liên kết thanh toán MoMo.');
   };
 
   const pickPreset = (v) => setAmount(String(v));
 
   return (
     <>
-      {/* Hero giữ nguyên, nhưng CSS đã làm sáng overlay */}
       <section className="hero-wrap hero-wrap-2" style={{ backgroundImage: "url('/images/bg_2.jpg')" }} data-stellar-background-ratio="0.5">
         <div className="overlay"></div>
         <div className="container">
           <div className="row no-gutters slider-text align-items-end">
             <div className="col-md-9 ftco-animate pb-5">
               <p className="breadcrumbs mb-2">
-                <span className="mr-2"><Link to="/">Home <FontAwesomeIcon icon={faChevronRight} /></Link></span>
+                <span className="mr-2"><Link to="/">Trang chủ <FontAwesomeIcon icon={faChevronRight} /></Link></span>
                 <span>Nạp Ví</span>
               </p>
-              <h1 className="mb-0 bread">Nạp ví qua MoMo</h1>
+              <h1 className="mb-0 bread">Nạp tiền vào ví qua MoMo</h1>
               {currentUser && (
                 <p className="text-white-50 small mb-0">
                   Xin chào, <b>{currentUser.name || currentUser.email || 'bạn'}</b>
@@ -182,67 +158,22 @@ const TopUp = () => {
         </div>
       </section>
 
-      {/* ===== Body: layout 1 cột, từ trên xuống ===== */}
       <section className="topup-body one-column">
         <div className="shell single-col">
-
-          {/* ===== DEBUG SECTION (Dễ dàng kiểm tra trên Deploy) ===== */}
-          {process.env.NODE_ENV !== 'production' || error || debugLogs.length > 0 ? (
-            <div className="glass card-top mb-4" style={{ backgroundColor: '#fff5f5' }}>
-              <div className="d-flex justify-content-between align-items-center mb-2">
-                <h3 className="card-title mb-0" style={{ color: '#c53030', fontSize: 16 }}>Debug Console</h3>
-                <button
-                  className="btn btn-sm btn-outline-danger"
-                  onClick={() => setDebugLogs([])}
-                  style={{ fontSize: 11 }}
-                >
-                  Clear Logs
-                </button>
-              </div>
-              <div
-                style={{
-                  backgroundColor: '#1a202c',
-                  color: '#a0aec0',
-                  padding: '12px',
-                  borderRadius: '8px',
-                  fontFamily: 'monospace',
-                  fontSize: '12px',
-                  maxHeight: '200px',
-                  overflowY: 'auto'
-                }}
-              >
-                <div>[ENV] REACT_APP_API_URL: {process.env.REACT_APP_API_URL || '(not set)'}</div>
-                <div>[ENV] NODE_ENV: {process.env.NODE_ENV}</div>
-                <hr style={{ borderColor: '#4a5568' }} />
-                {debugLogs.map((log, i) => (
-                  <div key={i} style={{ marginBottom: 4 }}>
-                    <span style={{ color: '#48bb78' }}>[{new Date().toLocaleTimeString()}]</span> {log}
-                  </div>
-                ))}
-                {debugLogs.length === 0 && <div className="text-muted">No logs recorded yet.</div>}
-              </div>
-              {error && (
-                <div className="mt-2 small text-danger fw-bold">
-                  Last Error: {error}
-                </div>
-              )}
-            </div>
-          ) : null}
 
           <div
             className="glass card-top mb-4"
             style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
             onClick={refresh}
           >
-            <h3 className="card-title mb-0">Số dư ví</h3>
+            <h3 className="card-title mb-0">Số dư hiện tại</h3>
             <strong style={{ fontSize: 22, color: '#16a34a' }}>
-              {balanceError ? 'Lỗi' : (balanceLoading ? '...' : formatVND(balance))}
+              {balanceError ? 'Lỗi tải' : (balanceLoading ? 'Đang tải...' : formatVND(balance))}
             </strong>
           </div>
 
-          {/* ===== Bước 1: Nhập số tiền ===== */}
           <div className="glass card-top">
-            <h3 className="card-title">1) Nhập số tiền</h3>
+            <h3 className="card-title">1) Nhập số tiền muốn nạp</h3>
             <form onSubmit={createOrder}>
               <div className="amount-input">
                 <input
@@ -278,7 +209,7 @@ const TopUp = () => {
               <button className={`btn-gradient btn-xl ${disabled ? 'btn-disabled' : ''}`} disabled={disabled}>
                 {loading ? (
                   <>
-                    <FontAwesomeIcon icon={faSpinner} spin /> Đang tạo mã...
+                    <FontAwesomeIcon icon={faSpinner} spin /> Đang tạo mã nạp...
                   </>
                 ) : (
                   <>
@@ -294,22 +225,21 @@ const TopUp = () => {
                   <FontAwesomeIcon icon={faCircleCheck} />
                 </div>
                 <div className="order-meta">
-                  <div>Đơn nạp: <b>{orderInfo.orderId}</b></div>
+                  <div>Mã đơn: <b>{orderInfo.orderId}</b></div>
                   <div>Số tiền: <b>{formatVND(orderInfo.amount / 1000)}</b></div>
                 </div>
               </div>
             )}
           </div>
 
-          {/* ===== Bước 2: Thanh toán ===== */}
           <div className="glass card-payment">
             <div className="card-payment-header">
-              <h3 className="payment-title">2) Thanh toán MoMo</h3>
+              <h3 className="payment-title">2) Thanh toán an toàn</h3>
               <div className="actions">
-                <button className="btn-icon" onClick={copyLink} disabled={!payUrl} title="Copy link">
+                <button className="btn-icon" onClick={copyLink} disabled={!payUrl} title="Sao chép liên kết">
                   <FontAwesomeIcon icon={faCopy} />
                 </button>
-                <a className={`btn-icon ${!payUrl ? 'disabled' : ''}`} href={payUrl || '#'} target="_blank" rel="noreferrer" title="Mở MoMo">
+                <a className={`btn-icon ${!payUrl ? 'disabled' : ''}`} href={payUrl || '#'} target="_blank" rel="noreferrer" title="Mở ứng dụng MoMo">
                   <FontAwesomeIcon icon={faArrowUpRightFromSquare} />
                 </a>
               </div>
@@ -323,15 +253,15 @@ const TopUp = () => {
                   <div className="ghost-line w-60" />
                   <div className="ghost-line w-40" />
                   <p className="hint">
-                    Sau khi tạo, tab MoMo sẽ mở tự động. Nếu không, bấm <b>Mở MoMo</b> ở góc phải.
+                    Sau khi nhấn tạo mã, ứng dụng MoMo sẽ tự động mở. Nếu không, bạn vui lòng nhấn <b>Mở MoMo</b> ở phía trên.
                   </p>
                 </div>
               )}
             </div>
 
             <p className="note">
-              Trang MoMo đã hiển thị thời gian hết hạn đơn. Bạn có thể rời trang này trong lúc thanh toán.
-              Hệ thống sẽ tự chuyển sang trang kết quả khi hoàn tất.
+              Sau khi thanh toán thành công trên ứng dụng MoMo, tiền sẽ tự động được cộng vào ví của bạn.
+              Bạn có thể đóng trang này sau khi giao dịch hoàn tất.
             </p>
           </div>
 
