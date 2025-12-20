@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCheckCircle, faXmarkCircle, faArrowLeft, faRepeat } from '@fortawesome/free-solid-svg-icons';
 import { formatVND } from '../utils/formatVND';
+import api from '../services/api';
 import '../css/topUp.css'; // tái dùng biến màu
 
 function useQuery() {
@@ -13,21 +14,43 @@ const PaymentResult = () => {
   const query = useQuery();
   const navigate = useNavigate();
 
-  const [status, setStatus] = useState(null);
+  const [status, setStatus] = useState('loading'); // loading | success | failed
   const [info, setInfo] = useState({});
 
   useEffect(() => {
-    const resultCode = query.get('resultCode');
-    const orderId = query.get('orderId') || '';
+    const orderId = query.get('orderId');
     const amount = query.get('amount');
-    const message = query.get('message');
 
-    setInfo({ orderId, amount, message });
-    setStatus(resultCode === '0' ? 'success' : 'fail');
-
-    if (resultCode === '0') {
-      try { window.dispatchEvent(new Event('wallet:refresh')); } catch { }
+    if (!orderId) {
+      setStatus('failed');
+      return;
     }
+
+    setInfo(prev => ({ ...prev, orderId, amount }));
+
+    // Gọi API để đồng bộ và kiểm tra trạng thái thực tế từ Server
+    const verifyPayment = async () => {
+      try {
+        const res = await api.get(`/momo/order/${orderId}`);
+        const data = res.data;
+
+        if (data.status === 'success') {
+          setStatus('success');
+          setInfo(prev => ({ ...prev, amount: data.amount || amount }));
+          try { window.dispatchEvent(new Event('wallet:refresh')); } catch { }
+        } else if (data.status === 'failed') {
+          setStatus('failed');
+        } else {
+          // Vẫn pending hoặc lỗi khác
+          setStatus('failed');
+        }
+      } catch (err) {
+        console.error('[PaymentResult] Verify error:', err);
+        setStatus('failed');
+      }
+    };
+
+    verifyPayment();
   }, [query]);
 
   const displayOrderId = useMemo(

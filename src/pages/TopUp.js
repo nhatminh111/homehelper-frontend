@@ -60,11 +60,11 @@ const TopUp = () => {
       addLog(`Đang gọi POST /momo/create ...`);
       const res = await api.post('/momo/create', { amount: v });
       const data = res.data;
-      addLog(`Response Success: orderId=${data?.momo?.orderId}`);
+      addLog(`Tạo đơn mới thành công: #${data.momo.orderId}`);
 
       // Trường hợp tạo đơn mới bình thường (có payUrl)
       if (!data?.momo?.payUrl) {
-        addLog(`Error: Lack of payUrl in response`);
+        addLog(`Lỗi: Backend không trả về link MoMo (payUrl)`);
         throw new Error(data?.error?.message || data?.detail?.message || data?.error || 'Tạo đơn thất bại');
       }
       setPayUrl(data.momo.payUrl);
@@ -74,14 +74,15 @@ const TopUp = () => {
         amount: v,
         startedAt: Date.now(),
       });
-      addLog(`Mở link MoMo: ${data.momo.payUrl.substring(0, 50)}...`);
+      addLog(`👉 Đang mở tab MoMo... (Nếu không thấy, hãy bấm nút "Mở MoMo")`);
       try { window.open(data.momo.payUrl, '_blank', 'noopener'); } catch { }
       setPolling(true);
     } catch (err) {
-      // Nếu BE báo đã có đơn pending (409) → khởi động poll đơn cũ
+      // 409 Conflict giờ đây sẽ ít xảy ra hơn do Backend đã bỏ chặn, 
+      // nhưng vẫn giữ để đề phòng trường hợp trùng OrderId cực hiếm hoặc Logic khác.
       if (err.status === 409 && (err.data?.error === 'pending_exists' || err.data?.momo?.status === 'pending')) {
         const data = err.data;
-        addLog(`Phát hiện đơn cũ đang đợi (409): orderId=${data?.momo?.orderId}`);
+        addLog(`⚠️ Bạn đang có một đơn hàng chưa hoàn tất: #${data?.momo?.orderId}`);
         setPayUrl('');
         setOrderInfo({
           orderId: data.momo.orderId,
@@ -94,7 +95,7 @@ const TopUp = () => {
       }
 
       const errMsg = err.message || 'Có lỗi xảy ra';
-      addLog(`Lỗi tạo đơn: ${errMsg} (Status: ${err.status || 'unknown'})`);
+      addLog(`❌ Thất bại: ${errMsg} (Mã lỗi: ${err.status || 'unknown'})`);
       console.error('[TopUp] Lỗi tạo đơn:', err);
       setError(errMsg);
       setPayUrl('');
@@ -109,13 +110,13 @@ const TopUp = () => {
   useEffect(() => {
     if (!polling || !orderInfo?.orderId) return;
 
-    addLog(`Bắt đầu Polling đơn: ${orderInfo.orderId}`);
+    addLog(`🔍 Đang kiểm tra trạng thái thanh toán đơn #${orderInfo.orderId}...`);
     const interval = setInterval(async () => {
       const exceeded =
         orderInfo?.startedAt && Date.now() - orderInfo.startedAt > 5 * 60 * 1000;
 
       if (exceeded) {
-        addLog(`Polling timeout (5 mins exceeded)`);
+        addLog(`⏰ Đã quá 5 phút, dừng kiểm tra (Timeout).`);
         clearInterval(interval);
         setPolling(false);
         return;
@@ -124,15 +125,20 @@ const TopUp = () => {
       try {
         const res = await api.get(`/momo/order/${orderInfo.orderId}`);
         const d = res.data;
-        addLog(`Poll Status: ${d?.status || 'checking'}`);
-        if (d?.status === 'success' || d?.status === 'failed') {
-          addLog(`Giao dịch kết thúc với trạng thái: ${d.status}`);
+        // addLog(`Trạng thái: ${d?.status || 'đang xử lý'}`);
+        if (d?.status === 'success') {
+          addLog(`✅ Thành công! Tiền đã vào ví.`);
+          clearInterval(interval);
+          setPolling(false);
+          navigate(`/payment-result?orderId=${orderInfo.orderId}`);
+        } else if (d?.status === 'failed') {
+          addLog(`❌ Giao dịch thất bại.`);
           clearInterval(interval);
           setPolling(false);
           navigate(`/payment-result?orderId=${orderInfo.orderId}`);
         }
       } catch (pollErr) {
-        addLog(`Poll request error (silently skipping)`);
+        // addLog(`Lỗi poll (đang thử lại...)`);
       }
     }, 3000);
 
