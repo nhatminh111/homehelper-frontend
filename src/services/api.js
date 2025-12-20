@@ -21,10 +21,19 @@ const createHeaders = (token = null, isFormData = false) => {
 
 // Helper function để xử lý response
 export const handleResponse = async (response) => {
-  const data = await response.json();
+  let data;
+  try {
+    const text = await response.text();
+    data = text ? JSON.parse(text) : {};
+  } catch (e) {
+    data = { message: "Phản hồi không phải JSON hợp lệ" };
+  }
 
   if (!response.ok) {
-    throw new Error(data.message || data.error || "Có lỗi xảy ra"); // Hỗ trợ cả message và error từ backend
+    const error = new Error(data.message || data.error || "Có lỗi xảy ra");
+    error.status = response.status;
+    error.data = data;
+    throw error;
   }
   return data;
 };

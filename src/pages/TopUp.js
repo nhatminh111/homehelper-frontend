@@ -9,12 +9,7 @@ import '../css/topUp.css';
 import useWalletBalance from '../hooks/useWalletBalance';
 import { formatVND } from '../utils/formatVND';
 
-
-// Lấy token JWT
-const getToken = () => localStorage.getItem('token') || '';
-
-// API base (đồng bộ với src/services/api.js)
-const API_BASE = (process.env.REACT_APP_API_URL || 'http://localhost:3001/api').replace(/\/+$/, '');
+import api from '../services/api';
 
 function useCurrentUser() {
   const [user, setUser] = useState(null);
@@ -54,34 +49,11 @@ const TopUp = () => {
 
     try {
       setLoading(true);
-      const url = `${API_BASE}/momo/create`;
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${getToken()}`,
-        },
-        body: JSON.stringify({ amount: v }),
-      });
-
-      const text = await res.text();
-      let data; try { data = JSON.parse(text); } catch { data = { raw: text }; }
-
-      // Nếu BE báo đã có đơn pending → khởi động poll đơn cũ
-      if (res.status === 409 && (data?.error === 'pending_exists' || data?.momo?.status === 'pending')) {
-        setPayUrl(''); // không có payUrl thì vẫn poll
-        setOrderInfo({
-          orderId: data.momo.orderId,
-          requestId: null,
-          amount: data.momo.amount ?? v,
-          startedAt: Date.now(),
-        });
-        setPolling(true);
-        return;
-      }
+      const res = await api.post('/momo/create', { amount: v });
+      const data = res.data;
 
       // Trường hợp tạo đơn mới bình thường (có payUrl)
-      if (!res.ok || !data?.momo?.payUrl) {
+      if (!data?.momo?.payUrl) {
         throw new Error(data?.error?.message || data?.detail?.message || data?.error || 'Tạo đơn thất bại');
       }
       setPayUrl(data.momo.payUrl);
@@ -94,6 +66,20 @@ const TopUp = () => {
       try { window.open(data.momo.payUrl, '_blank', 'noopener'); } catch { }
       setPolling(true);
     } catch (err) {
+      // Nếu BE báo đã có đơn pending (409) → khởi động poll đơn cũ
+      if (err.status === 409 && (err.data?.error === 'pending_exists' || err.data?.momo?.status === 'pending')) {
+        const data = err.data;
+        setPayUrl('');
+        setOrderInfo({
+          orderId: data.momo.orderId,
+          requestId: null,
+          amount: data.momo.amount ?? v,
+          startedAt: Date.now(),
+        });
+        setPolling(true);
+        return;
+      }
+
       console.error('[TopUp] Lỗi tạo đơn:', err);
       setError(err.message || 'Có lỗi xảy ra');
       setPayUrl('');
@@ -119,10 +105,8 @@ const TopUp = () => {
       }
 
       try {
-        const r = await fetch(`${API_BASE}/momo/order/${orderInfo.orderId}`, {
-          headers: { Authorization: `Bearer ${getToken()}` }
-        });
-        const d = await r.json();
+        const res = await api.get(`/momo/order/${orderInfo.orderId}`);
+        const d = res.data;
         if (d?.status === 'success' || d?.status === 'failed') {
           clearInterval(interval);
           setPolling(false);
