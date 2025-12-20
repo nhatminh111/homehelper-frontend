@@ -13,8 +13,8 @@ import { formatVND } from '../utils/formatVND';
 // Lấy token JWT
 const getToken = () => localStorage.getItem('token') || '';
 
-// API base (đặt REACT_APP_API_BASE trong .env nếu cần)
-const API_BASE = (process.env.REACT_APP_API_BASE || '').replace(/\/+$/, '');
+// API base (đồng bộ với src/services/api.js)
+const API_BASE = (process.env.REACT_APP_API_URL || 'http://localhost:3001/api').replace(/\/+$/, '');
 
 function useCurrentUser() {
   const [user, setUser] = useState(null);
@@ -54,7 +54,7 @@ const TopUp = () => {
 
     try {
       setLoading(true);
-      const url = `${API_BASE}/api/momo/create`;
+      const url = `${API_BASE}/momo/create`;
       const res = await fetch(url, {
         method: 'POST',
         headers: {
@@ -119,7 +119,7 @@ const TopUp = () => {
       }
 
       try {
-        const r = await fetch(`${API_BASE}/api/momo/order/${orderInfo.orderId}`, {
+        const r = await fetch(`${API_BASE}/momo/order/${orderInfo.orderId}`, {
           headers: { Authorization: `Bearer ${getToken()}` }
         });
         const d = await r.json();
