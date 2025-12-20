@@ -11,7 +11,8 @@ function useQuery() {
 }
 
 const PaymentResult = () => {
-  const query = useQuery();
+  const location = useLocation();
+  const query = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const navigate = useNavigate();
 
   const [status, setStatus] = useState('loading'); // loading | success | failed
@@ -22,36 +23,40 @@ const PaymentResult = () => {
     const amount = query.get('amount');
 
     if (!orderId) {
+      console.log('[PaymentResult] No orderId found in URL');
       setStatus('failed');
       return;
     }
 
-    setInfo(prev => ({ ...prev, orderId, amount }));
+    setInfo({ orderId, amount });
 
     // Gọi API để đồng bộ và kiểm tra trạng thái thực tế từ Server
+    let isMounted = true;
     const verifyPayment = async () => {
       try {
+        console.log('[PaymentResult] Verifying order:', orderId);
         const res = await api.get(`/momo/order/${orderId}`);
         const data = res.data;
+
+        if (!isMounted) return;
 
         if (data.status === 'success') {
           setStatus('success');
           setInfo(prev => ({ ...prev, amount: data.amount || amount }));
           try { window.dispatchEvent(new Event('wallet:refresh')); } catch { }
-        } else if (data.status === 'failed') {
-          setStatus('failed');
         } else {
-          // Vẫn pending hoặc lỗi khác
           setStatus('failed');
         }
       } catch (err) {
+        if (!isMounted) return;
         console.error('[PaymentResult] Verify error:', err);
         setStatus('failed');
       }
     };
 
     verifyPayment();
-  }, [query]);
+    return () => { isMounted = false; };
+  }, [query]); // query hiện tại đã được memoize, không gây lặp
 
   const displayOrderId = useMemo(
     () => (info.orderId || ''), // .replace(/^TOPUP_/, 'NAPVI_')
