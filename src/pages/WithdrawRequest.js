@@ -147,7 +147,7 @@ const WithdrawRequestPage = () => {
                                                 type="number"
                                                 name="amount"
                                                 className="form-control border-end-0 border-start-0 ps-0 fw-bold text-end"
-                                                placeholder="150"
+                                                placeholder="50"
                                                 value={formData.amount}
                                                 onChange={handleChange}
                                                 required
