@@ -6,19 +6,24 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 
 import { formatVND } from '../utils/formatVND';
-
-const API_BASE = (process.env.REACT_APP_API_URL || 'http://localhost:3001/api').replace(/\/+$/, '').replace(/\/api$/, '');
-const token = () => localStorage.getItem('token') || '';
-const vnd = (n) => formatVND(n);
+import api from '../services/api';
 
 function useCurrentUser() {
   const [user, setUser] = useState(null);
   useEffect(() => {
-    const raw = localStorage.getItem('currentUser');
-    if (raw) setUser(JSON.parse(raw));
+    const raw = localStorage.getItem('user') || localStorage.getItem('currentUser');
+    if (raw) {
+      try {
+        setUser(JSON.parse(raw));
+      } catch (e) {
+        console.error('Failed to parse user data:', e);
+      }
+    }
   }, []);
   return user;
 }
+
+const vnd = (n) => formatVND(n);
 
 export default function WalletPage() {
   const [balance, setBalance] = useState(0);
@@ -37,33 +42,15 @@ export default function WalletPage() {
       setErr('');
       setReloading(true);
 
-      const balanceUrl = `${API_BASE}/api/wallet/balance`;
-      const historyUrl = `${API_BASE}/api/wallet/history?limit=${lim}`;
-      const auth = { Authorization: `Bearer ${token()}` };
-
-      console.log('[WalletPage] GET', balanceUrl);
-      console.log('[WalletPage] GET', historyUrl);
+      console.log('[WalletPage] Calling API for balance and history');
 
       const [br, hr] = await Promise.all([
-        fetch(balanceUrl, { headers: auth }),
-        fetch(historyUrl, { headers: auth }),
+        api.get('/wallet/balance'),
+        api.get('/wallet/history', { params: { limit: lim } }),
       ]);
 
-      const bRaw = await br.text();
-      const hRaw = await hr.text();
-
-      console.log('[WalletPage] balance status', br.status, 'raw:', bRaw.slice(0, 300));
-      console.log('[WalletPage] history status', hr.status, 'raw:', hRaw.slice(0, 300));
-
-      let b, h;
-      try { b = JSON.parse(bRaw); } catch { b = { _raw: bRaw }; }
-      try { h = JSON.parse(hRaw); } catch { h = { _raw: hRaw }; }
-
-      if (!br.ok) throw new Error(b.error || `BALANCE_${br.status}`);
-      if (!hr.ok) throw new Error(h.error || `HISTORY_${hr.status}`);
-
-      setBalance(Number(b.balance || 0));
-      setHistory(Array.isArray(h.history) ? h.history : []);
+      setBalance(Number(br.data.balance || 0));
+      setHistory(Array.isArray(hr.data.history) ? hr.data.history : []);
     } catch (e) {
       console.error('[WalletPage] ERROR:', e);
       setErr(e.message || 'Không tải được dữ liệu ví');

@@ -55,7 +55,25 @@ const buildUrl = (url, params) => {
 // Helper: get token from localStorage (if present)
 const getStoredToken = () => {
   try {
-    return localStorage.getItem("token");
+    // 1. Thử lấy từ key 'token' trực tiếp
+    const directToken = localStorage.getItem("token");
+    if (directToken) return directToken;
+
+    // 2. Thử lấy từ object 'user' (nếu AuthContext hoặc Login lưu kiểu này)
+    const userStr = localStorage.getItem("user");
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      if (user && user.token) return user.token;
+    }
+
+    // 3. Dự phòng cho pattern cũ (nghi ngờ)
+    const currentUserStr = localStorage.getItem("currentUser");
+    if (currentUserStr) {
+      const cu = JSON.parse(currentUserStr);
+      if (cu && cu.token) return cu.token;
+    }
+
+    return null;
   } catch (_) {
     return null;
   }

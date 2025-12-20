@@ -14,8 +14,14 @@ import api from '../services/api';
 function useCurrentUser() {
   const [user, setUser] = useState(null);
   useEffect(() => {
-    const raw = localStorage.getItem('currentUser');
-    if (raw) setUser(JSON.parse(raw));
+    const raw = localStorage.getItem('user') || localStorage.getItem('currentUser');
+    if (raw) {
+      try {
+        setUser(JSON.parse(raw));
+      } catch (e) {
+        console.error('Failed to parse user data:', e);
+      }
+    }
   }, []);
   return user;
 }
@@ -168,7 +174,7 @@ const TopUp = () => {
               <h1 className="mb-0 bread">Nạp ví qua MoMo</h1>
               {currentUser && (
                 <p className="text-white-50 small mb-0">
-                  Xin chào, <b>{currentUser.name || currentUser.email}</b>
+                  Xin chào, <b>{currentUser.name || currentUser.email || 'bạn'}</b>
                 </p>
               )}
             </div>

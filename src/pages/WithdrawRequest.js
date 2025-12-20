@@ -8,9 +8,7 @@ import {
 import { motion } from 'framer-motion';
 import { formatVND } from '../utils/formatVND';
 import { showToast } from '../components/common/CustomToast';
-
-const API_BASE = (process.env.REACT_APP_API_URL || 'http://localhost:3001/api').replace(/\/+$/, '').replace(/\/api$/, '');
-const token = () => localStorage.getItem('token') || '';
+import api from '../services/api';
 
 const WithdrawRequestPage = () => {
     const navigate = useNavigate();
@@ -29,13 +27,8 @@ const WithdrawRequestPage = () => {
     useEffect(() => {
         const fetchBalance = async () => {
             try {
-                const res = await fetch(`${API_BASE}/api/wallet/balance`, {
-                    headers: { Authorization: `Bearer ${token()}` }
-                });
-                const data = await res.json();
-                if (res.ok) {
-                    setBalance(Number(data.balance || 0));
-                }
+                const res = await api.get('/wallet/balance');
+                setBalance(Number(res.data.balance || 0));
             } catch (err) {
                 showToast.error('Không thể tải số dư ví');
             } finally {
@@ -71,24 +64,16 @@ const WithdrawRequestPage = () => {
 
         try {
             setSubmitting(true);
-            const res = await fetch(`${API_BASE}/api/wallet/withdraw/request`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token()}`
-                },
-                body: JSON.stringify(formData)
-            });
-            const data = await res.json();
+            const res = await api.post('/wallet/withdraw/request', formData);
 
-            if (data.success) {
+            if (res.data.success) {
                 showToast.success('Yêu cầu rút tiền đã được gửi thành công!');
                 setTimeout(() => navigate('/wallet'), 2000);
             } else {
-                showToast.error(data.message || 'Gửi yêu cầu thất bại');
+                showToast.error(res.data.message || 'Gửi yêu cầu thất bại');
             }
         } catch (err) {
-            showToast.error('Lỗi khi gửi yêu cầu');
+            showToast.error(err.message || 'Lỗi khi gửi yêu cầu');
         } finally {
             setSubmitting(false);
         }
