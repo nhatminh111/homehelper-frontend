@@ -1266,7 +1266,7 @@ const TaskerProfile = () => {
                               {/* Avatar */}
                               <img
                                 src={
-                                  review.avatar || "/images/default-avatar.png"
+                                  review.reviewer_avatar || "/images/default-avatar.png"
                                 }
                                 alt={review.name}
                                 className="rounded-circle shadow-sm"
