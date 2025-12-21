@@ -20,7 +20,10 @@ const PaymentResult = () => {
 
   useEffect(() => {
     const orderId = query.get('orderId');
-    const amount = query.get('amount');
+    const rawAmount = query.get('amount');
+    // MoMo trả về amount là VND (vd: 10000), API trả về đơn vị "k" (vd: 10).
+    // Ta chuẩn hóa tất cả về "k" để khớp với formatVND.
+    const amount = rawAmount ? (Number(rawAmount) >= 1000 ? Number(rawAmount) / 1000 : Number(rawAmount)) : null;
 
     if (!orderId) {
       console.log('[PaymentResult] No orderId found in URL');
@@ -66,7 +69,7 @@ const PaymentResult = () => {
   const niceAmount = useMemo(() => {
     if (info.amount == null || info.amount === '') return '—';
     const n = Number(info.amount);
-    return Number.isFinite(n) ? formatVND(n / 1000) : String(info.amount) + '₫';
+    return Number.isFinite(n) ? formatVND(n) : String(info.amount) + '₫';
   }, [info.amount]);
 
   const note = status === 'success'
