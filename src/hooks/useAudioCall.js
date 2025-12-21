@@ -19,6 +19,7 @@ const useAudioCall = (conversationId) => {
   const [connectionQuality, setConnectionQuality] = useState('medium');
   const [remoteUserInfo, setRemoteUserInfo] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
+  const [localStream, setLocalStream] = useState(null);
 
   // Refs
   const durationIntervalRef = useRef(null);
@@ -26,6 +27,7 @@ const useAudioCall = (conversationId) => {
   const peerConnectionRef = useRef(null);
   const localStreamRef = useRef(null);
   const callIdRef = useRef(null);
+  const iceCandidatesQueueRef = useRef([]);
   const { getSocket } = useSocket();
 
   // Cleanup function
@@ -57,6 +59,7 @@ const useAudioCall = (conversationId) => {
     setCallState(null);
     setCallId(null);
     callIdRef.current = null;
+    iceCandidatesQueueRef.current = [];
     setCallDuration(0);
     setIsInitiator(false);
     setIncomingCall(null);
@@ -101,9 +104,10 @@ const useAudioCall = (conversationId) => {
         });
 
         localStreamRef.current = stream;
+        setLocalStream(stream);
 
-        // Setup WebRTC
-        setupPeerConnection(stream, true);
+        // Setup WebRTC but DON'T create offer yet - wait for acceptance
+        setupPeerConnection(stream, false);
 
         // Listen for responses via custom events
         const handleCallAcceptedEvent = (e) => handleCallAccepted(e.detail);
@@ -218,26 +222,43 @@ const useAudioCall = (conversationId) => {
         }
       });
 
-      // If initiator, create offer
+      // If isInit is true, we create offer immediately.
+      // But we now prefer to trigger it manually via startNegotiation
       if (isInit) {
-        const offer = await pc.createOffer({
-          offerToReceiveAudio: true,
-          offerToReceiveVideo: false
-        });
-        await pc.setLocalDescription(offer);
-
-        const socket = getSocket();
-        if (socket) {
-          console.log('📤 [WebRTC] Sending offer to server');
-          socket.emit('webrtc_offer', {
-            callId: callIdRef.current,
-            offer
-          });
-        }
+        await startNegotiation();
       }
     } catch (err) {
       setError('Lỗi thiết lập WebRTC: ' + err.message);
       console.error('WebRTC setup error:', err);
+    }
+  };
+
+  // Start negotiation (Caller creates offer)
+  const startNegotiation = async () => {
+    try {
+      if (!peerConnectionRef.current) {
+        console.error('❌ Cannot start negotiation: No peer connection');
+        return;
+      }
+
+      console.log('📤 [WebRTC] Creating and sending offer');
+      const pc = peerConnectionRef.current;
+      const offer = await pc.createOffer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: false
+      });
+      await pc.setLocalDescription(offer);
+
+      const socket = getSocket();
+      if (socket) {
+        console.log('📤 [WebRTC] Emitting webrtc_offer to server');
+        socket.emit('webrtc_offer', {
+          callId: callIdRef.current,
+          offer
+        });
+      }
+    } catch (err) {
+      console.error('❌ Error creating offer:', err);
     }
   };
 
@@ -266,6 +287,7 @@ const useAudioCall = (conversationId) => {
         });
 
         localStreamRef.current = stream;
+        setLocalStream(stream);
 
         await setupPeerConnection(stream, false);
 
@@ -288,19 +310,19 @@ const useAudioCall = (conversationId) => {
           console.log('📨 [Callee] Received WebRTC offer');
           handleWebRTCOffer(e.detail);
         };
-        window.addEventListener('socket_webrtc_offer', handleWebRTCOfferEvent);
-
-        // Also listen for remote end events so UI can close when other side ends
+        const handleICECandidateEvent = (e) => handleICECandidate(e.detail);
         const handleCallEndedEvent = (e) => {
           console.log('📴 [Callee] Received remote call ended event');
           handleRemoteCallEnded(e.detail);
         };
+
+        window.addEventListener('socket_webrtc_offer', handleWebRTCOfferEvent);
+        window.addEventListener('socket_ice_candidate', handleICECandidateEvent);
         window.addEventListener('socket_call_ended', handleCallEndedEvent);
 
         // Also listen for callee-specific acceptance confirmation (call_accepted_self)
         const handleCallAcceptedSelfEvent = (e) => {
           console.log('✅ [Callee] Received call_accepted_self confirmation from server');
-          // Ensure timer is running (should already be running, but this is a safety net)
           if (!durationIntervalRef.current) {
             console.log('⏱️ [Callee] Timer safety net: starting timer from call_accepted_self');
             startTimeRef.current = Date.now();
@@ -312,12 +334,12 @@ const useAudioCall = (conversationId) => {
         // Store cleanup for these listeners so they are removed when call ends
         window._audioCallCleanup = () => {
           window.removeEventListener('socket_webrtc_offer', handleWebRTCOfferEvent);
+          window.removeEventListener('socket_ice_candidate', handleICECandidateEvent);
           window.removeEventListener('socket_call_ended', handleCallEndedEvent);
           window.removeEventListener('socket_call_accepted_self', handleCallAcceptedSelfEvent);
         };
 
         setIncomingCall(null);
-        // Note: remoteUserInfo should have been set during incoming call handling
         setLoading(false);
       } catch (micError) {
         setError('Không thể truy cập microphone');
@@ -438,6 +460,10 @@ const useAudioCall = (conversationId) => {
       } else {
         console.log('⏱️ [Caller] Timer already running, skipping start');
       }
+
+      // START WEB_RTC NEGOTIATION NOW that we know callee is ready
+      console.log('🚀 [Caller] Callee accepted, starting WebRTC negotiation...');
+      startNegotiation();
     } catch (err) {
       console.error('❌ Error in handleCallAccepted:', err);
     }
@@ -491,12 +517,6 @@ const useAudioCall = (conversationId) => {
         console.log('🛑 [Remote End] Clearing incoming call notification');
         setIncomingCall(null);
       }
-      setCallState('ended');
-
-      // IMPORTANT: Clear incoming call immediately if the caller cancelled before we accepted
-      if (isIncomingCall) {
-        setIncomingCall(null);
-      }
 
       // show ended state briefly then cleanup
       setTimeout(() => {
@@ -532,6 +552,9 @@ const useAudioCall = (conversationId) => {
       const pc = peerConnectionRef.current;
       await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
 
+      // Process queued ICE candidates
+      processIceQueue();
+
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
 
@@ -560,6 +583,9 @@ const useAudioCall = (conversationId) => {
 
       const pc = peerConnectionRef.current;
       await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+
+      // Process queued ICE candidates
+      processIceQueue();
     } catch (err) {
       setError('Lỗi xử lý answer: ' + err.message);
       console.error('Handle answer error:', err);
@@ -570,12 +596,31 @@ const useAudioCall = (conversationId) => {
     if (data.callId !== callIdRef.current) return;
 
     if (data.candidate && peerConnectionRef.current) {
+      const pc = peerConnectionRef.current;
+      if (pc.remoteDescription) {
+        try {
+          pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+        } catch (err) {
+          console.error('Error adding ICE candidate:', err);
+        }
+      } else {
+        console.log('⏳ [WebRTC] Queuing ICE candidate (remote description not set)');
+        iceCandidatesQueueRef.current.push(data.candidate);
+      }
+    }
+  };
+
+  const processIceQueue = () => {
+    if (!peerConnectionRef.current || !peerConnectionRef.current.remoteDescription) return;
+
+    console.log(`❄️ [WebRTC] Processing ${iceCandidatesQueueRef.current.length} queued ICE candidates`);
+    const pc = peerConnectionRef.current;
+    while (iceCandidatesQueueRef.current.length > 0) {
+      const candidate = iceCandidatesQueueRef.current.shift();
       try {
-        peerConnectionRef.current.addIceCandidate(
-          new RTCIceCandidate(data.candidate)
-        );
+        pc.addIceCandidate(new RTCIceCandidate(candidate));
       } catch (err) {
-        console.error('Error adding ICE candidate:', err);
+        console.error('Error adding queued ICE candidate:', err);
       }
     }
   };
@@ -631,10 +676,10 @@ const useAudioCall = (conversationId) => {
     incomingCall,
     error,
     loading,
-    error,
-    loading,
     connectionQuality,
     remoteUserInfo,
+    remoteStream,
+    localStream,
 
     // Methods
     initiateCall,
