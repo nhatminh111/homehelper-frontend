@@ -146,7 +146,7 @@ const Wishlist = () => {
                 </div>
                 <div className="card-body text-center">
                   <img
-                    src={tasker.avatar || "/images/default-avatar.png"}
+                    src={tasker.avatar_url || "/images/default-avatar.png"}
                     alt={tasker.name}
                     className="rounded-circle mb-3"
                     style={{
