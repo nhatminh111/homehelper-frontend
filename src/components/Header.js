@@ -242,10 +242,12 @@ const Header = () => {
 
                       <div className="dropdown-divider"></div>
 
-                      <Link className="dropdown-item" to="/tasker/dashboard">
-                        <FontAwesomeIcon icon={faNewspaper} className="mr-2" />
-                        Dashboard
-                      </Link>
+                      {isTasker() && (
+                        <Link className="dropdown-item" to="/tasker/dashboard">
+                          <FontAwesomeIcon icon={faNewspaper} className="mr-2" />
+                          Dashboard
+                        </Link>
+                      )}
                       <Link className="dropdown-item" to="/my-blogs">
                         <FontAwesomeIcon icon={faNewspaper} className="mr-2" />
                         Blog của tôi

@@ -503,6 +503,7 @@ const TaskerSearch = () => {
           service_variants: user.service_variants || [],
           distance: parseFloat(user.distance) || 0,
           rating: parseFloat(user.rating) || 0,
+          reviewsCount: parseInt(user.reviewsCount, 10) || 0,
         }))
       );
     } catch (error) {
@@ -779,6 +780,7 @@ const TaskerSearch = () => {
                   service_variants: user.service_variants || [],
                   distance: parseFloat(user.distance) || 0,
                   rating: parseFloat(user.rating) || 0,
+                  reviewsCount: parseInt(user.reviewsCount, 10) || 0,
                 }))
               );
             }
@@ -1294,7 +1296,7 @@ const TaskerSearch = () => {
                                   <h6 className="mb-1">{tasker.name}</h6>
                                   <div className="rating mb-1">
                                     <FontAwesomeIcon icon={faStar} className="text-warning mr-1" />
-                                    <span>{tasker.rating ? `${tasker.rating.toFixed(1)}/5` : 'Chưa có đánh giá'}</span>
+                                    <span>{tasker.rating ? `${tasker.rating.toFixed(1)}/5 (${tasker.reviewsCount || 0})` : 'Chưa có đánh giá'}</span>
                                   </div>
                                 </div>
                               </div>
