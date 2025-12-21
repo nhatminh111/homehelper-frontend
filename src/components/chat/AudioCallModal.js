@@ -16,13 +16,29 @@ const AudioCallModal = ({
   error,
   loading,
   onEnd,
-  onClose
+  onClose,
+  localStream,
+  remoteStream
 }) => {
   const localAudioRef = useRef(null);
   const remoteAudioRef = useRef(null);
   const [isMuted, setIsMuted] = useState(false);
 
-  // Handle mute/unmute
+  // Handle streams
+  useEffect(() => {
+    if (localAudioRef.current && localStream) {
+      console.log('🔊 [AudioCallModal] Setting local audio stream');
+      localAudioRef.current.srcObject = localStream;
+    }
+  }, [localStream]);
+
+  useEffect(() => {
+    if (remoteAudioRef.current && remoteStream) {
+      console.log('🔊 [AudioCallModal] Setting remote audio stream');
+      remoteAudioRef.current.srcObject = remoteStream;
+    }
+  }, [remoteStream]);
+
   const toggleMute = () => {
     if (localAudioRef.current && localAudioRef.current.srcObject) {
       const audioTracks = localAudioRef.current.srcObject.getAudioTracks();

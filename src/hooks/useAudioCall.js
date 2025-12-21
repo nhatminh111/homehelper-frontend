@@ -18,6 +18,7 @@ const useAudioCall = (conversationId) => {
   const [loading, setLoading] = useState(false);
   const [connectionQuality, setConnectionQuality] = useState('medium');
   const [remoteUserInfo, setRemoteUserInfo] = useState(null);
+  const [remoteStream, setRemoteStream] = useState(null);
 
   // Refs
   const durationIntervalRef = useRef(null);
@@ -60,6 +61,7 @@ const useAudioCall = (conversationId) => {
     setIsInitiator(false);
     setIncomingCall(null);
     setRemoteUserInfo(null);
+    setRemoteStream(null);
   }, []);
 
   // Cleanup on unmount
@@ -174,11 +176,21 @@ const useAudioCall = (conversationId) => {
         pc.addTrack(track, stream);
       });
 
+      // Handle remote stream
+      pc.ontrack = (event) => {
+        console.log('🔊 [WebRTC] Remote track received:', event.track.kind);
+        if (event.streams && event.streams[0]) {
+          console.log('🔊 [WebRTC] Setting remote stream');
+          setRemoteStream(event.streams[0]);
+        }
+      };
+
       // Handle ICE candidates
       pc.addEventListener('icecandidate', (event) => {
         if (event.candidate) {
           const socket = getSocket();
           if (socket) {
+            console.log('❄️ [WebRTC] Sending local ICE candidate');
             socket.emit('ice_candidate', {
               callId: callIdRef.current,
               candidate: event.candidate
@@ -216,6 +228,7 @@ const useAudioCall = (conversationId) => {
 
         const socket = getSocket();
         if (socket) {
+          console.log('📤 [WebRTC] Sending offer to server');
           socket.emit('webrtc_offer', {
             callId: callIdRef.current,
             offer
@@ -524,6 +537,7 @@ const useAudioCall = (conversationId) => {
 
       const socket = getSocket();
       if (socket) {
+        console.log('📤 [WebRTC] Sending answer to server');
         socket.emit('webrtc_answer', {
           callId: callIdRef.current,
           answer
