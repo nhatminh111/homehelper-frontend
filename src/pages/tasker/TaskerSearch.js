@@ -1306,9 +1306,9 @@ const TaskerSearch = () => {
                             <div className="col-md-6 col-12 col-md-auto mb-3 mb-md-0 services-container">
                               <div className="services-offered">
                                 {tasker.service_variants && tasker.service_variants.length > 0 ? (
-                                  tasker.service_variants.map((variant, index) => (
+                                  [...new Set(tasker.service_variants.map(v => v.service_name))].map((serviceName, index) => (
                                     <span key={index} className="badge badge-soft-primary mr-2 mb-1">
-                                      {variant.service_name}
+                                      {serviceName}
                                     </span>
                                   ))
                                 ) : (

@@ -16,7 +16,9 @@ const GlobalCallManagerContent = () => {
         acceptCall,
         rejectCall,
         endCall,
-        remoteUserInfo
+        remoteUserInfo,
+        localStreamRef,
+        remoteStream
     } = useAudioCall(null);
 
     return (
@@ -41,6 +43,8 @@ const GlobalCallManagerContent = () => {
                 onClose={() => {
                     // Minimize logic could go here
                 }}
+                localStream={localStreamRef.current}
+                remoteStream={remoteStream}
             />
         </>
     );
