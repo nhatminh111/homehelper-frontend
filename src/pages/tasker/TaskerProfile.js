@@ -661,15 +661,15 @@ const TaskerProfile = () => {
     return <div className="container py-5 text-center">Loading...</div>;
 
   const tabs = [
-    { id: "overview", label: "Overview", icon: faEye },
-    { id: "reviews", label: "Reviews", icon: faStar },
-    { id: "videos", label: "Videos", icon: faEye },
-    { id: "articles", label: "Articles", icon: faAward },
+    { id: "overview", label: "Tổng quan", icon: faEye },
+    { id: "reviews", label: "Đánh giá", icon: faStar },
+    { id: "videos", label: "Video", icon: faEye },
+    { id: "articles", label: "Bài viết", icon: faAward },
     // Only show Certification tab if user is viewing their own profile and is a tasker
     ...(isTasker() && user?.user_id === Number(id)
-      ? [{ id: "certification", label: "Certification", icon: faAward }]
+      ? [{ id: "certification", label: "Chứng chỉ", icon: faAward }]
       : []),
-    { id: "achievements", label: "Achievements", icon: faCheckCircle },
+    { id: "achievements", label: "Thành tích", icon: faCheckCircle },
   ];
 
   return (
@@ -1266,7 +1266,7 @@ const TaskerProfile = () => {
                               {/* Avatar */}
                               <img
                                 src={
-                                  review.avatar || "/images/default-avatar.png"
+                                  review.reviewer_avatar || "/images/default-avatar.png"
                                 }
                                 alt={review.name}
                                 className="rounded-circle shadow-sm"
