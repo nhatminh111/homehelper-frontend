@@ -161,7 +161,7 @@ const Wishlist = () => {
                   </p>
                   <div className="mb-2 text-warning">
                     <FontAwesomeIcon icon={faStar} className="me-1" />
-                    {tasker.rating?.toFixed(1) || "0.0"}
+                    {tasker.rating?.toFixed(1) || "0.0"} ({tasker.reviewsCount || 0})
                   </div>
                   <p className="text-muted small">{tasker.bio || ""}</p>
                   <div className="d-flex justify-content-center gap-2">
