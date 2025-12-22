@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import SignatureCanvas from 'react-signature-canvas';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { CustomToastContainer, showToast } from '../../components/common/CustomToast';
 import serviceService from '../../services/serviceService';
 import { formatVND } from '../../utils/formatVND';
+import { useAuth } from '../../contexts/AuthContext';
 // Use same base URL strategy as api.js
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
@@ -92,7 +93,115 @@ const compareNames = (a, b) => {
   return { match: score >= 0.6, score, reason: 'jaccard' };
 };
 
+const normalizeCCCDStatus = (status) => {
+  if (!status) return '';
+  try {
+    let s = status.toString().trim().toLowerCase();
+    // Strip SQL NVARCHAR literal wrapper like N'...'
+    s = s.replace(/^n\s*'(.+)'$/i, '$1').replace(/^n\s*"(.+)"$/i, '$1');
+    // Trim any surrounding quotes after stripping N''
+    s = s.replace(/^['"]+|['"]+$/g, '');
+    // Remove diacritics and normalize Vietnamese-specific characters
+    s = s.normalize('NFD').replace(/\p{Diacritic}/gu, ''); // remove accents
+    s = s.replace(/đ/g, 'd');
+    // Canonicalize common variants
+    // verified
+    if (/(da\s*xac\s*minh|verified)/.test(s)) return 'verified';
+    // pending: "cho xu ly", "dang xu ly", "cho duyet"
+    if (/(cho\s*xu\s*ly|dang\s*xu\s*ly|cho\s*duyet|dang\s*duyet|cho\s*xac\s*minh|dang\s*xac\s*minh|pending)/.test(s)) return 'pending';
+    // rejected
+    if (/(tu\s*choi|rejected)/.test(s)) return 'rejected';
+    // unverified / not submitted yet
+    if (/(chua\s*xac\s*minh|chua|unverified|not\s*submitted|none|null)/.test(s)) return 'unverified';
+    return s;
+  } catch {
+    return status.toString().trim().toLowerCase();
+  }
+};
+
+const useCccdGuard = ({ user, authFetch, isAuthenticated }) => {
+  const [loading, setLoading] = useState(true);
+  const [verified, setVerified] = useState(false);
+  const [reason, setReason] = useState('');
+
+  useEffect(() => {
+    const run = async () => {
+      const isAuth = typeof isAuthenticated === 'function'
+        ? isAuthenticated()
+        : !!isAuthenticated;
+
+      if (!isAuth) {
+        setLoading(false);
+        return;
+      }
+
+      // Always rely on backend status for CCCD gating
+      const res = await authFetch(
+        `${API_BASE_URL}/tasker/application/my-status`
+      );
+      const json = await res.json();
+      const backendStatus = normalizeCCCDStatus(
+        json?.data?.user_cccd_status
+      );
+
+      // Only verified passes; pending/rejected/unverified blocks the form
+      const isVerified = backendStatus === 'verified';
+      console.log('[CCCD Guard]', {
+        raw: json?.data?.user_cccd_status,
+        normalized: backendStatus,
+        isVerified,
+      });
+      setVerified(isVerified);
+      if (!isVerified) setReason(backendStatus || 'unverified');
+      setLoading(false);
+    };
+
+    run();
+  }, [user, isAuthenticated]);
+
+  return { loading, verified, reason };
+};
+
+ const useTaskerStatus = ({ authFetch }) => {
+  const [loading, setLoading] = useState(true);
+  const [isTasker, setIsTasker] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      try {
+        const res = await authFetch(`${API_BASE_URL}/tasker/application/my-status`);
+        const json = await res.json();
+
+        console.log('[TaskerStatus]', json);
+
+        const status = json?.data?.status;
+        const hide = status === 'Pending' || status === 'Approved';
+
+        if (!cancelled) {
+          setIsTasker(hide);
+          setLoading(false);
+        }
+      } catch (e) {
+        console.error('[TaskerStatus] error', e);
+        if (!cancelled) {
+          setIsTasker(false);
+          setLoading(false);
+        }
+      }
+    };
+
+    run();
+    return () => { cancelled = true; };
+  }, [authFetch]);
+
+  return { loading, isTasker };
+};
+
 const BecomeTasker = () => {
+  const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
   const [introduce, setIntroduce] = useState('');
   const [services, setServices] = useState([]); // full list with variants
   const [selectedServiceId, setSelectedServiceId] = useState('');
@@ -112,37 +221,17 @@ const BecomeTasker = () => {
   // Hide form if user already is a Tasker
   const [isTaskerAccount, setIsTaskerAccount] = useState(null); // null: unknown, true/false: known
   const [currentUserId, setCurrentUserId] = useState(null);
-  const [tokenUserId, setTokenUserId] = useState(null);
 
-  // Tasker signature states
-  const sigCanvas = useRef(null);
-  const [taskerSignatureUrl, setTaskerSignatureUrl] = useState(null);
-  const [isSignatureConfirmed, setIsSignatureConfirmed] = useState(false);
-  const [signatureSubmitting, setSignatureSubmitting] = useState(false);
+  
+  const { loading: cccdLoading, verified, reason: cccdReason } = useCccdGuard({
+    user,
+    authFetch,
+    isAuthenticated,
+  });
 
-  // Fix signature canvas scaling/offset issue
-  useEffect(() => {
-    const handleResize = () => {
-      if (sigCanvas.current && !isSignatureConfirmed) {
-        const canvas = sigCanvas.current.getCanvas();
-        if (canvas) {
-          const container = canvas.parentElement;
-          if (container) {
-            canvas.width = container.offsetWidth;
-            // Note: clearing canvas is required when changing width
-            sigCanvas.current.clear();
-          }
-        }
-      }
-    };
-
-    window.addEventListener('resize', handleResize);
-    const timeout = setTimeout(handleResize, 500); // Initial sync
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      clearTimeout(timeout);
-    };
-  }, [isSignatureConfirmed]);
+  const { loading: taskerLoading, isTasker } = useTaskerStatus({
+    authFetch,
+  });
 
   useEffect(() => {
     // Try to get user info from localStorage (assuming auth stores user object JSON under 'user')
@@ -156,7 +245,6 @@ const BecomeTasker = () => {
       }
     } catch (e) { /* silent */ }
   }, []);
-
   // Check Tasker/app status: hide form if user is already Tasker OR has application Pending/Approved
   useEffect(() => {
     let cancelled = false;
@@ -169,21 +257,8 @@ const BecomeTasker = () => {
         if (idFromToken && idFromToken !== currentUserId) {
           setCurrentUserId(idFromToken);
         }
-        setTokenUserId(idFromToken || null);
         const effectiveUserId = idFromToken || currentUserId;
         if (!effectiveUserId) { setIsTaskerAccount(false); return; }
-        // 1) Check if already Tasker (only hide when response is OK and payload indicates found) – use effectiveUserId from token when available
-        let alreadyTasker = false;
-        try {
-          const resTasker = await fetch(`${API_BASE_URL}/tasker/${effectiveUserId}`);
-          if (resTasker.ok) {
-            const jt = await resTasker.json().catch(() => null);
-            if (jt && (jt.success === true) && jt.data) {
-              alreadyTasker = true;
-            }
-          }
-        } catch (_) { /* ignore and continue to my-status */ }
-        if (!cancelled && alreadyTasker) { setIsTaskerAccount(true); return; }
         // 2) Else check latest application status
         const resMy = await authFetch(`${API_BASE_URL}/tasker/application/my-status`);
         const jsonMy = await resMy.json().catch(() => null);
@@ -615,51 +690,6 @@ const BecomeTasker = () => {
     }
   };
 
-  // Signature handling functions
-  const clearTaskerSignature = () => {
-    if (sigCanvas.current) {
-      sigCanvas.current.clear();
-      sigCanvas.current.on(); // Re-enable drawing
-    }
-    setTaskerSignatureUrl(null);
-    setIsSignatureConfirmed(false);
-  };
-
-  const handleConfirmTaskerSignature = async () => {
-    if (!sigCanvas.current || sigCanvas.current.isEmpty()) {
-      showToast.error("Vui lòng vẽ chữ ký trước khi xác nhận");
-      return;
-    }
-
-    const canvas = sigCanvas.current.getCanvas();
-    try {
-      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-      const formData = new FormData();
-      formData.append("signature", blob, "tasker_signature.png");
-
-      setSignatureSubmitting(true);
-      const res = await authFetch(`${API_BASE_URL}/uploads/signature`, {
-        method: 'POST',
-        body: formData
-      });
-
-      const json = await res.json();
-      if (!res.ok || !json.success) {
-        throw new Error(json.message || 'Upload chữ ký thất bại');
-      }
-
-      setTaskerSignatureUrl(json.data.url);
-      setIsSignatureConfirmed(true);
-      sigCanvas.current.off(); // Disable drawing after confirmation
-      showToast.success("Đã xác nhận chữ ký!");
-    } catch (error) {
-      console.error(error);
-      showToast.error("Lỗi khi tải lên chữ ký: " + error.message);
-    } finally {
-      setSignatureSubmitting(false);
-    }
-  };
-
   const submit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -723,10 +753,6 @@ const BecomeTasker = () => {
           description: introVideo.description || ''
         };
       }
-      // Add tasker signature URL if confirmed
-      if (taskerSignatureUrl) {
-        body.signature_url = taskerSignatureUrl;
-      }
       const res = await authFetch(`${API_BASE_URL}/tasker/upgrade`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -743,6 +769,58 @@ const BecomeTasker = () => {
       setLoading(false);
     }
   };
+
+if (cccdLoading || taskerLoading) {
+  return <div>Đang kiểm tra thông tin...</div>;
+}
+
+// 1️⃣ CHẶN CCCD TRƯỚC
+if (!verified) {
+  const normalized = normalizeCCCDStatus(cccdReason);
+  return (
+    <div className="container py-4">
+      <div className="row justify-content-center">
+        <div className="col-lg-8">
+          <div className="bg-white rounded shadow-sm p-4 border mt-4">
+            <div className="d-flex align-items-start gap-3 mb-3">
+              <div>
+                <h3 className="mb-1">Chưa thể thể đăng kí lúc này</h3>
+                {normalized === 'pending' ? (
+                  <p className="text-muted mb-2">
+                    Bạn chưa xác thực căn cước công dân.
+                  </p>
+                ) : (
+                  <p className="text-muted mb-2">
+                    Vui lòng <strong>xác minh CCCD</strong> trước khi đăng ký làm Tasker.
+                  </p>
+                )}
+                <p className="small text-muted mb-0">
+                  Sau khi hoàn tất xác minh, quay lại trang này để nộp đơn đăng ký.
+                </p>
+              </div>
+            </div>
+            <div className="d-flex flex-wrap gap-2">
+              <button type="button" className="btn btn-primary" onClick={() => navigate('/cccd')}>
+                Tới trang xác minh CCCD
+              </button>
+              <a href="/" className="btn btn-outline-secondary">Về trang chủ</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 2️⃣ SAU ĐÓ MỚI CHECK TASKER
+if (isTasker) {
+  return (
+    <div>
+      <h3>Bạn đã đăng ký làm Tasker</h3>
+      <p>Vui lòng chờ admin duyệt hoặc kiểm tra trạng thái.</p>
+    </div>
+  );
+}
 
   return (
     <>
@@ -817,9 +895,9 @@ const BecomeTasker = () => {
                                 const checked = selectedVariants.includes(v.variant_id);
                                 return (
                                   <div key={v.variant_id} className="col-md-4 col-sm-6 mb-2">
-                                    <div className={`form - check small h - 100 p - 2 rounded border ${checked ? 'bg-light border-primary' : 'border-light'}`}>
-                                      <input type="checkbox" className="form-check-input" style={{ display: 'none' }} id={`variant - ${v.variant_id}`} checked={checked} onChange={() => toggleVariant(v.variant_id)} />
-                                      <label htmlFor={`variant - ${v.variant_id}`} className="form-check-label">
+                                    <div className={`form-check small h-100 p-2 rounded border ${checked ? 'bg-light border-primary' : 'border-light'}`}>
+                                      <input type="checkbox" className="form-check-input" style={{ display: 'none' }} id={`variant-${v.variant_id}`} checked={checked} onChange={() => toggleVariant(v.variant_id)} />
+                                      <label htmlFor={`variant-${v.variant_id}`} className="form-check-label">
                                         <span className="fw-semibold d-block">{v.variant_name}</span>
                                         {v.price_min && v.price_max && (
                                           <span className="text-muted">{formatVND(v.price_min)} - {formatVND(v.price_max)}/{v.unit}</span>
@@ -911,7 +989,7 @@ const BecomeTasker = () => {
                           const nameCmp = compareNames(inferredHolder, accountName);
                           const holderMismatch = !!(inferredHolder && accountName && !nameCmp.match);
                           return (
-                            <div key={idx} className={`position - relative border rounded p - 3 mb - 3 bg - light - subtle ${warnHolder || holderMismatch ? 'border-warning' : ''} ${c.error_type ? 'border-danger' : ''} ${extracting && extracting.service_id === group.service.service_id && extracting.idx === idx ? 'opacity-50' : ''}`}>
+                            <div key={idx} className={`position-relative border rounded p-3 mb-3 bg-light-subtle ${warnHolder || holderMismatch ? 'border-warning' : ''} ${c.error_type ? 'border-danger' : ''} ${extracting && extracting.service_id === group.service.service_id && extracting.idx === idx ? 'opacity-50' : ''}`}>
                               {extracting && extracting.service_id === group.service.service_id && extracting.idx === idx && (
                                 <div className="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center" style={{ backdropFilter: 'blur(2px)', zIndex: 20, background: 'rgba(255,255,255,0.65)' }}>
                                   <div className="spinner-border text-primary mb-2" role="status" style={{ width: '2.5rem', height: '2.5rem' }}>
@@ -1113,76 +1191,7 @@ const BecomeTasker = () => {
                     <div className="alert alert-warning py-2">Còn thiếu chứng chỉ ở một số dịch vụ bắt buộc.</div>
                   )}
 
-                  {/* Tasker Contract Signing Section */}
-                  <div className="mb-4 border rounded p-4" style={{ backgroundColor: '#f8f9fa' }}>
-                    <h5 className="mb-3">📝 Ký hợp đồng Tasker <span className="text-danger">*</span></h5>
-                    <p className="text-muted small mb-3">
-                      Bằng cách ký hợp đồng này, bạn đồng ý với các điều khoản và điều kiện của HomeHelper để trở thành Tasker.
-                    </p>
-
-                    <div className="border rounded bg-white p-3 mb-3">
-                      <h6 className="fw-bold mb-2">Điều khoản hợp đồng Tasker</h6>
-                      <ul className="small mb-0">
-                        <li>Cam kết cung cấp dịch vụ chất lượng cao cho khách hàng</li>
-                        <li>Tuân thủ các quy định và chính sách của nền tảng HomeHelper</li>
-                        <li>Bảo mật thông tin khách hàng và không sử dụng cho mục đích khác</li>
-                        <li>Chịu trách nhiệm về chất lượng công việc và thiệt hại (nếu có)</li>
-                        <li>Duy trì đánh giá tốt và thái độ chuyên nghiệp</li>
-                      </ul>
-                    </div>
-
-                    <div className="mb-3">
-                      <label className="fw-semibold mb-2">Chữ ký của bạn:</label>
-                      <div className="border rounded bg-light mb-2" style={{ position: 'relative' }}>
-                        <SignatureCanvas
-                          ref={sigCanvas}
-                          penColor="black"
-                          canvasProps={{
-                            height: 150,
-                            className: `w-100 ${isSignatureConfirmed ? 'bg-secondary-subtle' : 'bg-white'}`,
-                            style: { display: 'block', width: '100%' }
-                          }}
-                          onBegin={() => !isSignatureConfirmed}
-                        />
-                        {isSignatureConfirmed && (
-                          <div style={{
-                            position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            backgroundColor: 'rgba(255,255,255,0.7)'
-                          }}>
-                            <div className="badge bg-success fs-6">✔️ Đã xác nhận</div>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="d-flex gap-2">
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-outline-secondary"
-                          onClick={clearTaskerSignature}
-                          disabled={signatureSubmitting}
-                        >
-                          {isSignatureConfirmed ? "Ký lại" : "Xóa"}
-                        </button>
-                        {!isSignatureConfirmed && (
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-primary"
-                            onClick={handleConfirmTaskerSignature}
-                            disabled={signatureSubmitting}
-                          >
-                            {signatureSubmitting ? "Đang xử lý..." : "Xác nhận chữ ký"}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <button
-                    disabled={loading || uploading || videoUploading || videoInvalid || !isSignatureConfirmed || (requiredServiceIds.length && hasMissingRequired)}
-                    type="submit"
-                    className="btn btn-primary"
-                  >
+                  <button disabled={loading || uploading || videoUploading || videoInvalid || (requiredServiceIds.length && hasMissingRequired)} type="submit" className="btn btn-primary">
                     {loading ? 'Đang gửi...' : uploading ? 'Đang upload...' : 'Gửi đăng ký'}
                   </button>
                 </form>
