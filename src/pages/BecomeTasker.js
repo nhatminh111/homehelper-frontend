@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import SignatureCanvas from 'react-signature-canvas';
 import { CustomToastContainer, showToast } from '../components/common/CustomToast';
 import serviceService from '../services/serviceService';
 import { formatVND } from '../utils/formatVND';
@@ -120,6 +121,11 @@ const BecomeTasker = () => {
   // Check CCCD verification status
   const [checkingCCCD, setCheckingCCCD] = useState(true);
   const [cccdVerified, setCccdVerified] = useState(false);
+  // Tasker signature states
+  const sigCanvas = useRef(null);
+  const [taskerSignatureUrl, setTaskerSignatureUrl] = useState(null);
+  const [isSignatureConfirmed, setIsSignatureConfirmed] = useState(false);
+  const [signatureSubmitting, setSignatureSubmitting] = useState(false);
 
   useEffect(() => {
     // Try to get user info from localStorage (assuming auth stores user object JSON under 'user')
@@ -133,6 +139,30 @@ const BecomeTasker = () => {
       }
     } catch (e) { /* silent */ }
   }, []);
+
+  // Fix signature canvas scaling/offset issue
+  useEffect(() => {
+    const handleResize = () => {
+      if (sigCanvas.current && !isSignatureConfirmed) {
+        const canvas = sigCanvas.current.getCanvas();
+        if (canvas) {
+          const container = canvas.parentElement;
+          if (container) {
+            canvas.width = container.offsetWidth;
+            // Note: clearing canvas is required when changing width
+            sigCanvas.current.clear();
+          }
+        }
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    const timeout = setTimeout(handleResize, 500); // Initial sync
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      clearTimeout(timeout);
+    };
+  }, [isSignatureConfirmed]);
 
   // Normalize CCCD status string to handle encoding issues and multiple languages
   const normalizeCCCDStatus = (status) => {
@@ -838,6 +868,51 @@ const BecomeTasker = () => {
     }
   };
 
+  // Signature handling functions
+  const clearTaskerSignature = () => {
+    if (sigCanvas.current) {
+      sigCanvas.current.clear();
+      sigCanvas.current.on(); // Re-enable drawing
+    }
+    setTaskerSignatureUrl(null);
+    setIsSignatureConfirmed(false);
+  };
+
+  const handleConfirmTaskerSignature = async () => {
+    if (!sigCanvas.current || sigCanvas.current.isEmpty()) {
+      showToast.error('Vui lòng vẽ chữ ký trước khi xác nhận');
+      return;
+    }
+
+    const canvas = sigCanvas.current.getCanvas();
+    try {
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+      const formData = new FormData();
+      formData.append('signature', blob, 'tasker_signature.png');
+
+      setSignatureSubmitting(true);
+      const res = await authFetch(`${API_BASE_URL}/uploads/signature`, {
+        method: 'POST',
+        body: formData
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || 'Upload chữ ký thất bại');
+      }
+
+      setTaskerSignatureUrl(json.data.url);
+      setIsSignatureConfirmed(true);
+      sigCanvas.current.off(); // Disable drawing after confirmation
+      showToast.success('Đã xác nhận chữ ký!');
+    } catch (error) {
+      console.error(error);
+      showToast.error('Lỗi khi tải lên chữ ký: ' + error.message);
+    } finally {
+      setSignatureSubmitting(false);
+    }
+  };
+
   const submit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -900,6 +975,10 @@ const BecomeTasker = () => {
           title: introVideo.title || 'Video giới thiệu',
           description: introVideo.description || ''
         };
+      }
+      // Add tasker signature URL if confirmed
+      if (taskerSignatureUrl) {
+        body.signature_url = taskerSignatureUrl;
       }
       const res = await authFetch(`${API_BASE_URL}/tasker/upgrade`, {
         method: 'POST',
@@ -1308,7 +1387,91 @@ const BecomeTasker = () => {
                     <div className="alert alert-warning py-2">Còn thiếu chứng chỉ ở một số dịch vụ bắt buộc.</div>
                   )}
 
-                  <button disabled={loading || uploading || videoUploading || videoInvalid || (requiredServiceIds.length && hasMissingRequired)} type="submit" className="btn btn-primary">
+                  {/* Tasker Contract Signing Section */}
+                  <div className="mb-4 border rounded p-4" style={{ backgroundColor: '#f8f9fa' }}>
+                    <h5 className="mb-3">📝 Ký hợp đồng Tasker <span className="text-danger">*</span></h5>
+                    <p className="text-muted small mb-3">
+                      Bằng cách ký hợp đồng này, bạn đồng ý với các điều khoản và điều kiện của HomeHelper để trở thành Tasker.
+                    </p>
+
+                    <div className="border rounded bg-white p-3 mb-3">
+                      <h6 className="fw-bold mb-2">Điều khoản hợp đồng Tasker</h6>
+                      <ul className="small mb-0">
+                        <li>Cam kết cung cấp dịch vụ chất lượng cao cho khách hàng</li>
+                        <li>Tuân thủ các quy định và chính sách của nền tảng HomeHelper</li>
+                        <li>Bảo mật thông tin khách hàng và không sử dụng cho mục đích khác</li>
+                        <li>Chịu trách nhiệm về chất lượng công việc và thiệt hại (nếu có)</li>
+                        <li>Duy trì đánh giá tốt và thái độ chuyên nghiệp</li>
+                      </ul>
+                    </div>
+
+                    <div className="mb-3">
+                      <label className="fw-semibold mb-2">Chữ ký của bạn:</label>
+                      <div className="border rounded bg-light mb-2" style={{ position: 'relative' }}>
+                        <SignatureCanvas
+                          ref={sigCanvas}
+                          penColor="black"
+                          canvasProps={{
+                            height: 150,
+                            className: `w-100 ${isSignatureConfirmed ? 'bg-secondary-subtle' : 'bg-white'}`,
+                            style: { display: 'block', width: '100%' }
+                          }}
+                          onBegin={() => !isSignatureConfirmed}
+                        />
+                        {isSignatureConfirmed && (
+                          <div
+                            style={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              backgroundColor: 'rgba(255,255,255,0.7)'
+                            }}
+                          >
+                            <div className="badge bg-success fs-6">✔️ Đã xác nhận</div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="d-flex gap-2">
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-secondary"
+                          onClick={clearTaskerSignature}
+                          disabled={signatureSubmitting}
+                        >
+                          {isSignatureConfirmed ? 'Ký lại' : 'Xóa'}
+                        </button>
+                        {!isSignatureConfirmed && (
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-primary"
+                            onClick={handleConfirmTaskerSignature}
+                            disabled={signatureSubmitting}
+                          >
+                            {signatureSubmitting ? 'Đang xử lý...' : 'Xác nhận chữ ký'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    disabled={
+                      loading ||
+                      uploading ||
+                      videoUploading ||
+                      videoInvalid ||
+                      !isSignatureConfirmed ||
+                      (requiredServiceIds.length && hasMissingRequired)
+                    }
+                    type="submit"
+                    className="btn btn-primary"
+                  >
                     {loading ? 'Đang gửi...' : uploading ? 'Đang upload...' : 'Gửi đăng ký'}
                   </button>
                 </form>
