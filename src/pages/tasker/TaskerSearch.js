@@ -1149,7 +1149,7 @@ const TaskerSearch = () => {
                       </h6>
                       <div className="row g-3">
                         <div className="col-12">
-                          <label className="form-label fw-semibold">Tiêu đề công việc</label>
+                          <label className="form-label fw-semibold">Nội dung công việc</label>
                           <input
                             className="form-control form-control-lg"
                             value={sosJobTitle}

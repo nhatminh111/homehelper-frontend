@@ -203,7 +203,7 @@ function App() {
                 } />
                 {/* Profile routes - separate for User and Tasker */}
                 <Route path="/user-profile" element={
-                  <ProtectedRoute requiredRole="Customer"> <UserProfile /> </ProtectedRoute>
+                  <ProtectedRoute> <UserProfile /> </ProtectedRoute>
                 } />
                 <Route path="/account" element={
                   <ProtectedRoute> <AccountManagement /> </ProtectedRoute>

@@ -1,5 +1,5 @@
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
     Container,
     Row,
@@ -17,6 +17,7 @@ import {
 import { formatVND } from "../../utils/formatVND";
 import api from "../../services/api";
 import { showToast } from "../../components/common/CustomToast";
+import NegotiatePriceButton from "../../components/negotiation/NegotiatePriceButton";
 
 // Popup hủy đơn lấy 100% từ BookingHistory
 
@@ -104,13 +105,13 @@ export default function CustomerBookingDetail() {
             return rawChecklist.map((item, index) => ({
                 id: item?.id || `task-${index}`,
                 label: typeof item === "string" ? item : item?.label || `Task ${index + 1}`,
-                status: "completed",
+                status: item?.status || "completed",
             }));
         }
         if (typeof rawChecklist === "string") {
             try {
                 const parsed = JSON.parse(rawChecklist);
-                if (Array.isArray(parsed)) return parsed.map((item, index) => ({ id: item?.id || `task-${index}`, label: typeof item === "string" ? item : item?.label || `Task ${index + 1}`, status: "completed" }));
+                if (Array.isArray(parsed)) return parsed.map((item, index) => ({ id: item?.id || `task-${index}`, label: typeof item === "string" ? item : item?.label || `Task ${index + 1}`, status: item?.status || "completed" }));
             } catch (e) { }
             return rawChecklist.split(/\n|\r|\./).map(s => s.trim()).filter(Boolean).map((l, i) => ({ id: `task-${i}`, label: l, status: "completed" }));
         }
@@ -119,6 +120,25 @@ export default function CustomerBookingDetail() {
 
     // We can memorize this, but for now simple variable is fine as it depends on booking
     const defaultTasks = parseChecklist(booking?.task_checklist);
+
+    const isDayLocked = useCallback((dayKey) => {
+        if (!daysList || daysList.length === 0) return false;
+
+        const session = sessions?.[dayKey];
+        // If no session data or it's still pending, it's locked for customer
+        if (!session || session.status === 'pending' || session.status === 'Chờ thực hiện') return true;
+
+        const idx = daysList.findIndex(d => d.dayKey === dayKey);
+        // Sequential check: Locked if previous day is NOT completed
+        // (Similar to TaskerJobProgress logic)
+        if (idx > 0) {
+            const prevDayKey = daysList[idx - 1].dayKey;
+            const prevSession = sessions[prevDayKey];
+            if (prevSession?.status !== "completed") return true;
+        }
+
+        return false;
+    }, [daysList, sessions]);
 
     const tasksByDay = (() => {
         if (!isMultiDay || !daysList.length) return null;
@@ -131,9 +151,25 @@ export default function CustomerBookingDetail() {
 
     useEffect(() => {
         if (isMultiDay && daysList.length > 0 && !activeTab) {
-            setActiveTab(daysList[0].dayKey);
+            // Priority:
+            // 1. Today (if not locked)
+            // 2. Latest unlocked day
+            // 3. First day
+            const today = new Date().toISOString().split("T")[0];
+            const foundToday = daysList.find(d => d.dayKey === today);
+
+            if (foundToday && !isDayLocked(foundToday.dayKey)) {
+                setActiveTab(foundToday.dayKey);
+            } else {
+                const latestUnlocked = [...daysList].reverse().find(d => !isDayLocked(d.dayKey));
+                if (latestUnlocked) {
+                    setActiveTab(latestUnlocked.dayKey);
+                } else {
+                    setActiveTab(daysList[0].dayKey);
+                }
+            }
         }
-    }, [isMultiDay, daysList]);
+    }, [isMultiDay, daysList, sessions, activeTab]);
 
     const formatTimeHHMM = (timestamp) => {
         if (!timestamp) return "—";
@@ -143,20 +179,22 @@ export default function CustomerBookingDetail() {
         return `${hours}:${minutes}`;
     };
 
-    const photos = booking?.task_photos ? JSON.parse(booking.task_photos) : [];
     const [previewImages, setPreviewImages] = useState([]);
-
-    const formatTime = (ms) => {
-        if (!ms) return "0s";
-        const s = Math.floor(ms / 1000);
-        const m = Math.floor(s / 60);
-        const sec = s % 60;
-        return `${m}m ${sec}s`;
-    };
-
     useEffect(() => {
-        if (photos.length > 0) setPreviewImages(photos);
+        if (booking?.task_photos) {
+            try {
+                const parsed = Array.isArray(booking.task_photos)
+                    ? booking.task_photos
+                    : JSON.parse(booking.task_photos);
+                setPreviewImages(parsed);
+            } catch (err) {
+                console.error("Failed to parse task_photos", err);
+                setPreviewImages([]);
+            }
+        }
     }, [booking]);
+
+    const task_photos = previewImages;
 
     // Fetch booking detail
     useEffect(() => {
@@ -303,7 +341,7 @@ export default function CustomerBookingDetail() {
                             checkOut: s.checkout_time,
                             timers: s.checklist_timers,
                             checklist: s.checklist,
-                            status: s.status,
+                            status: s.status === 'Chờ thực hiện' ? 'pending' : (s.status === 'Đang tiến hành' ? 'in_progress' : (s.status === 'Hoàn thành' ? 'completed' : s.status)),
                             notes: s.notes,
                             photos: s.photos || { before: [], after: [] }
                         };
@@ -359,6 +397,7 @@ export default function CustomerBookingDetail() {
     // =====================================
     const {
         booking_id,
+        tasker_id,
         tasker_name,
         tasker_phone,
         tasker_email,
@@ -611,90 +650,113 @@ export default function CustomerBookingDetail() {
                                             >
                                                 {Object.values(tasksByDay).map(({ day, tasks: dayTasks }) => {
                                                     const safeDayKey = day.dayKey || "default";
-                                                    const session = sessions?.[safeDayKey] || { status: "completed" };
-                                                    const tasksToRender = (session.checklist && session.checklist.length > 0) ? parseChecklist(session.checklist) : dayTasks;
+                                                    const session = sessions?.[safeDayKey]; // Removed default completed status
+                                                    const locked = isDayLocked(safeDayKey);
+                                                    const tasksToRender = (session?.checklist && session.checklist.length > 0) ? parseChecklist(session.checklist) : dayTasks;
+
+                                                    // Status badge for tab title
+                                                    let badge = "⏳";
+                                                    if (session?.status === 'completed') badge = "✔";
+                                                    else if (session?.status === 'in_progress') badge = "🔵";
+                                                    else if (locked) badge = "🔒";
 
                                                     const tabTitle = (
                                                         <div className="d-flex align-items-center gap-2">
                                                             <span>{day.label}</span>
-                                                            <small>✔</small>
+                                                            <small>{badge}</small>
                                                         </div>
                                                     );
 
                                                     return (
                                                         <Tab eventKey={safeDayKey} title={tabTitle} key={safeDayKey}>
-                                                            <Card className="mb-3 border-0 bg-light">
-                                                                <Card.Body>
-                                                                    <div className="d-flex align-items-center justify-content-between mb-2">
-                                                                        <div className="fw-bold fs-5">{day.label}</div>
-                                                                        <Badge bg="success">Đã hoàn thành</Badge>
-                                                                    </div>
-                                                                    <div className="d-flex gap-4 text-muted small">
-                                                                        <div><i className="bi bi-box-arrow-in-right me-1"></i> Check-in: <strong>{formatTimeHHMM(session?.checkIn)}</strong></div>
-                                                                        <div><i className="bi bi-box-arrow-left me-1"></i> Check-out: <strong>{formatTimeHHMM(session?.checkOut)}</strong></div>
-                                                                    </div>
-                                                                </Card.Body>
-                                                            </Card>
-
-                                                            {/* CHECKLIST */}
-                                                            <div className="d-flex flex-column gap-3 mb-4">
-                                                                <h6 className="fw-bold text-muted text-uppercase mb-0">Checklist công việc</h6>
-                                                                {tasksToRender.map((task, idx) => {
-                                                                    const tmr = session.timers?.[task.id];
-                                                                    // Format elapsed time
-                                                                    let timeStr = "";
-                                                                    if (tmr) {
-                                                                        const sec = Math.floor((tmr.elapsedMs || 0) / 1000);
-                                                                        const h = Math.floor(sec / 3600);
-                                                                        const m = Math.floor((sec % 3600) / 60);
-                                                                        const s = sec % 60;
-                                                                        timeStr = `⏱ ${h}h ${m}m ${s}s`;
-                                                                    }
-                                                                    return (
-                                                                        <div key={idx} className="d-flex justify-content-between align-items-center p-3 border rounded-3 bg-white shadow-sm">
-                                                                            <div className="d-flex align-items-center gap-3">
-                                                                                <i className="bi bi-check-circle-fill text-success fs-5"></i>
-                                                                                <span className="fw-semibold">{task.label}</span>
-                                                                            </div>
-                                                                            <small className="text-primary fw-bold">{timeStr}</small>
-                                                                        </div>
-                                                                    );
-                                                                })}
-                                                            </div>
-
-                                                            {/* NOTES */}
-                                                            <Card className="border-0 bg-light mb-4">
-                                                                <Card.Body>
-                                                                    <h6 className="fw-bold mb-2"><i className="bi bi-journal-text me-2"></i> Ghi chú của Tasker</h6>
-                                                                    <p className="mb-0" style={{ whiteSpace: "pre-line" }}>{session.notes || "Không có ghi chú."}</p>
-                                                                </Card.Body>
-                                                            </Card>
-
-                                                            {/* PHOTOS */}
-                                                            {(session.photos?.before?.length > 0 || session.photos?.after?.length > 0) && (
-                                                                <div className="mb-4">
-                                                                    <h6 className="fw-bold text-muted text-uppercase mb-3">Hình ảnh thực hiện</h6>
-                                                                    {session.photos.before?.length > 0 && (
-                                                                        <div className="mb-3">
-                                                                            <small className="text-secondary fw-semibold d-block mb-2">BEFORE</small>
-                                                                            <div className="d-flex gap-2" style={{ overflowX: 'auto' }}>
-                                                                                {session.photos.before.map((url, i) => (
-                                                                                    <Image key={i} src={url} style={{ height: 160, borderRadius: 8, objectFit: 'cover', cursor: 'pointer' }} onClick={() => { setActiveImage(url); setShowModal(true); }} />
-                                                                                ))}
-                                                                            </div>
-                                                                        </div>
-                                                                    )}
-                                                                    {session.photos.after?.length > 0 && (
-                                                                        <div>
-                                                                            <small className="text-secondary fw-semibold d-block mb-2">AFTER</small>
-                                                                            <div className="d-flex gap-2" style={{ overflowX: 'auto' }}>
-                                                                                {session.photos.after.map((url, i) => (
-                                                                                    <Image key={i} src={url} style={{ height: 160, borderRadius: 8, objectFit: 'cover', cursor: 'pointer' }} onClick={() => { setActiveImage(url); setShowModal(true); }} />
-                                                                                ))}
-                                                                            </div>
-                                                                        </div>
-                                                                    )}
+                                                            {locked ? (
+                                                                <div className="text-center py-5 text-muted bg-light rounded-4 border">
+                                                                    <i className="bi bi-lock-fill fs-1 mb-3 d-block text-secondary"></i>
+                                                                    <h5 className="fw-bold">Ngày này đang được khóa</h5>
+                                                                    <p className="mb-0">Vui lòng chờ người giúp việc bắt đầu thực hiện ca làm này.</p>
                                                                 </div>
+                                                            ) : (
+                                                                <>
+                                                                    <Card className="mb-3 border-0 bg-light">
+                                                                        <Card.Body>
+                                                                            <div className="d-flex align-items-center justify-content-between mb-2">
+                                                                                <div className="fw-bold fs-5">{day.label}</div>
+                                                                                <Badge bg={session?.status === 'completed' ? 'success' : 'primary'}>
+                                                                                    {session?.status === 'completed' ? 'Đã hoàn thành' : 'Đang thực hiện'}
+                                                                                </Badge>
+                                                                            </div>
+                                                                            <div className="d-flex gap-4 text-muted small">
+                                                                                <div><i className="bi bi-box-arrow-in-right me-1"></i> Check-in: <strong>{formatTimeHHMM(session?.checkIn)}</strong></div>
+                                                                                <div><i className="bi bi-box-arrow-left me-1"></i> Check-out: <strong>{formatTimeHHMM(session?.checkOut)}</strong></div>
+                                                                            </div>
+                                                                        </Card.Body>
+                                                                    </Card>
+
+                                                                    {/* CHECKLIST */}
+                                                                    <div className="d-flex flex-column gap-3 mb-4">
+                                                                        <h6 className="fw-bold text-muted text-uppercase mb-0">Checklist công việc</h6>
+                                                                        {tasksToRender.map((task, idx) => {
+                                                                            const tmr = session?.timers?.[task.id];
+                                                                            // Format elapsed time
+                                                                            let timeStr = "";
+                                                                            if (tmr) {
+                                                                                const val = typeof tmr === 'object' ? tmr.elapsedMs : tmr;
+                                                                                const sec = Math.floor((val || 0) / 1000);
+                                                                                const h = Math.floor(sec / 3600);
+                                                                                const m = Math.floor((sec % 3600) / 60);
+                                                                                const s = sec % 60;
+                                                                                timeStr = `⏱ ${h}h ${m}m ${s}s`;
+                                                                            }
+                                                                            return (
+                                                                                <div key={idx} className="d-flex justify-content-between align-items-center p-3 border rounded-3 bg-white shadow-sm">
+                                                                                    <div className="d-flex align-items-center gap-3">
+                                                                                        <i className={`bi ${(task.status === 'completed' || session?.status === 'completed') ? 'bi-check-circle-fill text-success' :
+                                                                                            task.status === 'in_progress' ? 'bi-hourglass-split text-primary' :
+                                                                                                'bi-circle text-muted'
+                                                                                            } fs-5`}></i>
+                                                                                        <span className="fw-semibold">{task.label}</span>
+                                                                                    </div>
+                                                                                    <small className="text-primary fw-bold">{timeStr}</small>
+                                                                                </div>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+
+                                                                    {/* NOTES */}
+                                                                    <Card className="border-0 bg-light mb-4">
+                                                                        <Card.Body>
+                                                                            <h6 className="fw-bold mb-2"><i className="bi bi-journal-text me-2"></i> Ghi chú của Tasker</h6>
+                                                                            <p className="mb-0" style={{ whiteSpace: "pre-line" }}>{session?.notes || "Không có ghi chú."}</p>
+                                                                        </Card.Body>
+                                                                    </Card>
+
+                                                                    {/* PHOTOS */}
+                                                                    {(session?.photos?.before?.length > 0 || session?.photos?.after?.length > 0) && (
+                                                                        <div className="mb-4">
+                                                                            <h6 className="fw-bold text-muted text-uppercase mb-3">Hình ảnh thực hiện</h6>
+                                                                            {session.photos.before?.length > 0 && (
+                                                                                <div className="mb-3">
+                                                                                    <small className="text-secondary fw-semibold d-block mb-2">BEFORE</small>
+                                                                                    <div className="d-flex gap-2" style={{ overflowX: 'auto' }}>
+                                                                                        {session.photos.before.map((url, i) => (
+                                                                                            <Image key={i} src={url} style={{ height: 160, borderRadius: 8, objectFit: 'cover', cursor: 'pointer' }} onClick={() => { setActiveImage(url); setShowModal(true); }} />
+                                                                                        ))}
+                                                                                    </div>
+                                                                                </div>
+                                                                            )}
+                                                                            {session.photos.after?.length > 0 && (
+                                                                                <div>
+                                                                                    <small className="text-secondary fw-semibold d-block mb-2">AFTER</small>
+                                                                                    <div className="d-flex gap-2" style={{ overflowX: 'auto' }}>
+                                                                                        {session.photos.after.map((url, i) => (
+                                                                                            <Image key={i} src={url} style={{ height: 160, borderRadius: 8, objectFit: 'cover', cursor: 'pointer' }} onClick={() => { setActiveImage(url); setShowModal(true); }} />
+                                                                                        ))}
+                                                                                    </div>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    )}
+                                                                </>
                                                             )}
                                                         </Tab>
                                                     );
@@ -744,7 +806,10 @@ export default function CustomerBookingDetail() {
                                                                 return (
                                                                     <div key={idx} className="d-flex justify-content-between align-items-center p-3 border rounded-3 bg-white shadow-sm">
                                                                         <div className="d-flex align-items-center gap-3">
-                                                                            <i className="bi bi-check-circle-fill text-success fs-5"></i>
+                                                                            <i className={`bi ${(singleSession?.status === 'completed' || booking.status === 'Hoàn thành' || booking.status === 'Chờ xác nhận') ? 'bi-check-circle-fill text-success' :
+                                                                                (singleSession?.status === 'in_progress' || booking.status === 'Đang tiến hành') ? 'bi-hourglass-split text-primary' :
+                                                                                    'bi-circle text-muted'
+                                                                                } fs-5`}></i>
                                                                             <span className="fw-semibold">{label}</span>
                                                                         </div>
                                                                         <small className="text-primary fw-bold">{timeStr}</small>
@@ -1209,6 +1274,15 @@ export default function CustomerBookingDetail() {
                         <div className="d-flex justify-content-center gap-4 flex-wrap">
                             {(status === "Chờ xử lý" || status === "Đã chấp nhận" || status === "Đã thanh toán" || status === "Đã ký hợp đồng") && (
                                 <>
+                                    {status === "Chờ xử lý" && tasker_id && (
+                                        <NegotiatePriceButton
+                                            peerId={tasker_id}
+                                            bookingId={booking_id}
+                                            className="btn btn-outline-primary"
+                                            size="lg"
+                                            label="💬 Thương lượng giá"
+                                        />
+                                    )}
                                     <Button
                                         variant="danger"
                                         size="lg"
@@ -1278,10 +1352,10 @@ export default function CustomerBookingDetail() {
                                 <h5>📜 Chính sách hủy & hoàn tiền</h5>
                                 <ul>
                                     <li>🕐 Trên 24h: Hoàn 100%</li>
-                                    <li>⏰ 12–24h: Hoàn 75% – trừ 25%</li>
-                                    <li>⌛ 4–12h: Hoàn 50% – đền 50%</li>
+                                    <li>⏰ 12–24h: Hoàn 75%</li>
+                                    <li>⌛ 4–12h: Hoàn 50%</li>
                                     <li>🚫 Dưới 4h: Không hoàn tiền</li>
-                                    <li>🏠 Khách không có mặt: Không hoàn tiền (xác minh)</li>
+                                    <li>🏠 Khách vắng mặt: Không hoàn tiền (xác minh)</li>
                                 </ul>
                                 <p className="fw-semibold text-danger">Bạn có chắc chắn muốn hủy đơn này không?</p>
                                 <div className="d-flex justify-content-end gap-2 mt-3">

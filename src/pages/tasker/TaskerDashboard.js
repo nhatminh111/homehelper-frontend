@@ -26,6 +26,7 @@ const TaskerDashboard = () => {
             <nav className="nav flex-column">
               <NavLink end to="" className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>Overview</NavLink>
               <NavLink to="bookings" className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>Bookings</NavLink>
+              <NavLink to="/user-profile" className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>Profile</NavLink>
               <NavLink to="videos" className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>Videos</NavLink>
               <hr />
               <NavLink to="/chat" className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>Chat</NavLink>
@@ -33,7 +34,7 @@ const TaskerDashboard = () => {
               <NavLink to="/blog" className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}>Blog</NavLink>
             </nav>
             <div className="tasker-bottom mt-auto">
-              <div className="tasker-user-info" onClick={() => navigate(user ? `/tasker-profile/${user.user_id}` : "/tasker-profile") } title="Xem hồ sơ">
+              <div className="tasker-user-info" onClick={() => navigate(user ? `/tasker-profile/${user.user_id}` : "/tasker-profile")} title="Xem hồ sơ">
                 <img
                   src={(user && user.avatar_url) ? user.avatar_url : "/images/avatar-placeholder.jpg"}
                   alt="Tasker Avatar"
