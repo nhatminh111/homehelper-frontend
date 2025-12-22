@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CustomToastContainer, showToast } from '../../components/common/CustomToast';
-import serviceService from '../../services/serviceService';
-import { formatVND } from '../../utils/formatVND';
-import { checkVerifiedCCCD, getCCCDStatus } from '../../services/api';
-import { useAuth } from '../../contexts/AuthContext';
+import { CustomToastContainer, showToast } from '../components/common/CustomToast';
+import serviceService from '../services/serviceService';
+import { formatVND } from '../utils/formatVND';
+import { checkVerifiedCCCD, getCCCDStatus } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 // Use same base URL strategy as api.js
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
