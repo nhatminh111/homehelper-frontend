@@ -180,16 +180,18 @@ const BecomeTasker = () => {
         }
         
         // Get status data - handle different response structures
+        // Backend returns: { success: true, data: { status: '...', ... } }
         const statusData = statusRes?.data || statusRes || {};
         const cccdStatusRaw = statusData.status || statusData.verification_status || '';
         const cccdStatusNormalized = normalizeCCCDStatus(cccdStatusRaw);
         
         // Also check hasVerified flag
-        const hasVerifiedFlag = verifiedRes?.hasVerified || verifiedRes?.data?.hasVerified || false;
+        // Backend returns: { success: true, data: { hasVerified: true/false, ... } }
+        const hasVerifiedFlag = verifiedRes?.data?.hasVerified || verifiedRes?.hasVerified || false;
         
         // STRICT CHECK: Only allow if status is explicitly 'Verified' (approved by admin)
         // Block in ALL other cases:
-        // - No CCCD submitted (status is empty/null/undefined) -> BLOCK
+        // - No CCCD submitted (status is 'NotSubmitted' or empty/null/undefined) -> BLOCK
         // - Status is Pending (waiting for approval) -> BLOCK
         // - Status is Rejected -> BLOCK
         // - Status is anything other than Verified -> BLOCK
@@ -201,41 +203,64 @@ const BecomeTasker = () => {
                                  cccdStatusNormalized === 'đã xác minh' ||
                                  cccdStatusNormalized === 'da xac minh';
         
+        // Block if status is 'NotSubmitted' (user hasn't submitted CCCD)
+        const isNotSubmitted = cccdStatusNormalized === 'notsubmitted' || 
+                               cccdStatusNormalized === 'chưa gửi cccd' ||
+                               !cccdStatusRaw || 
+                               cccdStatusRaw === '';
+        
         // Must have BOTH conditions: status is Verified AND hasVerified flag is true
         // If either is false/missing, block access
         // Also block if no status data at all (user hasn't submitted CCCD)
-        const hasStatusData = cccdStatusRaw !== '' && cccdStatusRaw !== null && cccdStatusRaw !== undefined;
-        const isVerified = hasStatusData && isStatusVerified === true && hasVerifiedFlag === true;
+        const isVerified = !isNotSubmitted && isStatusVerified === true && hasVerifiedFlag === true;
         
-        // Debug log to help troubleshoot
-        if (process.env.NODE_ENV !== 'production') {
-          console.log('[BecomeTasker] CCCD Check:', {
-            statusRes,
-            verifiedRes,
-            statusData,
-            cccdStatusRaw,
-            cccdStatusNormalized,
-            hasStatusData,
-            isStatusVerified,
-            hasVerifiedFlag,
-            isVerified
-          });
-        }
+        // Debug log to help troubleshoot - ALWAYS log in development
+        console.log('[BecomeTasker] CCCD Check Debug:', {
+          statusRes,
+          verifiedRes,
+          statusData,
+          cccdStatusRaw,
+          cccdStatusNormalized,
+          isNotSubmitted,
+          isStatusVerified,
+          hasVerifiedFlag,
+          isVerified,
+          'willBlock': !isVerified
+        });
 
         if (!cancelled) {
+          // CRITICAL: Set verified state FIRST before any navigation
           setCccdVerified(isVerified);
           setCheckingCCCD(false);
 
           // If not verified/approved, redirect to /cccd page
           if (!isVerified) {
-            if (cccdStatusNormalized === 'pending' || cccdStatusNormalized === 'đang chờ duyệt') {
+            console.log('[BecomeTasker] ❌ BLOCKING ACCESS - CCCD not verified', {
+              status: cccdStatusNormalized,
+              hasVerified: hasVerifiedFlag,
+              isNotSubmitted,
+              isStatusVerified
+            });
+            
+            // Show appropriate message
+            if (isNotSubmitted) {
+              showToast.warning('Vui lòng xác minh CCCD trước khi đăng ký làm Tasker');
+            } else if (cccdStatusNormalized === 'pending' || cccdStatusNormalized === 'đang chờ duyệt') {
               showToast.warning('CCCD của bạn đang chờ duyệt. Vui lòng đợi admin duyệt trước khi đăng ký làm Tasker.');
             } else if (cccdStatusNormalized === 'rejected' || cccdStatusNormalized === 'từ chối' || cccdStatusNormalized === 'tu choi') {
               showToast.warning('CCCD của bạn đã bị từ chối. Vui lòng xác minh lại CCCD trước khi đăng ký làm Tasker.');
             } else {
               showToast.warning('Vui lòng xác minh CCCD trước khi đăng ký làm Tasker');
             }
+            
+            // Navigate immediately - this will cause component to unmount
             navigate('/cccd', { replace: true });
+            // No return needed - navigate will handle unmounting
+          } else {
+            console.log('[BecomeTasker] ✅ ALLOWING ACCESS - CCCD verified', {
+              status: cccdStatusNormalized,
+              hasVerified: hasVerifiedFlag
+            });
           }
         }
       } catch (error) {
