@@ -155,8 +155,48 @@ const BecomeTasker = () => {
   };
 
   // Check CCCD verification status before allowing access
+  // SIMPLE LOGIC: Block if status is NOT "Đã xác minh" or "Verified"
   useEffect(() => {
     let cancelled = false;
+    
+    // SIMPLE CHECK: Check user context FIRST (synchronous, no API call)
+    const userCccdStatus = user?.cccd_status || '';
+    console.log('[BecomeTasker] 🔍 Checking CCCD status from user context:', userCccdStatus);
+    
+    if (userCccdStatus) {
+      const normalized = normalizeCCCDStatus(userCccdStatus);
+      const isVerified = normalized === 'verified';
+      
+      console.log('[BecomeTasker] Status check result:', {
+        raw: userCccdStatus,
+        normalized,
+        isVerified,
+        willBlock: !isVerified
+      });
+      
+      // BLOCK ngay nếu không phải verified
+      if (!isVerified) {
+        console.log('[BecomeTasker] 🚫 BLOCKING - Status is NOT verified:', normalized);
+        setCccdVerified(false);
+        setCheckingCCCD(false);
+        
+        if (normalized === 'pending') {
+          showToast.warning('CCCD của bạn đang chờ duyệt. Vui lòng đợi admin duyệt trước khi đăng ký làm Tasker.');
+        } else if (normalized === 'rejected') {
+          showToast.warning('CCCD của bạn đã bị từ chối. Vui lòng xác minh lại CCCD trước khi đăng ký làm Tasker.');
+        } else {
+          showToast.warning('Vui lòng xác minh CCCD trước khi đăng ký làm Tasker');
+        }
+        
+        navigate('/cccd', { replace: true });
+        return; // Exit ngay, không gọi API
+      }
+      
+      // Nếu verified, vẫn verify với API để chắc chắn
+      console.log('[BecomeTasker] ✅ User context check passed, verifying with API...');
+    }
+    
+    // Verify với API nếu user context pass hoặc không có user context
     (async () => {
       try {
         // Check if user is authenticated
@@ -170,49 +210,6 @@ const BecomeTasker = () => {
         if (!token) {
           setCheckingCCCD(false);
           return;
-        }
-
-        // EARLY CHECK: Check from user context first (faster, no API call needed)
-        const userCccdStatus = user?.cccd_status || '';
-        console.log('[BecomeTasker] 🔍 Early check - User context cccd_status:', userCccdStatus);
-        
-        if (userCccdStatus) {
-          const earlyStatusNormalized = normalizeCCCDStatus(userCccdStatus);
-          const isEarlyVerified = earlyStatusNormalized === 'verified';
-          const isEarlyPending = earlyStatusNormalized === 'pending';
-          const isEarlyRejected = earlyStatusNormalized === 'rejected';
-          const isEarlyNotSubmitted = earlyStatusNormalized === 'notsubmitted' || !userCccdStatus;
-          
-          // Block immediately if status is NOT verified
-          if (isEarlyPending || isEarlyRejected || isEarlyNotSubmitted || !isEarlyVerified) {
-            console.log('[BecomeTasker] 🚫 EARLY BLOCK from user context:', {
-              userCccdStatus,
-              earlyStatusNormalized,
-              isEarlyPending,
-              isEarlyRejected,
-              isEarlyNotSubmitted,
-              isEarlyVerified
-            });
-            
-            if (!cancelled) {
-              setCccdVerified(false);
-              setCheckingCCCD(false);
-              
-              if (isEarlyPending) {
-                showToast.warning('CCCD của bạn đang chờ duyệt. Vui lòng đợi admin duyệt trước khi đăng ký làm Tasker.');
-              } else if (isEarlyRejected) {
-                showToast.warning('CCCD của bạn đã bị từ chối. Vui lòng xác minh lại CCCD trước khi đăng ký làm Tasker.');
-              } else {
-                showToast.warning('Vui lòng xác minh CCCD trước khi đăng ký làm Tasker');
-              }
-              
-              navigate('/cccd', { replace: true });
-            }
-            return; // Exit early, don't call API
-          }
-          
-          // If early check passes (verified), still verify with API for double-check
-          console.log('[BecomeTasker] ✅ Early check passed, verifying with API...');
         }
 
         // Check CCCD verification status - must be Verified (approved), not just submitted
@@ -379,8 +376,9 @@ const BecomeTasker = () => {
         }
       }
     })();
+    
     return () => { cancelled = true; };
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, navigate, user]); // THÊM 'user' vào dependency để check lại khi user context update
 
   // Check Tasker/app status: hide form if user is already Tasker OR has application Pending/Approved
   useEffect(() => {
