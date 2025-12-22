@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CustomToastContainer, showToast } from '../components/common/CustomToast';
-import serviceService from '../services/serviceService';
-import { formatVND } from '../utils/formatVND';
-import { checkVerifiedCCCD, getCCCDStatus } from '../services/api';
-import { useAuth } from '../contexts/AuthContext';
+import { CustomToastContainer, showToast } from '../../components/common/CustomToast';
+import serviceService from '../../services/serviceService';
+import { formatVND } from '../../utils/formatVND';
+import { useAuth } from '../../contexts/AuthContext';
 // Use same base URL strategy as api.js
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
@@ -94,6 +93,112 @@ const compareNames = (a, b) => {
   return { match: score >= 0.6, score, reason: 'jaccard' };
 };
 
+const normalizeCCCDStatus = (status) => {
+  if (!status) return '';
+  try {
+    let s = status.toString().trim().toLowerCase();
+    // Strip SQL NVARCHAR literal wrapper like N'...'
+    s = s.replace(/^n\s*'(.+)'$/i, '$1').replace(/^n\s*"(.+)"$/i, '$1');
+    // Trim any surrounding quotes after stripping N''
+    s = s.replace(/^['"]+|['"]+$/g, '');
+    // Remove diacritics and normalize Vietnamese-specific characters
+    s = s.normalize('NFD').replace(/\p{Diacritic}/gu, ''); // remove accents
+    s = s.replace(/đ/g, 'd');
+    // Canonicalize common variants
+    // verified
+    if (/(da\s*xac\s*minh|verified)/.test(s)) return 'verified';
+    // pending: "cho xu ly", "dang xu ly", "cho duyet"
+    if (/(cho\s*xu\s*ly|dang\s*xu\s*ly|cho\s*duyet|dang\s*duyet|cho\s*xac\s*minh|dang\s*xac\s*minh|pending)/.test(s)) return 'pending';
+    // rejected
+    if (/(tu\s*choi|rejected)/.test(s)) return 'rejected';
+    // unverified / not submitted yet
+    if (/(chua\s*xac\s*minh|chua|unverified|not\s*submitted|none|null)/.test(s)) return 'unverified';
+    return s;
+  } catch {
+    return status.toString().trim().toLowerCase();
+  }
+};
+
+const useCccdGuard = ({ user, authFetch, isAuthenticated }) => {
+  const [loading, setLoading] = useState(true);
+  const [verified, setVerified] = useState(false);
+  const [reason, setReason] = useState('');
+
+  useEffect(() => {
+    const run = async () => {
+      const isAuth = typeof isAuthenticated === 'function'
+        ? isAuthenticated()
+        : !!isAuthenticated;
+
+      if (!isAuth) {
+        setLoading(false);
+        return;
+      }
+
+      // Always rely on backend status for CCCD gating
+      const res = await authFetch(
+        `${API_BASE_URL}/tasker/application/my-status`
+      );
+      const json = await res.json();
+      const backendStatus = normalizeCCCDStatus(
+        json?.data?.user_cccd_status
+      );
+
+      // Only verified passes; pending/rejected/unverified blocks the form
+      const isVerified = backendStatus === 'verified';
+      console.log('[CCCD Guard]', {
+        raw: json?.data?.user_cccd_status,
+        normalized: backendStatus,
+        isVerified,
+      });
+      setVerified(isVerified);
+      if (!isVerified) setReason(backendStatus || 'unverified');
+      setLoading(false);
+    };
+
+    run();
+  }, [user, isAuthenticated]);
+
+  return { loading, verified, reason };
+};
+
+const useTaskerStatus = ({ authFetch }) => {
+  const [loading, setLoading] = useState(true);
+  const [isTasker, setIsTasker] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      try {
+        const res = await authFetch(`${API_BASE_URL}/tasker/application/my-status`);
+        const json = await res.json();
+
+        console.log('[TaskerStatus]', json);
+
+        const status = json?.data?.status;
+        const hide = status === 'Pending' || status === 'Approved';
+
+        if (!cancelled) {
+          setIsTasker(hide);
+          setLoading(false);
+        }
+      } catch (e) {
+        console.error('[TaskerStatus] error', e);
+        if (!cancelled) {
+          setIsTasker(false);
+          setLoading(false);
+        }
+      }
+    };
+
+    run();
+    return () => { cancelled = true; };
+  }, [authFetch]);
+
+  return { loading, isTasker };
+};
+
 const BecomeTasker = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
@@ -120,6 +225,17 @@ const BecomeTasker = () => {
   // Check CCCD verification status
   const [checkingCCCD, setCheckingCCCD] = useState(true);
   const [cccdVerified, setCccdVerified] = useState(false);
+
+
+  const { loading: cccdLoading, verified, reason: cccdReason } = useCccdGuard({
+    user,
+    authFetch,
+    isAuthenticated,
+  });
+
+  const { loading: taskerLoading, isTasker } = useTaskerStatus({
+    authFetch,
+  });
 
   useEffect(() => {
     // Try to get user info from localStorage (assuming auth stores user object JSON under 'user')
@@ -158,28 +274,28 @@ const BecomeTasker = () => {
   // SIMPLE LOGIC: Block if status is NOT "Đã xác minh" or "Verified"
   useEffect(() => {
     let cancelled = false;
-    
+
     // SIMPLE CHECK: Check user context FIRST (synchronous, no API call)
     const userCccdStatus = user?.cccd_status || '';
     console.log('[BecomeTasker] 🔍 Checking CCCD status from user context:', userCccdStatus);
-    
+
     if (userCccdStatus) {
       const normalized = normalizeCCCDStatus(userCccdStatus);
       const isVerified = normalized === 'verified';
-      
+
       console.log('[BecomeTasker] Status check result:', {
         raw: userCccdStatus,
         normalized,
         isVerified,
         willBlock: !isVerified
       });
-      
+
       // BLOCK ngay nếu không phải verified
       if (!isVerified) {
         console.log('[BecomeTasker] 🚫 BLOCKING - Status is NOT verified:', normalized);
         setCccdVerified(false);
         setCheckingCCCD(false);
-        
+
         if (normalized === 'pending') {
           showToast.warning('CCCD của bạn đang chờ duyệt. Vui lòng đợi admin duyệt trước khi đăng ký làm Tasker.');
         } else if (normalized === 'rejected') {
@@ -187,15 +303,15 @@ const BecomeTasker = () => {
         } else {
           showToast.warning('Vui lòng xác minh CCCD trước khi đăng ký làm Tasker');
         }
-        
+
         navigate('/cccd', { replace: true });
         return; // Exit ngay, không gọi API
       }
-      
+
       // Nếu verified, vẫn verify với API để chắc chắn
       console.log('[BecomeTasker] ✅ User context check passed, verifying with API...');
     }
-    
+
     // Verify với API nếu user context pass hoặc không có user context
     (async () => {
       try {
@@ -214,7 +330,7 @@ const BecomeTasker = () => {
 
         // Check CCCD verification status - must be Verified (approved), not just submitted
         // FALLBACK: Also check from user context if available
-        
+
         let verifiedRes, statusRes;
         try {
           [verifiedRes, statusRes] = await Promise.all([
@@ -230,18 +346,18 @@ const BecomeTasker = () => {
             const isFallbackPending = fallbackStatusNormalized === 'pending';
             const isFallbackRejected = fallbackStatusNormalized === 'rejected';
             const isFallbackNotSubmitted = fallbackStatusNormalized === 'notsubmitted' || !userCccdStatus;
-            
-            const fallbackIsVerified = !isFallbackNotSubmitted && 
-                                      !isFallbackPending && 
-                                      !isFallbackRejected && 
-                                      isFallbackVerified;
-            
+
+            const fallbackIsVerified = !isFallbackNotSubmitted &&
+              !isFallbackPending &&
+              !isFallbackRejected &&
+              isFallbackVerified;
+
             console.log('[BecomeTasker] Using fallback check from user context:', {
               userCccdStatus,
               fallbackStatusNormalized,
               fallbackIsVerified
             });
-            
+
             if (!cancelled) {
               setCccdVerified(fallbackIsVerified);
               setCheckingCCCD(false);
@@ -256,7 +372,7 @@ const BecomeTasker = () => {
             }
             return;
           }
-          
+
           // If no fallback, treat as not verified
           if (!cancelled) {
             setCccdVerified(false);
@@ -266,17 +382,17 @@ const BecomeTasker = () => {
           }
           return;
         }
-        
+
         // Get status data - handle different response structures
         // Backend returns: { success: true, data: { status: '...', ... } }
         const statusData = statusRes?.data || statusRes || {};
         const cccdStatusRaw = statusData.status || statusData.verification_status || userCccdStatus || '';
         const cccdStatusNormalized = normalizeCCCDStatus(cccdStatusRaw);
-        
+
         // Also check hasVerified flag
         // Backend returns: { success: true, data: { hasVerified: true/false, ... } }
         const hasVerifiedFlag = verifiedRes?.data?.hasVerified || verifiedRes?.hasVerified || false;
-        
+
         // STRICT CHECK: Only allow if status is explicitly 'Verified' (approved by admin)
         // Block in ALL other cases:
         // - No CCCD submitted (status is 'NotSubmitted' or empty/null/undefined) -> BLOCK
@@ -285,34 +401,34 @@ const BecomeTasker = () => {
         // - Status is anything other than Verified -> BLOCK
         // - hasVerified flag is false -> BLOCK
         // Only allow if BOTH: status is Verified AND hasVerified flag is true
-        
+
         // Check if status is explicitly 'Verified' (case-insensitive, handle encoding)
         // After normalization, should be 'verified'
         const isStatusVerified = cccdStatusNormalized === 'verified';
-        
+
         // Block if status is 'NotSubmitted' (user hasn't submitted CCCD)
         // After normalization, should be 'notsubmitted'
-        const isNotSubmitted = cccdStatusNormalized === 'notsubmitted' || 
-                               !cccdStatusRaw || 
-                               cccdStatusRaw === '';
-        
+        const isNotSubmitted = cccdStatusNormalized === 'notsubmitted' ||
+          !cccdStatusRaw ||
+          cccdStatusRaw === '';
+
         // Block if status is 'Pending' (waiting for approval)
         // After normalization, should be 'pending'
         const isPending = cccdStatusNormalized === 'pending';
-        
+
         // Block if status is 'Rejected'
         // After normalization, should be 'rejected'
         const isRejected = cccdStatusNormalized === 'rejected';
-        
+
         // Must have BOTH conditions: status is Verified AND hasVerified flag is true
         // Block ALL other cases: NotSubmitted, Pending, Rejected, or anything else
         // Only allow if BOTH: status is Verified AND hasVerified flag is true
-        const isVerified = !isNotSubmitted && 
-                          !isPending && 
-                          !isRejected && 
-                          isStatusVerified === true && 
-                          hasVerifiedFlag === true;
-        
+        const isVerified = !isNotSubmitted &&
+          !isPending &&
+          !isRejected &&
+          isStatusVerified === true &&
+          hasVerifiedFlag === true;
+
         // Debug log to help troubleshoot - ALWAYS log
         console.log('[BecomeTasker] 🔍 CCCD Check Debug:', {
           'userCccdStatus_from_context': userCccdStatus,
@@ -344,7 +460,7 @@ const BecomeTasker = () => {
               isNotSubmitted,
               isStatusVerified
             });
-            
+
             // Show appropriate message based on status
             if (isNotSubmitted) {
               showToast.warning('Vui lòng xác minh CCCD trước khi đăng ký làm Tasker');
@@ -355,7 +471,7 @@ const BecomeTasker = () => {
             } else {
               showToast.warning('Vui lòng xác minh CCCD trước khi đăng ký làm Tasker');
             }
-            
+
             // Navigate immediately - this will cause component to unmount
             navigate('/cccd', { replace: true });
             // No return needed - navigate will handle unmounting
@@ -376,7 +492,7 @@ const BecomeTasker = () => {
         }
       }
     })();
-    
+
     return () => { cancelled = true; };
   }, [isAuthenticated, navigate, user]); // THÊM 'user' vào dependency để check lại khi user context update
 
@@ -392,21 +508,8 @@ const BecomeTasker = () => {
         if (idFromToken && idFromToken !== currentUserId) {
           setCurrentUserId(idFromToken);
         }
-        setTokenUserId(idFromToken || null);
         const effectiveUserId = idFromToken || currentUserId;
         if (!effectiveUserId) { setIsTaskerAccount(false); return; }
-        // 1) Check if already Tasker (only hide when response is OK and payload indicates found) – use effectiveUserId from token when available
-        let alreadyTasker = false;
-        try {
-          const resTasker = await fetch(`${API_BASE_URL}/tasker/${effectiveUserId}`);
-          if (resTasker.ok) {
-            const jt = await resTasker.json().catch(() => null);
-            if (jt && (jt.success === true) && jt.data) {
-              alreadyTasker = true;
-            }
-          }
-        } catch (_) { /* ignore and continue to my-status */ }
-        if (!cancelled && alreadyTasker) { setIsTaskerAccount(true); return; }
         // 2) Else check latest application status
         const resMy = await authFetch(`${API_BASE_URL}/tasker/application/my-status`);
         const jsonMy = await resMy.json().catch(() => null);
@@ -937,6 +1040,57 @@ const BecomeTasker = () => {
   // If not verified, don't show the form (will be redirected)
   if (!cccdVerified) {
     return null;
+  }
+  if (cccdLoading || taskerLoading) {
+    return <div>Đang kiểm tra thông tin...</div>;
+  }
+
+  // 1️⃣ CHẶN CCCD TRƯỚC
+  if (!verified) {
+    const normalized = normalizeCCCDStatus(cccdReason);
+    return (
+      <div className="container py-4">
+        <div className="row justify-content-center">
+          <div className="col-lg-8">
+            <div className="bg-white rounded shadow-sm p-4 border mt-4">
+              <div className="d-flex align-items-start gap-3 mb-3">
+                <div>
+                  <h3 className="mb-1">Chưa thể thể đăng kí lúc này</h3>
+                  {normalized === 'pending' ? (
+                    <p className="text-muted mb-2">
+                      Bạn chưa xác thực căn cước công dân.
+                    </p>
+                  ) : (
+                    <p className="text-muted mb-2">
+                      Vui lòng <strong>xác minh CCCD</strong> trước khi đăng ký làm Tasker.
+                    </p>
+                  )}
+                  <p className="small text-muted mb-0">
+                    Sau khi hoàn tất xác minh, quay lại trang này để nộp đơn đăng ký.
+                  </p>
+                </div>
+              </div>
+              <div className="d-flex flex-wrap gap-2">
+                <button type="button" className="btn btn-primary" onClick={() => navigate('/cccd')}>
+                  Tới trang xác minh CCCD
+                </button>
+                <a href="/" className="btn btn-outline-secondary">Về trang chủ</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 2️⃣ SAU ĐÓ MỚI CHECK TASKER
+  if (isTasker) {
+    return (
+      <div>
+        <h3>Bạn đã đăng ký làm Tasker</h3>
+        <p>Vui lòng chờ admin duyệt hoặc kiểm tra trạng thái.</p>
+      </div>
+    );
   }
 
   return (
