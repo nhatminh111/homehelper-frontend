@@ -207,12 +207,33 @@
 
 .form-group input {
   width: 100%;
-  padding: 15px 45px 15px 30px;
+  padding: 1.8rem;
   border: 2px solid #e1e5e9;
   border-radius: 12px;
   font-size: 16px;
   transition: all 0.3s ease;
   background: #f8f9fa;
+  box-sizing: border-box;
+}
+
+/* Đảm bảo password field có đủ padding cho icon mắt */
+.form-group input[type="password"],
+.form-group input[type="text"] {
+  padding-right: 60px !important;
+}
+
+/* Đảm bảo autocomplete dropdown không bị che */
+.form-group input:-webkit-autofill,
+.form-group input:-webkit-autofill:hover,
+.form-group input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 30px #f8f9fa inset !important;
+  padding-right: 60px !important;
+}
+
+/* Khi input có autocomplete list, đảm bảo text không bị che */
+.form-group input[list],
+.form-group input:autofill {
+  padding-right: 60px !important;
 }
 
 .form-group input:focus {
@@ -224,16 +245,25 @@
 
 .input-icon {
   position: absolute;
-  right: 15px;
+  right: 12px;
   top: 50%;
   transform: translateY(-50%);
   color: #ff6b35;
   font-size: 16px;
+  pointer-events: none;
+  z-index: 1;
+  width: 20px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .input-icon.clickable {
   cursor: pointer;
   transition: color 0.3s ease;
+  pointer-events: auto; /* Cho phép click */
+  z-index: 2; /* Đảm bảo icon ở trên cùng */
 }
 
 .input-icon.clickable:hover {
@@ -550,8 +580,24 @@
   }
 
   .form-group input {
-    padding: 12px 40px 12px 15px;
+   
     font-size: 14px;
+  }
+  
+  .form-group input[type="password"],
+  .form-group input[type="text"] {
+    padding-right: 55px !important;
+  }
+  
+  .form-group input:-webkit-autofill,
+  .form-group input:-webkit-autofill:hover,
+  .form-group input:-webkit-autofill:focus {
+    padding-right: 55px !important;
+  }
+  
+  .input-icon {
+    right: 10px;
+    width: 18px;
   }
 }
 
