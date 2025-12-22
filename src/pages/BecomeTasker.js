@@ -180,12 +180,32 @@ const BecomeTasker = () => {
         }
         
         // Get status data - handle different response structures
-        const statusData = statusRes?.data || statusRes || {};
-        const cccdStatusRaw = statusData.status || statusData.verification_status || '';
+        // Check if API response has success field (like UserProfile.js does)
+        let statusData = {};
+        let cccdStatusRaw = '';
+        
+        if (statusRes?.success && statusRes?.data) {
+          statusData = statusRes.data;
+          cccdStatusRaw = statusData.status || statusData.verification_status || '';
+        } else if (statusRes?.data) {
+          statusData = statusRes.data;
+          cccdStatusRaw = statusData.status || statusData.verification_status || '';
+        } else if (statusRes) {
+          statusData = statusRes;
+          cccdStatusRaw = statusData.status || statusData.verification_status || '';
+        }
+        
         const cccdStatusNormalized = normalizeCCCDStatus(cccdStatusRaw);
         
-        // Also check hasVerified flag
-        const hasVerifiedFlag = verifiedRes?.hasVerified || verifiedRes?.data?.hasVerified || false;
+        // Check hasVerified flag - handle different response structures
+        let hasVerifiedFlag = false;
+        if (verifiedRes?.success && verifiedRes?.data) {
+          hasVerifiedFlag = verifiedRes.data.hasVerified === true;
+        } else if (verifiedRes?.data) {
+          hasVerifiedFlag = verifiedRes.data.hasVerified === true;
+        } else if (verifiedRes?.hasVerified !== undefined) {
+          hasVerifiedFlag = verifiedRes.hasVerified === true;
+        }
         
         // STRICT CHECK: Only allow if status is explicitly 'Verified' (approved by admin)
         // Block in ALL other cases:
