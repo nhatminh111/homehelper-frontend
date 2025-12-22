@@ -134,11 +134,23 @@ const BecomeTasker = () => {
     } catch (e) { /* silent */ }
   }, []);
 
-  // Normalize CCCD status string to handle encoding issues
+  // Normalize CCCD status string to handle encoding issues and multiple languages
   const normalizeCCCDStatus = (status) => {
     if (!status) return '';
     // Handle encoding issues: "Ðã xác minh" -> "Đã xác minh"
-    const normalized = status.toString().replace(/Ð/g, 'Đ').trim();
+    let normalized = status.toString().replace(/Ð/g, 'Đ').trim();
+    // Normalize Vietnamese status to English equivalents for easier comparison
+    normalized = normalized
+      .replace(/chờ xử lý/gi, 'pending')
+      .replace(/chờ duyệt/gi, 'pending')
+      .replace(/đang chờ duyệt/gi, 'pending')
+      .replace(/đã xác minh/gi, 'verified')
+      .replace(/da xac minh/gi, 'verified')
+      .replace(/bị từ chối/gi, 'rejected')
+      .replace(/từ chối/gi, 'rejected')
+      .replace(/tu choi/gi, 'rejected')
+      .replace(/chưa gửi cccd/gi, 'notsubmitted')
+      .replace(/chua gui cccd/gi, 'notsubmitted');
     return normalized.toLowerCase();
   };
 
@@ -199,33 +211,47 @@ const BecomeTasker = () => {
         // Only allow if BOTH: status is Verified AND hasVerified flag is true
         
         // Check if status is explicitly 'Verified' (case-insensitive, handle encoding)
-        const isStatusVerified = cccdStatusNormalized === 'verified' || 
-                                 cccdStatusNormalized === 'đã xác minh' ||
-                                 cccdStatusNormalized === 'da xac minh';
+        // After normalization, should be 'verified'
+        const isStatusVerified = cccdStatusNormalized === 'verified';
         
         // Block if status is 'NotSubmitted' (user hasn't submitted CCCD)
+        // After normalization, should be 'notsubmitted'
         const isNotSubmitted = cccdStatusNormalized === 'notsubmitted' || 
-                               cccdStatusNormalized === 'chưa gửi cccd' ||
                                !cccdStatusRaw || 
                                cccdStatusRaw === '';
         
-        // Must have BOTH conditions: status is Verified AND hasVerified flag is true
-        // If either is false/missing, block access
-        // Also block if no status data at all (user hasn't submitted CCCD)
-        const isVerified = !isNotSubmitted && isStatusVerified === true && hasVerifiedFlag === true;
+        // Block if status is 'Pending' (waiting for approval)
+        // After normalization, should be 'pending'
+        const isPending = cccdStatusNormalized === 'pending';
         
-        // Debug log to help troubleshoot - ALWAYS log in development
-        console.log('[BecomeTasker] CCCD Check Debug:', {
-          statusRes,
-          verifiedRes,
-          statusData,
-          cccdStatusRaw,
-          cccdStatusNormalized,
-          isNotSubmitted,
-          isStatusVerified,
-          hasVerifiedFlag,
-          isVerified,
-          'willBlock': !isVerified
+        // Block if status is 'Rejected'
+        // After normalization, should be 'rejected'
+        const isRejected = cccdStatusNormalized === 'rejected';
+        
+        // Must have BOTH conditions: status is Verified AND hasVerified flag is true
+        // Block ALL other cases: NotSubmitted, Pending, Rejected, or anything else
+        // Only allow if BOTH: status is Verified AND hasVerified flag is true
+        const isVerified = !isNotSubmitted && 
+                          !isPending && 
+                          !isRejected && 
+                          isStatusVerified === true && 
+                          hasVerifiedFlag === true;
+        
+        // Debug log to help troubleshoot - ALWAYS log
+        console.log('[BecomeTasker] 🔍 CCCD Check Debug:', {
+          'statusRes_full': statusRes,
+          'verifiedRes_full': verifiedRes,
+          'statusData': statusData,
+          'cccdStatusRaw': cccdStatusRaw,
+          'cccdStatusNormalized': cccdStatusNormalized,
+          'isNotSubmitted': isNotSubmitted,
+          'isPending': isPending,
+          'isRejected': isRejected,
+          'isStatusVerified': isStatusVerified,
+          'hasVerifiedFlag': hasVerifiedFlag,
+          'isVerified': isVerified,
+          'willBlock': !isVerified,
+          'willAllow': isVerified
         });
 
         if (!cancelled) {
@@ -242,12 +268,12 @@ const BecomeTasker = () => {
               isStatusVerified
             });
             
-            // Show appropriate message
+            // Show appropriate message based on status
             if (isNotSubmitted) {
               showToast.warning('Vui lòng xác minh CCCD trước khi đăng ký làm Tasker');
-            } else if (cccdStatusNormalized === 'pending' || cccdStatusNormalized === 'đang chờ duyệt') {
+            } else if (isPending) {
               showToast.warning('CCCD của bạn đang chờ duyệt. Vui lòng đợi admin duyệt trước khi đăng ký làm Tasker.');
-            } else if (cccdStatusNormalized === 'rejected' || cccdStatusNormalized === 'từ chối' || cccdStatusNormalized === 'tu choi') {
+            } else if (isRejected) {
               showToast.warning('CCCD của bạn đã bị từ chối. Vui lòng xác minh lại CCCD trước khi đăng ký làm Tasker.');
             } else {
               showToast.warning('Vui lòng xác minh CCCD trước khi đăng ký làm Tasker');
