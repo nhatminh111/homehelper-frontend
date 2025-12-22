@@ -565,21 +565,31 @@ export default function BookingHistory() {
                                         </div>
 
                                         <div className="footer-actions">
-                                            {(b.status === "Đã chấp nhận" || b.status === "Đã ký hợp đồng") && (
-                                                <Button className="btn-modern btn-primary-modern" onClick={() => navigate(`/payment/${b.booking_id}`)}>
-                                                    <CreditCard size={18} /> Thanh toán
-                                                </Button>
-                                            )}
+                                            {(() => {
+                                                const isWeekOrMonth = b.pricing_type && ["week", "month", "tuần", "tháng"].some(k => b.pricing_type.toLowerCase().includes(k));
+
+                                                return (
+                                                    <>
+                                                        {/* Nút Thanh toán */}
+                                                        {(b.status === "Đã ký hợp đồng" || (b.status === "Đã chấp nhận" && !isWeekOrMonth)) && (
+                                                            <Button className="btn-modern btn-primary-modern" onClick={() => navigate(`/payment/${b.booking_id}`)}>
+                                                                <CreditCard size={18} /> Thanh toán
+                                                            </Button>
+                                                        )}
+
+                                                        {/* Nút Ký hợp đồng */}
+                                                        {b.status === "Đã chấp nhận" && isWeekOrMonth && (
+                                                            <Button className="btn-modern btn-primary-modern" style={{ background: '#f59e0b' }} onClick={() => handleContract(b)}>
+                                                                <FileText size={18} /> Ký hợp đồng
+                                                            </Button>
+                                                        )}
+                                                    </>
+                                                );
+                                            })()}
 
                                             {b.status === "Hoàn thành" && (
                                                 <Button className="btn-modern btn-warning-modern" onClick={() => navigate(`/customer/booking/${b.booking_id}/rating`, { state: { booking: b } })}>
                                                     <Star size={18} /> Gửi đánh giá
-                                                </Button>
-                                            )}
-
-                                            {b.status === "Đã chấp nhận" && (b.pricing_type && ["week", "month", "tuần", "tháng"].some(k => b.pricing_type.toLowerCase().includes(k))) && (
-                                                <Button className="btn-modern btn-outline-modern border" onClick={() => handleContract(b)}>
-                                                    <FileText size={18} /> Xem hợp đồng
                                                 </Button>
                                             )}
 

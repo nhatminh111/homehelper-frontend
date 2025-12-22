@@ -539,7 +539,7 @@ export default function JobDescription() {
 
                       {/* Tiêu đề công việc */}
                       <Form.Group className="mb-3">
-                        <Form.Label className="fw-semibold">Tiêu đề công việc</Form.Label>
+                        <Form.Label className="fw-semibold">Nội dung công việc</Form.Label>
                         <Form.Control
                           type="text"
                           value={jobTitle}

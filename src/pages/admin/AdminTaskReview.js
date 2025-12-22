@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, useCallback } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { Container, Row, Col, Card, Button, Badge, Tabs, Tab, Spinner, Alert, Image } from "react-bootstrap"
 import api from "../../services/api"
@@ -88,30 +88,117 @@ export default function AdminReviewPage() {
     return (booking.total_sessions && Number(booking.total_sessions) > 1) || tasks.length > 1
   }, [booking, tasks])
 
+  // Parse main checklist to be used as default or format individual items
+  const parseChecklist = (rawChecklist) => {
+    if (!rawChecklist) return [];
+    if (Array.isArray(rawChecklist)) {
+      return rawChecklist.map((item, index) => ({
+        id: item?.id || `task-${index}`,
+        label: typeof item === "string" ? item : item?.label || `Task ${index + 1}`,
+        status: item?.status || "completed",
+      }));
+    }
+    if (typeof rawChecklist === "string") {
+      try {
+        const parsed = JSON.parse(rawChecklist);
+        if (Array.isArray(parsed)) return parsed.map((item, index) => ({ id: item?.id || `task-${index}`, label: typeof item === "string" ? item : item?.label || `Task ${index + 1}`, status: item?.status || "completed" }));
+      } catch (e) { }
+      return rawChecklist.split(/\n|\r|\./).map(s => s.trim()).filter(Boolean).map((l, i) => ({ id: `task-${i}`, label: l, status: "completed" }));
+    }
+    return [];
+  };
+
   const daysList = useMemo(() => {
     if (!tasks || tasks.length === 0) return []
     return tasks.map((t, idx) => {
       const date = t.session_date ? new Date(t.session_date) : null
       const dayKey = t.session_date ? new Date(t.session_date).toISOString().split("T")[0] : `session-${idx}`
+
+      // Status badge for tab title
+      let badge = "⏳";
+      if (t.status === 'Hoàn thành' || t.status === 'completed') badge = "✔";
+      else if (t.status === 'Đang tiến hành' || t.status === 'in_progress') badge = "🔵";
+
       return {
         dayKey,
         label: date
           ? date.toLocaleDateString("vi-VN", { weekday: "short", day: "2-digit", month: "2-digit" })
           : `Session ${t.session_number || idx + 1}`,
+        title: (
+          <div className="d-flex align-items-center gap-2">
+            <span>{date ? date.toLocaleDateString("vi-VN", { weekday: "short", day: "2-digit", month: "2-digit" }) : `S${t.session_number || idx + 1}`}</span>
+            <small>{badge}</small>
+          </div>
+        ),
         session: t,
       }
     })
   }, [tasks])
+
+  const isDayLocked = useCallback((dayKey) => {
+    if (!daysList || daysList.length === 0) return false;
+
+    const idx = daysList.findIndex(d => d.dayKey === dayKey);
+    if (idx === -1) return false;
+
+    const session = daysList[idx].session;
+    const status = session?.status || 'pending';
+    // If it's still pending, it's locked
+    if (status === 'Chờ thực hiện' || status === 'pending') return true;
+
+    // Sequential check: Locked if previous day is NOT completed
+    if (idx > 0) {
+      const prevSession = daysList[idx - 1].session;
+      const prevStatus = prevSession?.status || 'pending';
+      if (prevStatus !== "Hoàn thành" && prevStatus !== "completed") return true;
+    }
+
+    return false;
+  }, [daysList]);
+
+  const updatedDaysList = useMemo(() => {
+    return daysList.map(d => {
+      const locked = isDayLocked(d.dayKey);
+      let badge = "⏳";
+      if (d.session.status === 'Hoàn thành' || d.session.status === 'completed') badge = "✔";
+      else if (d.session.status === 'Đang tiến hành' || d.session.status === 'in_progress') badge = "🔵";
+      else if (locked) badge = "🔒";
+
+      return {
+        ...d,
+        locked,
+        title: (
+          <div className="d-flex align-items-center gap-2">
+            <span>{d.label}</span>
+            <small>{badge}</small>
+          </div>
+        )
+      };
+    });
+  }, [daysList, isDayLocked]);
 
   useEffect(() => {
     fetchReview()
   }, [id])
 
   useEffect(() => {
-    if (daysList.length > 0 && !activeTab) {
-      setActiveTab(daysList[0].dayKey)
+    if (updatedDaysList.length > 0 && !activeTab) {
+      // Priority: Today (unlocked) -> Latest unlocked -> First
+      const today = new Date().toISOString().split("T")[0];
+      const foundToday = updatedDaysList.find(d => d.dayKey === today);
+
+      if (foundToday && !foundToday.locked) {
+        setActiveTab(foundToday.dayKey);
+      } else {
+        const latestUnlocked = [...updatedDaysList].reverse().find(d => !d.locked);
+        if (latestUnlocked) {
+          setActiveTab(latestUnlocked.dayKey);
+        } else {
+          setActiveTab(updatedDaysList[0].dayKey);
+        }
+      }
     }
-  }, [daysList, activeTab])
+  }, [updatedDaysList, activeTab])
 
   async function fetchReview() {
     setLoading(true)
@@ -235,86 +322,97 @@ export default function AdminReviewPage() {
             <Card.Body className="p-4">
               <h5 className="fw-bold mb-4">Kết quả công việc theo từng phiên</h5>
               <Tabs activeKey={activeTab} onSelect={(k) => setActiveTab(k)} className="mb-4 custom-scroll-tabs" variant="pills">
-                {daysList.map((day) => (
-                  <Tab eventKey={day.dayKey} title={day.label} key={day.dayKey}>
+                {updatedDaysList.map((day) => (
+                  <Tab eventKey={day.dayKey} title={day.title} key={day.dayKey}>
                     <div className="mt-2">
-                      {/* Session Info card */}
-                      <Card className="bg-light border-0 mb-4 rounded-3">
-                        <Card.Body className="d-flex justify-content-between align-items-center">
-                          <div>
-                            <div className="fw-bold fs-5 mb-1">{day.label}</div>
-                            <div className="d-flex gap-4 text-muted small">
-                              <span>
-                                <i className="bi bi-box-arrow-in-right me-1"></i> Check-in: <strong>{formatTimeHHMM(day.session.checkin_time)}</strong>
-                              </span>
-                              <span>
-                                <i className="bi bi-box-arrow-left me-1"></i> Check-out: <strong>{formatTimeHHMM(day.session.checkout_time)}</strong>
-                              </span>
+                      {day.locked ? (
+                        <div className="text-center py-5 text-muted bg-light rounded-4 border">
+                          <i className="bi bi-lock-fill fs-1 mb-3 d-block text-secondary"></i>
+                          <h5 className="fw-bold">Phiên làm việc này đang được khóa</h5>
+                          <p className="mb-0">Admin chỉ có thể xem chi tiết khi người giúp việc đã bắt đầu thực hiện ca làm này.</p>
+                        </div>
+                      ) : (
+                        <>
+                          {/* Session Info card */}
+                          <Card className="bg-light border-0 mb-4 rounded-3">
+                            <Card.Body className="d-flex justify-content-between align-items-center">
+                              <div>
+                                <div className="fw-bold fs-5 mb-1">{day.label}</div>
+                                <div className="d-flex gap-4 text-muted small">
+                                  <span>
+                                    <i className="bi bi-box-arrow-in-right me-1"></i> Check-in: <strong>{formatTimeHHMM(day.session.checkin_time)}</strong>
+                                  </span>
+                                  <span>
+                                    <i className="bi bi-box-arrow-left me-1"></i> Check-out: <strong>{formatTimeHHMM(day.session.checkout_time)}</strong>
+                                  </span>
+                                </div>
+                              </div>
+                              <Badge bg={day.session.status === 'Hoàn thành' ? "success" : "info"} className="px-3 py-2 text-uppercase">
+                                {day.session.status || "Đã xong"}
+                              </Badge>
+                            </Card.Body>
+                          </Card>
+
+                          {/* Checklist */}
+                          <div className="mb-4">
+                            <h6 className="fw-bold text-muted text-uppercase mb-3">Checklist & Thời gian</h6>
+                            <div className="d-flex flex-column gap-2">
+                              {parseChecklist(day.session.checklist).map((task, idx) => {
+                                const elapsed = day.session.timers?.[task.id]?.elapsedMs || 0
+
+                                return (
+                                  <div key={idx} className="p-3 border rounded bg-white shadow-sm d-flex justify-content-between align-items-center">
+                                    <div className="d-flex align-items-center gap-3">
+                                      <i className={`bi ${(task.status === 'completed' || day.session.status === 'Hoàn thành' || day.session.status === 'completed') ? 'bi-check-circle-fill text-success' :
+                                        (task.status === 'in_progress' || day.session.status === 'Đang tiến hành' || day.session.status === 'in_progress') ? 'bi-hourglass-split text-primary' :
+                                          'bi-circle text-muted'
+                                        } fs-5`}></i>
+                                      <span className="fw-medium">{task.label}</span>
+                                    </div>
+                                    <Badge bg="light" className="text-primary border border-primary border-opacity-25 px-3 py-2">
+                                      ⏱ {formatTime(elapsed)}
+                                    </Badge>
+                                  </div>
+                                )
+                              })}
                             </div>
                           </div>
-                          <Badge bg="success" className="px-3 py-2">
-                            {day.session.status || "Đã xong"}
-                          </Badge>
-                        </Card.Body>
-                      </Card>
 
-                      {/* Checklist */}
-                      <div className="mb-4">
-                        <h6 className="fw-bold text-muted text-uppercase mb-3">Checklist & Thời gian</h6>
-                        <div className="d-flex flex-column gap-2">
-                          {day.session.checklist?.map((item, idx) => {
-                            const label = typeof item === "string" ? item : item.label
-                            const id = typeof item === "string" ? `task-${idx}` : item.id
-                            const elapsed = day.session.timers?.[id]?.elapsedMs || 0
-
-                            return (
-                              <div key={idx} className="p-3 border rounded bg-white shadow-sm d-flex justify-content-between align-items-center">
-                                <div className="d-flex align-items-center gap-2">
-                                  <i className="bi bi-check-circle-fill text-success"></i>
-                                  <span className="fw-medium">{label}</span>
-                                </div>
-                                <Badge bg="light" className="text-primary border border-primary border-opacity-25 px-3 py-2">
-                                  ⏱ {formatTime(elapsed)}
-                                </Badge>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Session Notes */}
-                      <div className="mb-4">
-                        <h6 className="fw-bold text-muted text-uppercase mb-2">Ghi chú của Tasker</h6>
-                        <div className="bg-light p-3 rounded" style={{ whiteSpace: "pre-line" }}>
-                          {day.session.notes || "Không có ghi chú"}
-                        </div>
-                      </div>
-
-                      {/* Photos */}
-                      {day.session.photos && (day.session.photos.before?.length > 0 || day.session.photos.after?.length > 0) && (
-                        <div>
-                          <h6 className="fw-bold text-muted text-uppercase mb-3">Hình ảnh thực hiện</h6>
-                          {day.session.photos.before?.length > 0 && (
-                            <div className="mb-3">
-                              <small className="text-muted fw-bold d-block mb-2">BEFORE</small>
-                              <div className="d-flex gap-2" style={{ overflowX: "auto", paddingBottom: "10px" }}>
-                                {day.session.photos.before.map((url, i) => (
-                                  <Image key={i} src={url} style={{ height: 160, width: 220, objectFit: "cover", borderRadius: 8 }} />
-                                ))}
-                              </div>
+                          {/* Session Notes */}
+                          <div className="mb-4">
+                            <h6 className="fw-bold text-muted text-uppercase mb-2">Ghi chú của Tasker</h6>
+                            <div className="bg-light p-3 rounded" style={{ whiteSpace: "pre-line" }}>
+                              {day.session.notes || "Không có ghi chú"}
                             </div>
-                          )}
-                          {day.session.photos.after?.length > 0 && (
+                          </div>
+
+                          {/* Photos */}
+                          {day.session.photos && (day.session.photos.before?.length > 0 || day.session.photos.after?.length > 0) && (
                             <div>
-                              <small className="text-muted fw-bold d-block mb-2">AFTER</small>
-                              <div className="d-flex gap-2" style={{ overflowX: "auto", paddingBottom: "10px" }}>
-                                {day.session.photos.after.map((url, i) => (
-                                  <Image key={i} src={url} style={{ height: 160, width: 220, objectFit: "cover", borderRadius: 8 }} />
-                                ))}
-                              </div>
+                              <h6 className="fw-bold text-muted text-uppercase mb-3">Hình ảnh thực hiện</h6>
+                              {day.session.photos.before?.length > 0 && (
+                                <div className="mb-3">
+                                  <small className="text-muted fw-bold d-block mb-2">BEFORE</small>
+                                  <div className="d-flex gap-2" style={{ overflowX: "auto", paddingBottom: "10px" }}>
+                                    {day.session.photos.before.map((url, i) => (
+                                      <Image key={i} src={url} style={{ height: 160, width: 220, objectFit: "cover", borderRadius: 8 }} />
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                              {day.session.photos.after?.length > 0 && (
+                                <div>
+                                  <small className="text-muted fw-bold d-block mb-2">AFTER</small>
+                                  <div className="d-flex gap-2" style={{ overflowX: "auto", paddingBottom: "10px" }}>
+                                    {day.session.photos.after.map((url, i) => (
+                                      <Image key={i} src={url} style={{ height: 160, width: 220, objectFit: "cover", borderRadius: 8 }} />
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           )}
-                        </div>
+                        </>
                       )}
                     </div>
                   </Tab>

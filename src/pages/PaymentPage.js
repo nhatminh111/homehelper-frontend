@@ -17,6 +17,7 @@ export default function PaymentPage() {
   const [vouchers, setVouchers] = useState([]);
   const [selectedVoucher, setSelectedVoucher] = useState(null);
   const [showVoucherModal, setShowVoucherModal] = useState(false);
+  const [showPolicyModal, setShowPolicyModal] = useState(false);
 
   const API_BASE = (process.env.REACT_APP_API_URL || "http://localhost:3001/api").replace(/\/api$/, "").replace(/\/$/, "");
 
@@ -118,6 +119,12 @@ export default function PaymentPage() {
       return;
     }
 
+    // Open policy modal instead of direct pay
+    setShowPolicyModal(true);
+  };
+
+  const executePayment = async () => {
+    setShowPolicyModal(false);
     try {
       await fetch(`${API_BASE}/api/wallet/pay`, {
         method: "POST",
@@ -287,6 +294,20 @@ export default function PaymentPage() {
             box-shadow: none;
             cursor: not-allowed;
           }
+
+          /* Policy List Styling */
+          .policy-list {
+            list-style: none;
+            padding: 0;
+            margin: 20px 0;
+          }
+          .policy-list li {
+            padding: 8px 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1.05rem;
+          }
       `}</style>
 
       <Container className="py-4 payment-wrapper">
@@ -434,6 +455,45 @@ export default function PaymentPage() {
               >
                 Đóng
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* MODAL – Policy Confirmation */}
+      {showPolicyModal && (
+        <div className="cancel-overlay" onClick={() => setShowPolicyModal(false)}>
+          <div className="cancel-box" onClick={(e) => e.stopPropagation()}>
+            <div className="text-center mb-4">
+              <h4 className="fw-bold text-danger">📜 Chính sách hủy & hoàn tiền</h4>
+            </div>
+
+            <ul className="policy-list">
+              <li><span>⏱</span> <strong>Trên 24h:</strong> Hoàn 100%</li>
+              <li><span>⏰</span> <strong>12–24h:</strong> Hoàn 75%</li>
+              <li><span>⌛</span> <strong>4–12h:</strong> Hoàn 50%</li>
+              <li><span>🚫</span> <strong>Dưới 4h:</strong> Không hoàn tiền</li>
+              <li><span>🏠</span> <strong>Khách vắng mặt:</strong> Không hoàn tiền (xác minh)</li>
+            </ul>
+
+            <div className="alert alert-info py-2 small mb-4">
+              Bằng việc nhấn "Chấp nhận và Thanh toán", bạn đồng ý với các điều khoản hủy đơn nêu trên.
+            </div>
+
+            <div className="d-flex gap-2">
+              <Button
+                variant="secondary"
+                className="flex-grow-1 py-2 fw-bold"
+                onClick={() => setShowPolicyModal(false)}
+              >
+                Quay lại
+              </Button>
+              <Button
+                variant="danger"
+                className="flex-grow-1 py-2 fw-bold"
+                onClick={executePayment}
+              >
+                Chấp nhận và Thanh toán
+              </Button>
             </div>
           </div>
         </div>
