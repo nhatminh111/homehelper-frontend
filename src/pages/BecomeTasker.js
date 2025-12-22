@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { CustomToastContainer, showToast } from '../components/common/CustomToast';
 import serviceService from '../services/serviceService';
 import { formatVND } from '../utils/formatVND';
+import { checkVerifiedCCCD } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 // Use same base URL strategy as api.js
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
@@ -92,6 +95,8 @@ const compareNames = (a, b) => {
 };
 
 const BecomeTasker = () => {
+  const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
   const [introduce, setIntroduce] = useState('');
   const [services, setServices] = useState([]); // full list with variants
   const [selectedServiceId, setSelectedServiceId] = useState('');
@@ -112,6 +117,9 @@ const BecomeTasker = () => {
   const [isTaskerAccount, setIsTaskerAccount] = useState(null); // null: unknown, true/false: known
   const [currentUserId, setCurrentUserId] = useState(null);
   const [tokenUserId, setTokenUserId] = useState(null);
+  // Check CCCD verification status
+  const [checkingCCCD, setCheckingCCCD] = useState(true);
+  const [cccdVerified, setCccdVerified] = useState(false);
 
   useEffect(() => {
     // Try to get user info from localStorage (assuming auth stores user object JSON under 'user')
@@ -125,6 +133,51 @@ const BecomeTasker = () => {
       }
     } catch (e) { /* silent */ }
   }, []);
+
+  // Check CCCD verification status before allowing access
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        // Check if user is authenticated
+        if (!isAuthenticated()) {
+          setCheckingCCCD(false);
+          return;
+        }
+
+        // Get token
+        const token = getAuthToken();
+        if (!token) {
+          setCheckingCCCD(false);
+          return;
+        }
+
+        // Check CCCD verification status
+        const verifiedRes = await checkVerifiedCCCD(token);
+        const isVerified = verifiedRes?.hasVerified || verifiedRes?.data?.hasVerified || false;
+
+        if (!cancelled) {
+          setCccdVerified(isVerified);
+          setCheckingCCCD(false);
+
+          // If not verified, redirect to /cccd page
+          if (!isVerified) {
+            showToast.warning('Vui lòng xác minh CCCD trước khi đăng ký làm Tasker');
+            navigate('/cccd', { replace: true });
+          }
+        }
+      } catch (error) {
+        console.error('Error checking CCCD status:', error);
+        if (!cancelled) {
+          setCheckingCCCD(false);
+          // On error, still redirect to be safe
+          showToast.error('Không thể kiểm tra trạng thái CCCD. Vui lòng thử lại.');
+          navigate('/cccd', { replace: true });
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isAuthenticated, navigate]);
 
   // Check Tasker/app status: hide form if user is already Tasker OR has application Pending/Approved
   useEffect(() => {
@@ -663,6 +716,27 @@ const BecomeTasker = () => {
       setLoading(false);
     }
   };
+
+  // Show loading while checking CCCD
+  if (checkingCCCD) {
+    return (
+      <div className="container py-5">
+        <div className="row justify-content-center">
+          <div className="col-md-6 text-center">
+            <div className="spinner-border text-primary mb-3" role="status" style={{ width: '3rem', height: '3rem' }}>
+              <span className="visually-hidden">Loading...</span>
+            </div>
+            <p className="text-muted">Đang kiểm tra trạng thái xác minh CCCD...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // If not verified, don't show the form (will be redirected)
+  if (!cccdVerified) {
+    return null;
+  }
 
   return (
     <>
