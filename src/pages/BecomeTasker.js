@@ -172,7 +172,52 @@ const BecomeTasker = () => {
           return;
         }
 
+        // EARLY CHECK: Check from user context first (faster, no API call needed)
+        const userCccdStatus = user?.cccd_status || '';
+        console.log('[BecomeTasker] 🔍 Early check - User context cccd_status:', userCccdStatus);
+        
+        if (userCccdStatus) {
+          const earlyStatusNormalized = normalizeCCCDStatus(userCccdStatus);
+          const isEarlyVerified = earlyStatusNormalized === 'verified';
+          const isEarlyPending = earlyStatusNormalized === 'pending';
+          const isEarlyRejected = earlyStatusNormalized === 'rejected';
+          const isEarlyNotSubmitted = earlyStatusNormalized === 'notsubmitted' || !userCccdStatus;
+          
+          // Block immediately if status is NOT verified
+          if (isEarlyPending || isEarlyRejected || isEarlyNotSubmitted || !isEarlyVerified) {
+            console.log('[BecomeTasker] 🚫 EARLY BLOCK from user context:', {
+              userCccdStatus,
+              earlyStatusNormalized,
+              isEarlyPending,
+              isEarlyRejected,
+              isEarlyNotSubmitted,
+              isEarlyVerified
+            });
+            
+            if (!cancelled) {
+              setCccdVerified(false);
+              setCheckingCCCD(false);
+              
+              if (isEarlyPending) {
+                showToast.warning('CCCD của bạn đang chờ duyệt. Vui lòng đợi admin duyệt trước khi đăng ký làm Tasker.');
+              } else if (isEarlyRejected) {
+                showToast.warning('CCCD của bạn đã bị từ chối. Vui lòng xác minh lại CCCD trước khi đăng ký làm Tasker.');
+              } else {
+                showToast.warning('Vui lòng xác minh CCCD trước khi đăng ký làm Tasker');
+              }
+              
+              navigate('/cccd', { replace: true });
+            }
+            return; // Exit early, don't call API
+          }
+          
+          // If early check passes (verified), still verify with API for double-check
+          console.log('[BecomeTasker] ✅ Early check passed, verifying with API...');
+        }
+
         // Check CCCD verification status - must be Verified (approved), not just submitted
+        // FALLBACK: Also check from user context if available
+        
         let verifiedRes, statusRes;
         try {
           [verifiedRes, statusRes] = await Promise.all([
@@ -180,8 +225,42 @@ const BecomeTasker = () => {
             getCCCDStatus(token)
           ]);
         } catch (apiError) {
-          console.error('Error fetching CCCD status:', apiError);
-          // If API fails, treat as not verified
+          console.error('[BecomeTasker] Error fetching CCCD status:', apiError);
+          // If API fails, fallback to user context
+          if (userCccdStatus) {
+            const fallbackStatusNormalized = normalizeCCCDStatus(userCccdStatus);
+            const isFallbackVerified = fallbackStatusNormalized === 'verified';
+            const isFallbackPending = fallbackStatusNormalized === 'pending';
+            const isFallbackRejected = fallbackStatusNormalized === 'rejected';
+            const isFallbackNotSubmitted = fallbackStatusNormalized === 'notsubmitted' || !userCccdStatus;
+            
+            const fallbackIsVerified = !isFallbackNotSubmitted && 
+                                      !isFallbackPending && 
+                                      !isFallbackRejected && 
+                                      isFallbackVerified;
+            
+            console.log('[BecomeTasker] Using fallback check from user context:', {
+              userCccdStatus,
+              fallbackStatusNormalized,
+              fallbackIsVerified
+            });
+            
+            if (!cancelled) {
+              setCccdVerified(fallbackIsVerified);
+              setCheckingCCCD(false);
+              if (!fallbackIsVerified) {
+                if (isFallbackPending) {
+                  showToast.warning('CCCD của bạn đang chờ duyệt. Vui lòng đợi admin duyệt trước khi đăng ký làm Tasker.');
+                } else {
+                  showToast.warning('Vui lòng xác minh CCCD trước khi đăng ký làm Tasker');
+                }
+                navigate('/cccd', { replace: true });
+              }
+            }
+            return;
+          }
+          
+          // If no fallback, treat as not verified
           if (!cancelled) {
             setCccdVerified(false);
             setCheckingCCCD(false);
@@ -194,7 +273,7 @@ const BecomeTasker = () => {
         // Get status data - handle different response structures
         // Backend returns: { success: true, data: { status: '...', ... } }
         const statusData = statusRes?.data || statusRes || {};
-        const cccdStatusRaw = statusData.status || statusData.verification_status || '';
+        const cccdStatusRaw = statusData.status || statusData.verification_status || userCccdStatus || '';
         const cccdStatusNormalized = normalizeCCCDStatus(cccdStatusRaw);
         
         // Also check hasVerified flag
@@ -239,6 +318,7 @@ const BecomeTasker = () => {
         
         // Debug log to help troubleshoot - ALWAYS log
         console.log('[BecomeTasker] 🔍 CCCD Check Debug:', {
+          'userCccdStatus_from_context': userCccdStatus,
           'statusRes_full': statusRes,
           'verifiedRes_full': verifiedRes,
           'statusData': statusData,
